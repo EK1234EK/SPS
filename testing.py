@@ -1,5 +1,4 @@
 import numpy as np
-import pickle
 import matplotlib.pyplot as plt
 import src.spacecraft.sc
 from src.system_dynamics import sd_1
@@ -354,17 +353,7 @@ def CR3BP_ex_2():
 
 # ex_7_SSO()
 if __name__ == "__main__":
-    # integrator_comparison()
-    # ex_7()
-    # Voyager_2()
-    # ex_9()
-    # set_intersection_counterexample()
-    # dynamics_example_2d()
-    # boundary_feasibility_base()
-    # ex_3_integrator_comparison()
-    # all_plots()
-    # task_4_6()
-    # orbiting_planet()
+
     CR3BP()
     # CR3BP_ex_2()
     # SSO()
