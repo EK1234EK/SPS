@@ -1,0 +1,8 @@
+def get_globals():
+
+    G = 9.81
+    MY = 1.3271011*10**20
+    KS_TOLERANCE = 0.0000001
+    GRAV_CONST = 6.67430*10**(-11)
+    EARTH_RADIUS = 6378000
+    return G, MY, KS_TOLERANCE, GRAV_CONST, EARTH_RADIUS
