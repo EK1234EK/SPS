@@ -23,7 +23,7 @@ class particle_swarm:
         self.list_of_center_time_ivs = []
 
         self.integration_points = []
-        self.direct_transformation = True
+        self.direct_transformation = ("Kepler", "C3", "State_magnitude")
 
         self.body_trajectories__safe = dict()
 
