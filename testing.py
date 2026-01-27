@@ -6,6 +6,7 @@ from src.analysis import plotting_functions
 from src.spacecraft import swarm_1
 from src.astrodynamic_functions import kepler_dynamics
 from src.feasibility import valid_set
+from src.guidance import steering_laws
 import math
 
 
@@ -337,7 +338,7 @@ def CR3BP_ex_2():
     input("Start plotting?")
     plots = plotting_functions.graph_output(list_of_spacecraft=[], list_of_resampled_spacecraft=[],
                                             list_of_special_spacecraft=list_of_spacecraft,
-                                            force_model=force_model_1, animated=False, axis_visibility=False, fps=None)
+                                            force_model=force_model_1, animated=True, axis_visibility=False, fps=None)
 
     plots.state_space_slice(index=0, slices=[["x", "vy"]])
     plots.state_space_slice(index=999, slices=[["vx", "vy"], ["x", "y"]])
@@ -346,14 +347,68 @@ def CR3BP_ex_2():
     # plots.C3_plot()
     plots.body_distances_plot(["body_1", "body_2"])
     plots.trajectory_xyz()
-    # plots.moving_map_plot(match_tail_color=True, plot_central_attractor=False)
+    plots.moving_map_plot(match_tail_color=True, plot_central_attractor=False)
     plt.show()
     plt.waitforbuttonpress(10000000000)
 
 
+def steering_testing():
+    t_init = 0
+    t_final = 1000000000
+    steps = 10000
+
+    sim_time = list(np.linspace(t_init, t_final, steps))
+
+    cent_mass = 1.98892e30
+
+    force_model_1 = sd_1.inertial_force_model("./data/empty_dataset.xlsx")
+    force_model_1.define_central_attractor(mass=cent_mass, position=[0, 0, 0])
+
+    steering_law = steering_laws.LocalOptimal()
+    steering_law.target = "ECC"
+    steering_law.conversion_mass = cent_mass
+
+    force_model_1.steering_law = steering_law
+
+    manifolds = [[147000000000, 152000000000, 1],
+                 [0, 5000000000, 1],
+                 [0, 0, 1],
+                 [0, 0, 1],
+                 [35955.075142841008, 35955.075142841008, 1],
+                 [0, 0, 1],
+                 [0, 0, 1]]
+
+    sw_1 = swarm_1.particle_swarm(manifolds, force_model_1)
+    sw_1.integration_points = sim_time
+    sw_1.square_swarm('generic')
+    sw_1.integrate_swarm(rtol=1e-3, parproc=True, cores=5)
+    list_of_spacecraft = sw_1.list_of_spacecraft
+    list_of_spacecraft[0].plot_color = [0.4, 0.5, 1]
+
+    plt.figure()
+    plt.plot(list(np.linspace(t_init, t_final, len(force_model_1.steering_law.acc_x))), force_model_1.steering_law.acc_x, color=[1, 0.2, 1], label="x")
+    plt.plot(list(np.linspace(t_init, t_final, len(force_model_1.steering_law.acc_y))), force_model_1.steering_law.acc_y, color=[0.3, 1, 0.4], label="y")
+    plt.plot(list(np.linspace(t_init, t_final, len(force_model_1.steering_law.acc_y))), force_model_1.steering_law.acc_y, color=[0.3, 0.3, 1], label="z")
+    plt.legend()
+    plt.show()
+
+
+    input("Start plotting?")
+    plots = plotting_functions.graph_output(list_of_spacecraft=[], list_of_resampled_spacecraft=[],
+                                            list_of_special_spacecraft=list_of_spacecraft,
+                                            force_model=force_model_1, animated=False, axis_visibility=False, fps=None)
+
+    plots.parameters_plot()
+    plots.C3_plot()
+    plots.trajectory_xyz()
+    plots.moving_map_plot(match_tail_color=True, plot_central_attractor=True)
+    plt.show()
+    plt.waitforbuttonpress(10000000000)
+
 # ex_7_SSO()
 if __name__ == "__main__":
 
-    CR3BP()
+    # CR3BP()
     # CR3BP_ex_2()
     # SSO()
+    steering_testing()

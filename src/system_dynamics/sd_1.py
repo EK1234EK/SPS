@@ -2,8 +2,6 @@ import math
 
 import numpy as np
 import pandas as pd
-# from jaraco.functools import retry
-
 from src.astrodynamic_functions import kepler_dynamics as kds
 from src.astrodynamic_functions.kepler_dynamics import GRAV_CONST
 
@@ -31,6 +29,9 @@ class inertial_force_model:
         # Central attractor
         self.central_mass = 0
         self.central_attractor_pos = [0, 0, 0]
+
+        self.steering_law = None
+        self.is_CR3BP = False
 
     def get_dataset(self):
         orbital_dataset = pd.read_excel(self.path_to_data)
@@ -104,6 +105,12 @@ class inertial_force_model:
                                                                  )
 
         acc_vector = [acc_vector[0] + x_acc, acc_vector[1] + y_acc, acc_vector[2] + z_acc]
+
+        if self.steering_law:
+            #  Adding the acceleration vector from the steering law
+            command = self.steering_law.maximize_oe_change(state=[x, y, z, velocity[0], velocity[1], velocity[2]])
+            acc_vector = [acc_vector[0] + command[0], acc_vector[1] + command[1], acc_vector[2] + command[2]]
+
         return [acc_vector[0], acc_vector[1], acc_vector[2]]
 
     def get_plotting_track(self):
