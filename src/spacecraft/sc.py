@@ -37,6 +37,11 @@ class Spacecraft:
 
         self.condition_value = [0]
 
+        # Steering track
+        self.steer_x = []
+        self.steer_y = []
+        self.steer_z = []
+
     def get_acc(self, state_vector, system_time):
         position = state_vector[0:3]
         velocity = state_vector[3:6]
@@ -89,6 +94,11 @@ class Spacecraft:
 
         # self.integration_points = time_vector
 
+        # Reset the steering acceleration from the force model
+        self.force_model.steer_acc_x = []
+        self.force_model.steer_acc_y = []
+        self.force_model.steer_acc_z = []
+
         def get_acc_wrapper(t, state_vector):
             return self.get_acc(state_vector, t)
 
@@ -118,6 +128,15 @@ class Spacecraft:
             for state in range(6):
                 sol[state] = interp(self.integration_points, eval_points, sol[state], left=None, right=None).tolist()
                 self.trajectory_track[state] += sol[state]
+
+        # Save the steering acceleration
+        """self.steer_x = interp(self.integration_points, eval_points, self.force_model.steer_acc_x, left=None, right=None).tolist()
+        self.steer_y = interp(self.integration_points, eval_points, self.force_model.steer_acc_y, left=None, right=None).tolist()
+        self.steer_z = interp(self.integration_points, eval_points, self.force_model.steer_acc_z, left=None, right=None).tolist()"""
+
+        self.steer_x = self.force_model.steer_acc_x
+        self.steer_y = self.force_model.steer_acc_y
+        self.steer_z = self.force_model.steer_acc_z
 
         print(self.display_name + ": Integrating " + str(round(terminal_time - init_time, 3)) + " s after " + str(
             steps) + " evaluations")

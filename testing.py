@@ -354,41 +354,41 @@ def CR3BP_ex_2():
 
 def steering_testing():
     t_init = 0
-    t_final = 1000000000
+    t_final = 4000000
     steps = 10000
 
     sim_time = list(np.linspace(t_init, t_final, steps))
 
-    cent_mass = 1.98892e30
+    cent_mass = 5.972e24
 
-    force_model_1 = sd_1.inertial_force_model("./data/empty_dataset.xlsx")
+    force_model_1 = sd_1.inertial_force_model("./data/Moon.xlsx")
     force_model_1.define_central_attractor(mass=cent_mass, position=[0, 0, 0])
 
     steering_law = steering_laws.LocalOptimal()
-    steering_law.target = "ECC"
+    steering_law.target = "SMA"
     steering_law.conversion_mass = cent_mass
 
     force_model_1.steering_law = steering_law
 
-    manifolds = [[147000000000, 152000000000, 1],
-                 [0, 5000000000, 1],
+    manifolds = [[10000000, 10000000, 1],
                  [0, 0, 1],
                  [0, 0, 1],
-                 [35955.075142841008, 35955.075142841008, 1],
+                 [0, 0, 1],
+                 [7500, 7500, 1],
                  [0, 0, 1],
                  [0, 0, 1]]
 
     sw_1 = swarm_1.particle_swarm(manifolds, force_model_1)
     sw_1.integration_points = sim_time
     sw_1.square_swarm('generic')
-    sw_1.integrate_swarm(rtol=1e-3, parproc=True, cores=5)
+    sw_1.integrate_swarm(rtol=1e-3, parproc=False, cores=5)
     list_of_spacecraft = sw_1.list_of_spacecraft
     list_of_spacecraft[0].plot_color = [0.4, 0.5, 1]
 
     plt.figure()
-    plt.plot(list(np.linspace(t_init, t_final, len(force_model_1.steering_law.acc_x))), force_model_1.steering_law.acc_x, color=[1, 0.2, 1], label="x")
-    plt.plot(list(np.linspace(t_init, t_final, len(force_model_1.steering_law.acc_y))), force_model_1.steering_law.acc_y, color=[0.3, 1, 0.4], label="y")
-    plt.plot(list(np.linspace(t_init, t_final, len(force_model_1.steering_law.acc_y))), force_model_1.steering_law.acc_y, color=[0.3, 0.3, 1], label="z")
+    plt.plot(list(np.linspace(t_init, t_final, len(list_of_spacecraft[0].steer_x))), list_of_spacecraft[0].steer_x, color=[1, 0.2, 1], label="x")
+    plt.plot(list(np.linspace(t_init, t_final, len(list_of_spacecraft[0].steer_y))), list_of_spacecraft[0].steer_y, color=[0.3, 1, 0.4], label="y")
+    plt.plot(list(np.linspace(t_init, t_final, len(list_of_spacecraft[0].steer_z))), list_of_spacecraft[0].steer_z, color=[0.3, 0.3, 1], label="z")
     plt.legend()
     plt.show()
 
@@ -396,7 +396,7 @@ def steering_testing():
     input("Start plotting?")
     plots = plotting_functions.graph_output(list_of_spacecraft=[], list_of_resampled_spacecraft=[],
                                             list_of_special_spacecraft=list_of_spacecraft,
-                                            force_model=force_model_1, animated=False, axis_visibility=False, fps=None)
+                                            force_model=force_model_1, animated=False, axis_visibility=True, fps=None)
 
     plots.parameters_plot()
     plots.C3_plot()

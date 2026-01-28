@@ -8,10 +8,6 @@ class LocalOptimal:
         self.target = ""
         self.conversion_mass = -1
 
-        self.acc_x = []
-        self.acc_y = []
-        self.acc_z = []
-
     def maximize_oe_change(self, state):
         pass
         """Targets the current acceleration vector in such a way that the change in a certain
@@ -21,7 +17,7 @@ class LocalOptimal:
         to the change in the velocity vector """
 
         dv = 10  # Incement, by which to estimate the derivativs in the Jacobian
-        acc_mag = 0.00001
+        acc_mag = 0.001
 
         # The Jacobian has six lines with three columns, corresponding to six orbital parameters
         # and the three velocity state
@@ -59,10 +55,6 @@ class LocalOptimal:
                 return [0, 0, 0]
             direction = direction / mag
             direction = list(direction * acc_mag)
-
-            self.acc_x.append(direction[0])
-            self.acc_y.append(direction[1])
-            self.acc_z.append(direction[2])
 
             return direction
 

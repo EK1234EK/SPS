@@ -55,7 +55,7 @@ class graph_output:
         self.bodies_plot_trajectories = self.force_model.get_plotting_track()
         pass
 
-    def moving_map_plot(self, plot_central_attractor=True, match_tail_color=False):
+    def moving_map_plot(self, plot_central_attractor=True, match_tail_color=False, plot_potential=False):
         fig = plt.figure(self.figure_counter + 1, figsize=(16, 9))
         self.figure_counter += 1
         ax = fig.add_subplot(111, projection='3d')
@@ -185,11 +185,14 @@ class graph_output:
                     ax_upper[k] = 1
                     ax_lower[k] = -1
                 else:
-                    ax_upper[k] = max_ax[k] * (max_diff / (max_ax[k] - min_ax[k]))
+                    """ax_upper[k] = max_ax[k] * (max_diff / (max_ax[k] - min_ax[k]))
                     ax_lower[k] = min_ax[k] * (max_diff / (max_ax[k] - min_ax[k]))
 
                     ax_upper[k] += 0.2 * abs(ax_upper[k])
-                    ax_lower[k] -= 0.2 * abs(ax_lower[k])
+                    ax_lower[k] -= 0.2 * abs(ax_lower[k])"""
+                    overhead = max_diff - (max_ax[k] - min_ax[k])
+                    ax_upper[k] = max_ax[k] + overhead * 0.6
+                    ax_lower[k] = min_ax[k] - overhead * 0.6
 
             # Plot the body trajectories
             for body in self.bodies_plot_trajectories.keys():
@@ -204,6 +207,11 @@ class graph_output:
                            [self.force_model.central_attractor_pos[1]],
                            [self.force_model.central_attractor_pos[2]],
                            color=[1, 0.7, 0.7], s=50)
+
+            """# Plot the CR3BP pseudo-potential, if corresponding force model
+            if self.force_model.is_CR3BP and plot_potential:
+                xv, yv, potential_map = self.force_model.get_potential_field(resolution=1000, lim_x=[ax_lower[0], ax_upper[0]], lim_y=[ax_lower[1], ax_upper[1]])
+                ax.contour(xv, yv, potential_map, 500, lw=1, cmap="autumn_r", extend3d=False, offset=0)"""
 
             ax.set_xlim(ax_lower[0], ax_upper[0])
             ax.set_ylim(ax_lower[1], ax_upper[1])

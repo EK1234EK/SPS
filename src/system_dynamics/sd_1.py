@@ -1,3 +1,4 @@
+import copy
 import math
 
 import numpy as np
@@ -32,6 +33,12 @@ class inertial_force_model:
 
         self.steering_law = None
         self.is_CR3BP = False
+
+        # Steering
+
+        self.steer_acc_x = []
+        self.steer_acc_y = []
+        self.steer_acc_z = []
 
     def get_dataset(self):
         orbital_dataset = pd.read_excel(self.path_to_data)
@@ -110,6 +117,10 @@ class inertial_force_model:
             #  Adding the acceleration vector from the steering law
             command = self.steering_law.maximize_oe_change(state=[x, y, z, velocity[0], velocity[1], velocity[2]])
             acc_vector = [acc_vector[0] + command[0], acc_vector[1] + command[1], acc_vector[2] + command[2]]
+
+            self.steer_acc_x.append(command[0])
+            self.steer_acc_y.append(command[1])
+            self.steer_acc_z.append(command[2])
 
         return [acc_vector[0], acc_vector[1], acc_vector[2]]
 
@@ -248,3 +259,21 @@ class CR3BP:
         self.lagrange_points["L4"] = [0.5 - self.mass_parameter, 0.5 * 3**0.5, 0]
         self.lagrange_points["L5"] = [0.5 - self.mass_parameter, -0.5 * 3**0.5, 0]
         pass
+
+    def get_potential_field(self, resolution, lim_x, lim_y):
+        x_arr = list(np.linspace(lim_x[0], lim_x[1], resolution))
+        y_arr = list(np.linspace(lim_y[0], lim_y[1], resolution))
+        xv, yv = np.meshgrid(np.linspace(lim_x[0], lim_x[1], resolution), np.linspace(lim_y[0], lim_y[1], resolution), indexing='ij')
+
+        potential_map, _ = np.meshgrid(np.linspace(lim_x[0], lim_x[1], resolution), np.linspace(lim_y[0], lim_y[1], resolution), indexing='ij')
+        for i in range(resolution):
+            for j in range(resolution):
+                potential_map[i][j] = self.pseudo_potential(x_arr[i], y_arr[j])
+        return list(xv), list(yv), list(potential_map)
+
+    def pseudo_potential(self, x, y):
+        r_1 = ((x + self.mass_parameter)**2 + y**2)**0.5
+        r_2 =((x - 1 + self.mass_parameter)**2 + y**2)**0.5
+
+        V = - ((1 - self.mass_parameter) / r_1) - self.mass_parameter / r_2 - 0.5 * self.mass_parameter * (1 - self.mass_parameter) - 0.5 * (x ** 2 + y ** 2)
+        return V
