@@ -16,7 +16,7 @@ class LocalOptimal:
         """To start off, we obtain the Jacobian of the orbital parameters with respect
         to the change in the velocity vector """
 
-        dv = 10  # Incement, by which to estimate the derivativs in the Jacobian
+        dv = 0.1  # Incement, by which to estimate the derivativs in the Jacobian
         acc_mag = 0.001
 
         # The Jacobian has six lines with three columns, corresponding to six orbital parameters
