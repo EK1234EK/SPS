@@ -702,6 +702,7 @@ class graph_output:
 
         for axis in axes:
             axis.set_xlabel("Time [s]")
+            axis.set_facecolor(color_data["background"])
 
         ax_1.set_ylabel("SMA [m]")
         ax_2.set_ylabel("ECC [-]")

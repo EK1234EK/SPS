@@ -135,7 +135,7 @@ def orbiting_planet():
     # Reference JD: 2453755.500000000 = A.D. 2006-Jan-20 00:00:00.0000
     t_init = 0
     t_final = 600 * 24 * 3600
-    steps = 10000
+    steps = 1000
 
     sim_time = list(np.linspace(t_init, t_final, steps))
 
@@ -167,7 +167,7 @@ def orbiting_planet():
     input("Start plotting?")
     plots = plotting_functions.graph_output(list_of_spacecraft=[], list_of_resampled_spacecraft=[],
                                             list_of_special_spacecraft=list_of_spacecraft,
-                                            force_model=force_model_1, animated=False, axis_visibility=True, fps=None)
+                                            force_model=force_model_1, animated=True, axis_visibility=True, fps=None)
 
     # wx = output.generate_excel_output(spacecraft=list_of_spacecraft[0], inertial_force_model=force_model_1)
     # wx.write_body_trajectories()
@@ -354,44 +354,39 @@ def CR3BP_ex_2():
 
 def steering_testing():
     t_init = 0
-    t_final = 4000000
+    t_final = 7000000
     steps = 10000
 
     sim_time = list(np.linspace(t_init, t_final, steps))
 
-    cent_mass = 5.972e24
+    cent_mass = 5.972*10**24
 
     force_model_1 = sd_1.inertial_force_model("./data/Moon.xlsx")
     force_model_1.define_central_attractor(mass=cent_mass, position=[0, 0, 0])
 
     steering_law = steering_laws.LocalOptimal()
-    steering_law.target = "SMA"
+    steering_law.oe_direction = [1, 0, 1, 0, 0, 0]
+    steering_law.target_oe = {"SMA": 254748000, "ECC": 0.054, "INC": 0.1165, "RAAN": 1.0}
+    # steering_law.target = "SMA"
     steering_law.conversion_mass = cent_mass
 
     force_model_1.steering_law = steering_law
 
     manifolds = [[10000000, 10000000, 1],
-                 [0, 0, 1],
-                 [0, 0, 1],
+                 [1000000, 1000000, 1],
+                 [1000000, 1000000, 1],
                  [0, 0, 1],
                  [7500, 7500, 1],
-                 [0, 0, 1],
+                 [1000, 1000, 1],
                  [0, 0, 1]]
 
     sw_1 = swarm_1.particle_swarm(manifolds, force_model_1)
     sw_1.integration_points = sim_time
     sw_1.square_swarm('generic')
     sw_1.integrate_swarm(rtol=1e-3, parproc=False, cores=5)
+    sw_1.get_swarm_body_distances(["Moon"])
     list_of_spacecraft = sw_1.list_of_spacecraft
     list_of_spacecraft[0].plot_color = [0.4, 0.5, 1]
-
-    plt.figure()
-    plt.plot(list(np.linspace(t_init, t_final, len(list_of_spacecraft[0].steer_x))), list_of_spacecraft[0].steer_x, color=[1, 0.2, 1], label="x")
-    plt.plot(list(np.linspace(t_init, t_final, len(list_of_spacecraft[0].steer_y))), list_of_spacecraft[0].steer_y, color=[0.3, 1, 0.4], label="y")
-    plt.plot(list(np.linspace(t_init, t_final, len(list_of_spacecraft[0].steer_z))), list_of_spacecraft[0].steer_z, color=[0.3, 0.3, 1], label="z")
-    plt.legend()
-    plt.show()
-
 
     input("Start plotting?")
     plots = plotting_functions.graph_output(list_of_spacecraft=[], list_of_resampled_spacecraft=[],
@@ -401,6 +396,7 @@ def steering_testing():
     plots.parameters_plot()
     plots.C3_plot()
     plots.trajectory_xyz()
+    plots.body_distances_plot(["Moon"])
     plots.moving_map_plot(match_tail_color=True, plot_central_attractor=True)
     plt.show()
     plt.waitforbuttonpress(10000000000)
@@ -412,3 +408,4 @@ if __name__ == "__main__":
     # CR3BP_ex_2()
     # SSO()
     steering_testing()
+    # orbiting_planet()

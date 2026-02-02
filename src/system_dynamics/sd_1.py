@@ -4,7 +4,7 @@ import math
 import numpy as np
 import pandas as pd
 from src.astrodynamic_functions import kepler_dynamics as kds
-from src.astrodynamic_functions.kepler_dynamics import GRAV_CONST
+from src.astrodynamic_functions.kepler_dynamics import GRAV_CONST, MY
 
 """A force model that accepts a set of orbital parameters """
 
@@ -44,13 +44,13 @@ class inertial_force_model:
         orbital_dataset = pd.read_excel(self.path_to_data)
 
         self.names = orbital_dataset["Name"]
-        self.masses = orbital_dataset["Mass"]
-        self.SMAs = orbital_dataset["SMA"]
-        self.ECCs = orbital_dataset["ECC"]
-        self.INCs = orbital_dataset["INC"]
-        self.RAANs = orbital_dataset["RAAN"]
-        self.APERIs = orbital_dataset["APERI"]
-        self.TAEPOs = orbital_dataset["TAEPO"]
+        self.masses = [float(i) for i in orbital_dataset["Mass"]]
+        self.SMAs = [float(i) for i in orbital_dataset["SMA"]]
+        self.ECCs = [float(i) for i in orbital_dataset["ECC"]]
+        self.INCs = [float(i) for i in orbital_dataset["INC"]]
+        self.RAANs = [float(i) for i in orbital_dataset["RAAN"]]
+        self.APERIs = [float(i) for i in orbital_dataset["APERI"]]
+        self.TAEPOs = [float(i) for i in orbital_dataset["TAEPO"]]
 
     def define_central_attractor(self, mass, position: list):
         self.central_mass = mass
@@ -70,6 +70,14 @@ class inertial_force_model:
                 x_lst.append(float(x))
                 y_lst.append(float(y))
                 z_lst.append(float(z))
+
+            """if len(times) == 10000:
+                import matplotlib.pyplot as plt
+                plt.figure()
+                plt.plot(list(np.linspace(0, len(x_lst), len(x_lst))), x_lst)
+                plt.plot(list(np.linspace(0, len(y_lst), len(y_lst))), y_lst)
+                plt.plot(list(np.linspace(0, len(z_lst), len(z_lst))), z_lst)
+                plt.show()"""
 
             body_dataset = [x_lst, y_lst, z_lst]
             states[self.names[k]] = body_dataset
@@ -115,7 +123,7 @@ class inertial_force_model:
 
         if self.steering_law:
             #  Adding the acceleration vector from the steering law
-            command = self.steering_law.maximize_oe_change(state=[x, y, z, velocity[0], velocity[1], velocity[2]])
+            command = self.steering_law.guidance(state=[x, y, z, velocity[0], velocity[1], velocity[2]], time=system_time, force_model=self)
             acc_vector = [acc_vector[0] + command[0], acc_vector[1] + command[1], acc_vector[2] + command[2]]
 
             self.steer_acc_x.append(command[0])
@@ -133,8 +141,11 @@ class inertial_force_model:
             z_lst = []
 
             # Get the times based on the true anomaly
-            terminal_time = 2 * math.pi * (self.SMAs[k] ** 3 / (GRAV_CONST * self.central_mass)) ** 0.5
-            times = np.linspace(0, terminal_time, 200).tolist()
+            SMA = self.SMAs[k]
+            # terminal_time = 2 * math.pi * ((SMA ** 3) / (GRAV_CONST * self.central_mass)) ** 0.5
+            # terminal_time = 2 * math.pi * ((SMA ** 3) / MY) ** 0.5
+            terminal_time = 2*math.pi * ((SMA ** 1.5) / (MY ** 0.5))
+            times = list(np.linspace(0, terminal_time, 200))
 
             for time in times:
                 x, y, z = kds.oe_to_sv(self.SMAs[k], self.ECCs[k], self.INCs[k], self.RAANs[k], self.APERIs[k],
@@ -142,6 +153,13 @@ class inertial_force_model:
                 x_lst.append(float(x))
                 y_lst.append(float(y))
                 z_lst.append(float(z))
+
+            """import matplotlib.pyplot as plt
+            plt.figure()
+            plt.plot(list(np.linspace(0, len(x_lst), len(x_lst))), x_lst)
+            plt.plot(list(np.linspace(0, len(y_lst), len(y_lst))), y_lst)
+            plt.plot(list(np.linspace(0, len(z_lst), len(z_lst))), z_lst)
+            plt.show()"""
 
             body_dataset = [x_lst, y_lst, z_lst]
             states[self.names[k]] = body_dataset
