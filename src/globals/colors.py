@@ -20,7 +20,7 @@ def get_color_data():
     colors["lagrange_marker_color"] = [0.5, 1, 0.5]
 
     size = dict()
-    size["sc"] = 5
+    size["sc"] = 10
     size["dia_linewidth"] = 0.5
     size["plot_alpha"] = 1
     size["lagrange_marker_size"] = 10

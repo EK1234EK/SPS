@@ -15,7 +15,7 @@ mpl.rcParams['axes3d.mouserotationstyle'] = 'azel'
 
 class graph_output:
     def __init__(self, list_of_spacecraft, list_of_resampled_spacecraft, list_of_special_spacecraft, force_model,
-                 animated=True, frame_delay=1, axis_visibility=True, fps=None):
+                 animated=True, frame_delay=1, axis_visibility=True, fps=None, init_azim=0, init_elevation=90):
         self.list_of_spacecraft = list_of_spacecraft
         self.list_of_resampled_spacecraft = list_of_resampled_spacecraft
         self.lst_spec_sc = list_of_special_spacecraft
@@ -39,7 +39,8 @@ class graph_output:
 
         self.get_reference_data()
 
-        plt.style.use(matplotx.styles.aura["dark-soft"])
+        # plt.style.use(matplotx.styles.aura["dark-soft"]) dark_background
+        plt.style.use('dark_background')
         plt.rc('axes', edgecolor=(1, 1, 1))
 
     def get_reference_data(self):
@@ -55,13 +56,15 @@ class graph_output:
         self.bodies_plot_trajectories = self.force_model.get_plotting_track()
         pass
 
-    def moving_map_plot(self, plot_central_attractor=True, match_tail_color=False, plot_potential=False):
+    def moving_map_plot(self, plot_central_attractor=True, match_tail_color=False, plot_potential=False, plot_planet_endpoint=True, init_azim=0, init_elevation=90, k_modulo=None):
         fig = plt.figure(self.figure_counter + 1, figsize=(16, 9))
         self.figure_counter += 1
         ax = fig.add_subplot(111, projection='3d')
         ax.set_position([0.0, 0.0, 1.0, 0.95])
 
-        ax.view_init(elev=90, azim=0, roll=0)
+        fig.patch.set_facecolor(color_data["background"])
+
+        ax.view_init(elev=init_elevation, azim=init_azim, roll=0)
         ax.set_xlabel("X [m]")
         ax.set_ylabel("Y [m]")
         ax.set_zlabel("Z [m]")
@@ -243,8 +246,10 @@ class graph_output:
         ####################
         # Begin of animate(k)
         def animate(k_in):
-            k = math.floor(
-                k_in * self.frame_multiplier)  # Account for the case of no animation - just show the final state
+            k = math.floor(k_in * self.frame_multiplier)  # Account for the case of no animation - just show the final state
+
+            """if k_modulo:
+                k = math.floor(k * k_modulo)"""
 
             list_of_dict, list_of_color, list_of_alpha = plots_additional.spacecraft_slice_group(
                 self.list_of_spacecraft, index=k)
@@ -276,13 +281,14 @@ class graph_output:
 
             # Plotting the body endpoints
             body_artists_iter = artists[0][1]
-            for idx, body in enumerate(self.bodies_traj.keys()):
-                b1_x1 = self.bodies_traj[body][0][k]
-                b1_x2 = self.bodies_traj[body][1][k]
-                b1_x3 = self.bodies_traj[body][2][k]
-                # artists_list[idx + 2]._offsets3d = ([b1_x1], [b1_x2], [b1_x3])
-                body_artists_iter[idx]._offsets3d = ([b1_x1], [b1_x2], [b1_x3])
-                # print(([b1_x1], [b1_x2], [b1_x3]))
+            if plot_planet_endpoint:
+                for idx, body in enumerate(self.bodies_traj.keys()):
+                    b1_x1 = self.bodies_traj[body][0][k]
+                    b1_x2 = self.bodies_traj[body][1][k]
+                    b1_x3 = self.bodies_traj[body][2][k]
+                    # artists_list[idx + 2]._offsets3d = ([b1_x1], [b1_x2], [b1_x3])
+                    body_artists_iter[idx]._offsets3d = ([b1_x1], [b1_x2], [b1_x3])
+                    # print(([b1_x1], [b1_x2], [b1_x3]))
 
             if self.integration_points[k] < 86000 / 2:
                 ax.set_title('Elapsed time: ' + str(round(self.integration_points[k], 2)) + ' / ' + str(
@@ -302,7 +308,10 @@ class graph_output:
         if not self.animated:
             frames = 2
             self.frame_multiplier = (len(self.integration_points) - 1)
-            pass
+
+        """else:
+            if k_modulo:
+                frames = math.floor(frames / k_modulo)"""
 
         anim = FuncAnimation(fig, animate, frames=frames, interval=self.frame_delay, repeat=False, init_func=init(),
                              blit=False)
