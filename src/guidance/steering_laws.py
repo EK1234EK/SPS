@@ -129,7 +129,7 @@ class LocalOptimal:
         oe_name_list = ["SMA", "ECC", "INC", "RAAN", "APERI", "TAEPO"]
 
         dv = 0.1  # Incement, by which to estimate the derivativs in the Jacobian
-        acc_mag = 0.001
+        acc_mag = 0.0005
 
         # The Jacobian has six lines with three columns, corresponding to six orbital parameters
         # and the three velocity state
@@ -181,13 +181,13 @@ class LocalOptimal:
         return direction
 
     def guidance(self, state, time, force_model):
-        if time < 20000000:
-            self.target_oe = {"SMA": 200000000, "ECC": 0.1, "INC": 0.1, "RAAN": 1.0}
-        elif 20000000 < time < 30000000:
-            self.target_oe = {"SMA": 400000000, "ECC": 0.5, "INC": 0.6, "RAAN": 2.0}
-        elif 30000000 < time < 37000000:
-            self.target_oe = {"SMA": 300000000, "ECC": 0.1, "INC": 1.4, "RAAN": 4.0}
-        elif 37000000 < time < 500000000:
-            self.target_oe = {"SMA": 300000000, "ECC": 0.05, "INC": 0.2, "RAAN": 4.0}
+        if time < 15000000:
+            self.target_oe = {"SMA": 200000000, "ECC": 0.1, "INC": 0.1, "RAAN": 1.0, "APERI": 1}
+        elif 15000000 < time < 30000000:
+            self.target_oe = {"SMA": 400000000, "ECC": 0.5, "INC": 0.6, "RAAN": 2.0, "APERI": 1}
+        elif 30000000 < time < 40000000:
+            self.target_oe = {"SMA": 300000000, "ECC": 0.1, "INC": 1.1, "RAAN": 4.0, "APERI": 1}
+        elif 40000000 < time < 500000000:
+            self.target_oe = {"SMA": 400000000, "ECC": 0.05, "INC": 0.2, "RAAN": 4.0, "APERI": 1}
         direction = self.target_orbit(state=state)
         return direction

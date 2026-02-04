@@ -56,7 +56,7 @@ class graph_output:
         self.bodies_plot_trajectories = self.force_model.get_plotting_track()
         pass
 
-    def moving_map_plot(self, plot_central_attractor=True, match_tail_color=False, plot_potential=False, plot_planet_endpoint=True, init_azim=0, init_elevation=90, k_modulo=None):
+    def moving_map_plot(self, plot_central_attractor=True, match_tail_color=False, plot_potential=False, plot_planet_endpoint=True, init_azim=0, init_elevation=90, azim_rate=0, elevation_rate=0, k_modulo=None):
         fig = plt.figure(self.figure_counter + 1, figsize=(16, 9))
         self.figure_counter += 1
         ax = fig.add_subplot(111, projection='3d')
@@ -248,8 +248,8 @@ class graph_output:
         def animate(k_in):
             k = math.floor(k_in * self.frame_multiplier)  # Account for the case of no animation - just show the final state
 
-            """if k_modulo:
-                k = math.floor(k * k_modulo)"""
+            if k_modulo and self.animated:
+                k = math.floor(k * k_modulo)
 
             list_of_dict, list_of_color, list_of_alpha = plots_additional.spacecraft_slice_group(
                 self.list_of_spacecraft, index=k)
@@ -297,6 +297,9 @@ class graph_output:
                 ax.set_title('Elapsed time: ' + str(round(self.integration_points[k] / (24 * 3600), 2)) + ' / ' + str(
                     round(self.integration_points[-1] / (24 * 3600), 2)) + ' d')
 
+            #Rotate
+            ax.view_init(azim=init_azim+k*azim_rate, elev=init_elevation+k*elevation_rate)
+
             return artists
 
         # End of animate(k)
@@ -309,9 +312,9 @@ class graph_output:
             frames = 2
             self.frame_multiplier = (len(self.integration_points) - 1)
 
-        """else:
+        else:
             if k_modulo:
-                frames = math.floor(frames / k_modulo)"""
+                frames = math.floor(frames / k_modulo)
 
         anim = FuncAnimation(fig, animate, frames=frames, interval=self.frame_delay, repeat=False, init_func=init(),
                              blit=False)
@@ -1038,3 +1041,107 @@ class graph_output:
             ax_1.set_ylabel("Sensitivity")
             ax_1.set_xlabel("Time [s]")
             ax_1.set_facecolor(color_data["background"])
+
+    def plot_steering(self):
+        fig = plt.figure(self.figure_counter + 1, figsize=(7.5, 2.5 * 1.5))
+        fig.set_facecolor(color_data["background"])
+        self.figure_counter += 1
+
+        ax_1 = fig.add_subplot(311)
+        ax_1.set_title("Control inertial x")
+
+        ax_2 = fig.add_subplot(312)
+        ax_2.set_title("Control inertial y")
+
+        ax_3 = fig.add_subplot(313)
+        ax_3.set_title("Control inertial z")
+
+        n_samp = len(self.lst_spec_sc)
+        cmap = plt.colormaps[color_data["map"]]
+        colors = cmap(np.linspace(0, 1, n_samp))
+
+        for sci, sc_special in enumerate(self.lst_spec_sc):
+            if isinstance(sc_special.plot_color, str):
+                ax_1.scatter(self.integration_points,
+                                   sc_special.steer_x,
+                                   color=colors[sci],
+                                   s=1,
+                                   label=sc_special.display_name)
+                ax_1.plot(self.integration_points,
+                                sc_special.steer_x,
+                                color=colors[sci],
+                                linewidth=size_data["dia_linewidth"],
+                                alpha=size_data["plot_alpha"])
+
+                ax_2.scatter(self.integration_points,
+                             sc_special.steer_y,
+                             color=colors[sci],
+                             s=1,
+                             label=sc_special.display_name)
+                ax_2.plot(self.integration_points,
+                          sc_special.steer_y,
+                          color=colors[sci],
+                          linewidth=size_data["dia_linewidth"],
+                          alpha=size_data["plot_alpha"])
+
+                ax_3.scatter(self.integration_points,
+                             sc_special.steer_z,
+                             color=colors[sci],
+                             s=1,
+                             label=sc_special.display_name)
+                ax_3.plot(self.integration_points,
+                          sc_special.steer_z,
+                          color=colors[sci],
+                          linewidth=size_data["dia_linewidth"],
+                          alpha=size_data["plot_alpha"])
+            else:
+                ax_1.scatter(self.integration_points,
+                             sc_special.steer_x,
+                             color=sc_special.plot_color,
+                             s=1,
+                             label=sc_special.display_name)
+                ax_1.plot(self.integration_points,
+                          sc_special.steer_x,
+                          color=sc_special.plot_color,
+                          linewidth=size_data["dia_linewidth"],
+                          alpha=size_data["plot_alpha"])
+
+                ax_2.scatter(self.integration_points,
+                             sc_special.steer_y,
+                             color=sc_special.plot_color,
+                             s=1,
+                             label=sc_special.display_name)
+                ax_2.plot(self.integration_points,
+                          sc_special.steer_y,
+                          color=sc_special.plot_color,
+                          linewidth=size_data["dia_linewidth"],
+                          alpha=size_data["plot_alpha"])
+
+                ax_3.scatter(self.integration_points,
+                             sc_special.steer_z,
+                             color=sc_special.plot_color,
+                             s=1,
+                             label=sc_special.display_name)
+                ax_3.plot(self.integration_points,
+                          sc_special.steer_z,
+                          color=sc_special.plot_color,
+                          linewidth=size_data["dia_linewidth"],
+                          alpha=size_data["plot_alpha"])
+
+        axes = [ax_1, ax_2, ax_3]
+        for axis in axes:
+            axis.set_xlabel("Time [s]")
+            axis.set_ylabel("Aceleration [m/s^2]")
+            axis.grid(visible=True, color=[0.5, 0.5, 1])
+
+
+            axis.grid(visible=True, color=[0.5, 0.5, 1])
+            axis.set_facecolor(color_data["background"])
+
+        lgnd = ax_3.legend()
+        lgnd.set_draggable(True)
+        for handle in lgnd.legend_handles:
+            handle.set_sizes([50])
+
+        fig.subplots_adjust(hspace=0.5)
+

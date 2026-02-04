@@ -39,6 +39,7 @@ class inertial_force_model:
         self.steer_acc_x = []
         self.steer_acc_y = []
         self.steer_acc_z = []
+        self.true_time = []
 
     def get_dataset(self):
         orbital_dataset = pd.read_excel(self.path_to_data)
@@ -129,6 +130,8 @@ class inertial_force_model:
             self.steer_acc_x.append(command[0])
             self.steer_acc_y.append(command[1])
             self.steer_acc_z.append(command[2])
+
+            self.true_time.append(system_time)
 
         return [acc_vector[0], acc_vector[1], acc_vector[2]]
 

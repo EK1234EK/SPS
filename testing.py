@@ -355,7 +355,7 @@ def CR3BP_ex_2():
 def steering_testing():
     t_init = 0
     t_final = 50000000
-    steps = 3000
+    steps = 10000
 
     sim_time = list(np.linspace(t_init, t_final, steps))
 
@@ -372,21 +372,25 @@ def steering_testing():
 
     force_model_1.steering_law = steering_law
 
-    manifolds = [[20000000, 20000000, 1],
+    manifolds = [[30000000, 30000000, 1],
                  [2000000, 2000000, 1],
                  [1000000, 1000000, 1],
                  [0, 0, 1],
-                 [4500, 4500, 1],
+                 [4000, 4000, 1],
                  [1000, 1000, 1],
                  [0, 0, 1]]
-#
+
     sw_1 = swarm_1.particle_swarm(manifolds, force_model_1)
     sw_1.integration_points = sim_time
     sw_1.square_swarm('generic')
     sw_1.integrate_swarm(rtol=1e-3, parproc=False, cores=5)
     # sw_1.get_swarm_body_distances(["Moon"])
     list_of_spacecraft = sw_1.list_of_spacecraft
-    list_of_spacecraft[0].plot_color = [1, 0.4, 1]
+    list_of_spacecraft[0].plot_color = [0.3, 1, 1]
+    # list_of_spacecraft[1].plot_color = [0.4, 0.5, 1]
+
+    list_of_spacecraft[0].display_name = "Sc 1"
+    # list_of_spacecraft[1].display_name = "Sc 2"
 
     force_model_1.path_to_data = "./data/target.xlsx"
     force_model_1.get_dataset()
@@ -394,13 +398,14 @@ def steering_testing():
     input("Start plotting?")
     plots = plotting_functions.graph_output(list_of_spacecraft=[], list_of_resampled_spacecraft=[],
                                             list_of_special_spacecraft=list_of_spacecraft,
-                                            force_model=force_model_1, animated=True, axis_visibility=False, fps=8)
+                                            force_model=force_model_1, animated=True, axis_visibility=True, fps=20)
 
     plots.parameters_plot()
     plots.C3_plot()
     plots.trajectory_xyz()
     # plots.body_distances_plot(["Moon"])
-    plots.moving_map_plot(plot_central_attractor=True, match_tail_color=False, plot_planet_endpoint=False, init_azim=35, init_elevation=45, k_modulo=10)
+    plots.plot_steering()
+    plots.moving_map_plot(plot_central_attractor=True, match_tail_color=False, plot_planet_endpoint=False, init_azim=35, init_elevation=45, k_modulo=15, azim_rate=0.03)
     plt.show()
     plt.waitforbuttonpress(10000000000)
 
