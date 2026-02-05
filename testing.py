@@ -398,14 +398,23 @@ def steering_testing():
     input("Start plotting?")
     plots = plotting_functions.graph_output(list_of_spacecraft=[], list_of_resampled_spacecraft=[],
                                             list_of_special_spacecraft=list_of_spacecraft,
-                                            force_model=force_model_1, animated=True, axis_visibility=True, fps=20)
+                                            force_model=force_model_1,
+                                            animated=True,
+                                            axis_visibility=True,
+                                            fps=None)
 
     plots.parameters_plot()
     plots.C3_plot()
     plots.trajectory_xyz()
     # plots.body_distances_plot(["Moon"])
     plots.plot_steering()
-    plots.moving_map_plot(plot_central_attractor=True, match_tail_color=False, plot_planet_endpoint=False, init_azim=35, init_elevation=45, k_modulo=15, azim_rate=0.03)
+    plots.moving_map_plot(plot_central_attractor=True,
+                          match_tail_color=False,
+                          plot_planet_endpoint=False,
+                          init_azim=35,
+                          init_elevation=45,
+                          k_modulo=15,
+                          azim_rate=0.03)
     plt.show()
     plt.waitforbuttonpress(10000000000)
 
