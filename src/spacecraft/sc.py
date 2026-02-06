@@ -41,6 +41,7 @@ class Spacecraft:
         self.steer_x = []
         self.steer_y = []
         self.steer_z = []
+        self.steer_magnitude = []
         self.true_time = []
 
     def get_acc(self, state_vector, system_time):
@@ -134,9 +135,17 @@ class Spacecraft:
         # Save the steering acceleration
         if self.force_model.steer_acc_x:
             print(" - Guiding", end="")
+
+            self.steer_magnitude = [(self.force_model.steer_acc_x[i]**2 + self.force_model.steer_acc_y[i]**2 + self.force_model.steer_acc_z[i]**2)**0.5 for i in range(len(self.force_model.steer_acc_x))]
+
             self.steer_x = interp(self.integration_points, self.force_model.true_time, self.force_model.steer_acc_x, left=None, right=None).tolist()
             self.steer_y = interp(self.integration_points, self.force_model.true_time, self.force_model.steer_acc_y, left=None, right=None).tolist()
             self.steer_z = interp(self.integration_points, self.force_model.true_time, self.force_model.steer_acc_z, left=None, right=None).tolist()
+
+            steer_mag_res = interp(self.integration_points, self.force_model.true_time, self.steer_magnitude,
+                                  left=None, right=None).tolist()
+
+            self.steer_magnitude = steer_mag_res
 
         """self.steer_x = self.force_model.steer_acc_x
         self.steer_y = self.force_model.steer_acc_y

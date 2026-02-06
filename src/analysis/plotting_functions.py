@@ -1065,8 +1065,6 @@ class graph_output:
 
         for sci, sc_special in enumerate(self.lst_spec_sc):
 
-            control_mag = [(sc_special.steer_x[i]**2 + sc_special.steer_y[i]**2 + sc_special.steer_z[i]**2)**0.5 for i in range(len(sc_special.steer_x))]
-
             if isinstance(sc_special.plot_color, str):
                 ax_1.scatter(self.integration_points,
                                    sc_special.steer_x,
@@ -1102,12 +1100,12 @@ class graph_output:
                           alpha=size_data["plot_alpha"])
 
                 ax_4.scatter(self.integration_points,
-                             control_mag,
+                             sc_special.steer_magnitude,
                              color=colors[sci],
                              s=1,
                              label=sc_special.display_name)
                 ax_4.plot(self.integration_points,
-                          control_mag,
+                          sc_special.steer_magnitude,
                           color=colors[sci],
                           linewidth=size_data["dia_linewidth"],
                           alpha=size_data["plot_alpha"])
@@ -1146,12 +1144,12 @@ class graph_output:
                           alpha=size_data["plot_alpha"])
 
                 ax_4.scatter(self.integration_points,
-                             control_mag,
+                             sc_special.steer_magnitude,
                              color=sc_special.plot_color,
                              s=1,
                              label=sc_special.display_name)
                 ax_4.plot(self.integration_points,
-                          control_mag,
+                          sc_special.steer_magnitude,
                           color=sc_special.plot_color,
                           linewidth=size_data["dia_linewidth"],
                           alpha=size_data["plot_alpha"])
