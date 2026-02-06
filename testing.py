@@ -365,9 +365,6 @@ def steering_testing():
     force_model_1.define_central_attractor(mass=cent_mass, position=[0, 0, 0])
 
     steering_law = steering_laws.LocalOptimal()
-    steering_law.oe_direction = [1, 0, 1, 0, 0, 0]
-    steering_law.target_oe = {"SMA": 254748000, "ECC": 0.054, "INC": 0.1165, "RAAN": 1.0}
-    # steering_law.target = "SMA"
     steering_law.conversion_mass = cent_mass
 
     force_model_1.steering_law = steering_law
@@ -383,19 +380,16 @@ def steering_testing():
     sw_1 = swarm_1.particle_swarm(manifolds, force_model_1)
     sw_1.integration_points = sim_time
     sw_1.square_swarm('generic')
-    sw_1.integrate_swarm(rtol=1e-3, parproc=False, cores=5)
-    # sw_1.get_swarm_body_distances(["Moon"])
+    sw_1.integrate_swarm(rtol=1e-3, parproc=True, cores=5)
     list_of_spacecraft = sw_1.list_of_spacecraft
-    list_of_spacecraft[0].plot_color = [0.3, 1, 1]
-    # list_of_spacecraft[1].plot_color = [0.4, 0.5, 1]
 
+    list_of_spacecraft[0].plot_color = [0.3, 1, 1]
     list_of_spacecraft[0].display_name = "Sc 1"
-    # list_of_spacecraft[1].display_name = "Sc 2"
 
     force_model_1.path_to_data = "./data/target.xlsx"
     force_model_1.get_dataset()
 
-    input("Start plotting?")
+    input("Start plotting? Press enter")
     plots = plotting_functions.graph_output(list_of_spacecraft=[], list_of_resampled_spacecraft=[],
                                             list_of_special_spacecraft=list_of_spacecraft,
                                             force_model=force_model_1,

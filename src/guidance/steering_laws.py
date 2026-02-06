@@ -10,8 +10,11 @@ class LocalOptimal:
         self.target = ""
         self.conversion_mass = -1
 
+        self.current_control = []
+
         self.oe_direction = []
         self.target_oe = dict()
+
 
     def maximize_oe_change(self, state):
         pass
@@ -178,7 +181,7 @@ class LocalOptimal:
             return [0, 0, 0]
         direction = dr / mag
         direction = list(direction * acc_mag)
-        return direction
+        self.current_control = direction
 
     def guidance(self, state, time, force_model):
         if time < 15000000:
@@ -189,5 +192,6 @@ class LocalOptimal:
             self.target_oe = {"SMA": 300000000, "ECC": 0.1, "INC": 1.1, "RAAN": 4.0, "APERI": 1}
         elif 40000000 < time < 500000000:
             self.target_oe = {"SMA": 400000000, "ECC": 0.05, "INC": 0.2, "RAAN": 4.0, "APERI": 1}
-        direction = self.target_orbit(state=state)
-        return direction
+
+        self.target_orbit(state=state)
+        return self.current_control

@@ -307,7 +307,8 @@ class graph_output:
                     round(self.integration_points[-1] / (24 * 3600), 2)) + ' d')
 
             #Rotate
-            ax.view_init(azim=init_azim+k*azim_rate, elev=init_elevation+k*elevation_rate)
+            if azim_rate != 0 or elevation_rate != 0:
+                ax.view_init(azim=init_azim+k*azim_rate, elev=init_elevation+k*elevation_rate)
 
             return artists
 
