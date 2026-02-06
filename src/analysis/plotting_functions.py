@@ -1047,20 +1047,26 @@ class graph_output:
         fig.set_facecolor(color_data["background"])
         self.figure_counter += 1
 
-        ax_1 = fig.add_subplot(311)
+        ax_1 = fig.add_subplot(411)
         ax_1.set_title("Control inertial x")
 
-        ax_2 = fig.add_subplot(312)
+        ax_2 = fig.add_subplot(412)
         ax_2.set_title("Control inertial y")
 
-        ax_3 = fig.add_subplot(313)
+        ax_3 = fig.add_subplot(413)
         ax_3.set_title("Control inertial z")
+
+        ax_4 = fig.add_subplot(414)
+        ax_4.set_title("Control inertial magnitude")
 
         n_samp = len(self.lst_spec_sc)
         cmap = plt.colormaps[color_data["map"]]
         colors = cmap(np.linspace(0, 1, n_samp))
 
         for sci, sc_special in enumerate(self.lst_spec_sc):
+
+            control_mag = [(sc_special.steer_x[i]**2 + sc_special.steer_y[i]**2 + sc_special.steer_z[i]**2)**0.5 for i in range(len(sc_special.steer_x))]
+
             if isinstance(sc_special.plot_color, str):
                 ax_1.scatter(self.integration_points,
                                    sc_special.steer_x,
@@ -1091,6 +1097,17 @@ class graph_output:
                              label=sc_special.display_name)
                 ax_3.plot(self.integration_points,
                           sc_special.steer_z,
+                          color=colors[sci],
+                          linewidth=size_data["dia_linewidth"],
+                          alpha=size_data["plot_alpha"])
+
+                ax_4.scatter(self.integration_points,
+                             control_mag,
+                             color=colors[sci],
+                             s=1,
+                             label=sc_special.display_name)
+                ax_4.plot(self.integration_points,
+                          control_mag,
                           color=colors[sci],
                           linewidth=size_data["dia_linewidth"],
                           alpha=size_data["plot_alpha"])
@@ -1128,7 +1145,18 @@ class graph_output:
                           linewidth=size_data["dia_linewidth"],
                           alpha=size_data["plot_alpha"])
 
-        axes = [ax_1, ax_2, ax_3]
+                ax_4.scatter(self.integration_points,
+                             control_mag,
+                             color=sc_special.plot_color,
+                             s=1,
+                             label=sc_special.display_name)
+                ax_4.plot(self.integration_points,
+                          control_mag,
+                          color=sc_special.plot_color,
+                          linewidth=size_data["dia_linewidth"],
+                          alpha=size_data["plot_alpha"])
+
+        axes = [ax_1, ax_2, ax_3, ax_4]
         for axis in axes:
             axis.set_xlabel("Time [s]")
             axis.set_ylabel("Aceleration [m/s^2]")
