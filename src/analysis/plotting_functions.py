@@ -56,7 +56,16 @@ class graph_output:
         self.bodies_plot_trajectories = self.force_model.get_plotting_track()
         pass
 
-    def moving_map_plot(self, plot_central_attractor=True, match_tail_color=False, plot_potential=False, plot_planet_endpoint=True, init_azim=0, init_elevation=90, azim_rate=0, elevation_rate=0, k_modulo=None):
+    def moving_map_plot(self, plot_central_attractor=True,
+                        match_tail_color=False,
+                        plot_potential=False,
+                        plot_planet_endpoint=True,
+                        init_azim=0,
+                        init_elevation=90,
+                        azim_rate=0,
+                        elevation_rate=0,
+                        k_modulo=None):
+
         fig = plt.figure(self.figure_counter + 1, figsize=(16, 9))
         self.figure_counter += 1
         ax = fig.add_subplot(111, projection='3d')
