@@ -108,12 +108,6 @@ class inertial_force_model:
             acc_vector = [acc_vector[0] + x_acc, acc_vector[1] + y_acc, acc_vector[2] + z_acc]
 
         # Add acceleration from central attractor
-        """x_acc, y_acc, z_acc = kds.gravitational_law(self.central_mass,
-                                                    x - self.central_attractor_pos[0],
-                                                    y - self.central_attractor_pos[1],
-                                                    z - self.central_attractor_pos[2]
-                                                    )"""
-
         x_acc, y_acc, z_acc = self.central_attractor_gravity_law(self.central_mass,
                                                                  x - self.central_attractor_pos[0],
                                                                  y - self.central_attractor_pos[1],
