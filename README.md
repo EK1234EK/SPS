@@ -1,4 +1,4 @@
-# Orbit propagation without getting lost in the sauce
+Orbit propagation without getting lost in the sauce
 
 ## How to use SPS
 
