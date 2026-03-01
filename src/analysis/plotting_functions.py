@@ -383,9 +383,14 @@ class graph_output:
         for k, ind_slice in enumerate(slices):
             if len(ind_slice) == 2:
                 axis = fig.add_subplot(height, width, k + 1)
-                axis.set_title(ind_slice[0] + " - " + ind_slice[1] + "    " + str(
-                    round(self.integration_points[index] / (24 * 3600), 2)) + " / " + str(
-                    round(self.integration_points[-1] / (24 * 3600), 2)) + " [d]")
+                if self.integration_points[index] < 86000 / 2:
+                    axis.set_title(ind_slice[0] + " - " + ind_slice[1] + "    " + str(
+                        round(self.integration_points[index], 2)) + " / " + str(
+                        round(self.integration_points[-1], 2)) + " [s]")
+                else:
+                    axis.set_title(ind_slice[0] + " - " + ind_slice[1] + "    " + str(
+                        round(self.integration_points[index] / (24 * 3600), 2)) + " / " + str(
+                        round(self.integration_points[-1] / (24 * 3600), 2)) + " [d]")
 
                 axis.xaxis.label.set_color(color_data["ticks"])
                 axis.yaxis.label.set_color(color_data["ticks"])
@@ -403,7 +408,13 @@ class graph_output:
                 axes[tuple(ind_slice)] = axis
             elif len(ind_slice) == 3:
                 axis = fig.add_subplot(height, width, k + 1, projection='3d')
-                axis.set_title(ind_slice[0] + " - " + ind_slice[1] + " - " + ind_slice[2] + "    " + str(
+
+                if self.integration_points[index] < 86000 / 2:
+                    axis.set_title(ind_slice[0] + " - " + ind_slice[1] + " - " + ind_slice[2] + "    " + str(
+                    round(self.integration_points[index], 2)) + " / " + str(
+                    round(self.integration_points[-1], 2)) + " [s]")
+                else:
+                    axis.set_title(ind_slice[0] + " - " + ind_slice[1] + " - " + ind_slice[2] + "    " + str(
                     round(self.integration_points[index] / (24 * 3600), 2)) + " / " + str(
                     round(self.integration_points[-1] / (24 * 3600), 2)) + " [d]")
 
