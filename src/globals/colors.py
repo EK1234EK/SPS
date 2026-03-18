@@ -17,7 +17,7 @@ def get_color_data():
     colors["map"] = "jet"
 
     colors["lagrange_marker_symbol"] = "D"
-    colors["lagrange_marker_color"] = [0.5, 1, 0.5]
+    colors["lagrange_marker_color"] = [1, 0.5, 0.5]
 
     size = dict()
     size["sc"] = 10

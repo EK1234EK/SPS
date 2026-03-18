@@ -25,7 +25,7 @@ def check_and(sc):
             return True
 
     def condition_6(sc):
-        if (sc.trajectory_track[0][-1] ** 2 + sc.trajectory_track[1][-1] ** 2 + sc.trajectory_track[2][-1] ** 2)**0.5 > 0.9:
+        if max(sc.trajectory_track[0]) < 1 and min(sc.trajectory_track[0]) > 0.6:
             return True
 
     return condition_6(sc)

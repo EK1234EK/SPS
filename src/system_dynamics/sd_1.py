@@ -31,11 +31,10 @@ class inertial_force_model:
         self.central_mass = 0
         self.central_attractor_pos = [0, 0, 0]
 
-        self.steering_law = None
         self.is_CR3BP = False
 
         # Steering
-
+        self.steering_law = None
         self.steer_acc_x = []
         self.steer_acc_y = []
         self.steer_acc_z = []
@@ -194,6 +193,13 @@ class CR3BP:
 
         self.is_CR3BP = True
 
+        # Steering
+        self.steering_law = None
+        self.steer_acc_x = []
+        self.steer_acc_y = []
+        self.steer_acc_z = []
+        self.true_time = []
+
     def load_model(self):
 
         self.names = ["body_1", "body_2"]
@@ -240,7 +246,21 @@ class CR3BP:
 
         body_states = self.propagate_body_states([system_time])
         x_acc, y_acc, z_acc = kds.CR3BP_acceleration(x, y, z, vx, vy, self.mass_parameter)
-        return [x_acc, y_acc, z_acc]
+
+        acc_vector = [x_acc, y_acc, z_acc]
+
+        if self.steering_law:
+            #  Adding the acceleration vector from the steering law
+            command = self.steering_law.guidance(state=[x, y, z, velocity[0], velocity[1], velocity[2]], time=system_time, force_model=self)
+            acc_vector = [acc_vector[0] + command[0], acc_vector[1] + command[1], acc_vector[2] + command[2]]
+
+            self.steer_acc_x.append(command[0])
+            self.steer_acc_y.append(command[1])
+            self.steer_acc_z.append(command[2])
+
+            self.true_time.append(system_time)
+
+        return [acc_vector[0], acc_vector[1], acc_vector[2]]
 
     def get_plotting_track(self):
 

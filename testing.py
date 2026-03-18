@@ -278,6 +278,11 @@ def CR3BP_ex_2():
 
     force_model_1 = sd_1.CR3BP(mass_parameter=1.215058560962404E-2)
     # force_model_1 = sd_1.CR3BP(mass_parameter=3.054200000000000E-6)
+    steering_law = steering_laws.LocalOptimal()
+
+    force_model_1.steering_law = steering_law
+    force_model_1.get_lagrange_points()
+
 
     manifolds_4 = [[6.3891964038363835E-1, 6.3891964038363835E-1, 1],
                    [4.2544999999999999E-1, 4.2544999999999999E-1, 1],
@@ -295,11 +300,11 @@ def CR3BP_ex_2():
                    [-6.4806934253088289E-1, -6.4806934253088289E-1, 1],
                    [0, 0, 1]]
 
-    manifolds_1 = [[8.6121899389004331E-1, 8.6321899389004331E-1, 10],
+    manifolds_1 = [[8.0121899389004331E-1-0.1, 8.6121899389004331E-1+0.12, 20],
                    [-6.1589472580081878E-28, -6.1589472580081878E-28, 1],
                    [-9.0996038678959414E-14, -9.0996038678959414E-14, 1],
                    [1.1168790093094281E-13, 1.1168790093094281E-13, 1],
-                   [8.8512113504271353E-2, 8.8712113504271353E-2, 10],
+                   [8.2512113504271353E-2-0.4, 9.4712113504271353E-2+0.2, 20],
                    [-4.3863065793662631E-1, -4.3863065793662631E-1, 1],
                    [0, 0, 1]]
 
@@ -323,13 +328,10 @@ def CR3BP_ex_2():
     sw_1.integration_points = sim_time
     sw_1.direct_transformation = ("State_magnitude")
     sw_1.square_swarm('center')
-    sw_1.integrate_swarm(rtol=1e-10, parproc=True, cores=11)
+    sw_1.integrate_swarm(rtol=1e-3, parproc=True, cores=12, method="LSODA")
     sw_1.get_swarm_body_distances(body_list=["body_1", "body_2"])
 
     list_of_spacecraft = sw_1.list_of_spacecraft
-
-    for sc in list_of_spacecraft:
-        sc.plot_color = [1, 0.3, 1]
 
     fs = valid_set.feasibility_setup(manifolds=[], list_of_sc=list_of_spacecraft, force_model=force_model_1)
     fs.check_conditions()
@@ -338,16 +340,22 @@ def CR3BP_ex_2():
     input("Start plotting?")
     plots = plotting_functions.graph_output(list_of_spacecraft=[], list_of_resampled_spacecraft=[],
                                             list_of_special_spacecraft=list_of_spacecraft,
-                                            force_model=force_model_1, animated=True, axis_visibility=False, fps=None)
+                                            force_model=force_model_1, animated=True, axis_visibility=True, fps=None)
 
     plots.state_space_slice(index=0, slices=[["x", "vy"]])
+    """
     plots.state_space_slice(index=999, slices=[["vx", "vy"], ["x", "y"]])
     plots.state_space_slice(index=999, slices=[["x", "y", "z"], ["vx", "vy", "vz"]])
     # plots.parameters_plot()
     # plots.C3_plot()
-    plots.body_distances_plot(["body_1", "body_2"])
+    plots.body_distances_plot(["body_1", "body_2"])"""
     plots.trajectory_xyz()
-    plots.moving_map_plot(plot_central_attractor=False, match_tail_color=True)
+    plots.plot_steering()
+    plots.moving_map_plot(plot_central_attractor=False,
+                          match_tail_color=False,
+                          override_limits=None,
+                          k_modulo=10)
+
     plt.show()
     plt.waitforbuttonpress(10000000000)
 
@@ -380,7 +388,7 @@ def steering_testing():
     sw_1 = swarm_1.particle_swarm(manifolds, force_model_1)
     sw_1.integration_points = sim_time
     sw_1.square_swarm('generic')
-    sw_1.integrate_swarm(rtol=1e-3, parproc=True, cores=5)
+    sw_1.integrate_swarm(rtol=1e-3, parproc=False, cores=5)
     list_of_spacecraft = sw_1.list_of_spacecraft
 
     list_of_spacecraft[0].plot_color = [0.3, 1, 1]
@@ -394,7 +402,7 @@ def steering_testing():
                                             list_of_special_spacecraft=list_of_spacecraft,
                                             force_model=force_model_1,
                                             animated=True,
-                                            axis_visibility=True,
+                                            axis_visibility=False,
                                             fps=None)
 
     plots.parameters_plot()
@@ -402,13 +410,82 @@ def steering_testing():
     plots.trajectory_xyz()
     # plots.body_distances_plot(["Moon"])
     plots.plot_steering()
+    plots.state_space_slice(index=100, slices = [["x", "y"]])
     plots.moving_map_plot(plot_central_attractor=True,
                           match_tail_color=False,
                           plot_planet_endpoint=False,
                           init_azim=35,
                           init_elevation=45,
                           k_modulo=15,
-                          azim_rate=0.03)
+                          azim_rate=0.03,
+                          elevation_rate=0.03)
+    plt.show()
+    plt.waitforbuttonpress(10000000000)
+
+
+def Lagrange_targeting():
+    t_init = 0
+    t_final = 50000000
+    steps = 10000
+
+    sim_time = list(np.linspace(t_init, t_final, steps))
+
+    cent_mass = 5.972*10**24
+
+    force_model_1 = sd_1.inertial_force_model("./data/empty_dataset.xlsx")
+    force_model_1.define_central_attractor(mass=cent_mass, position=[0, 0, 0])
+
+    steering_law = steering_laws.LocalOptimal()
+    steering_law.conversion_mass = cent_mass#  * (380073311**3) / (384748000**3)
+
+    force_model_1.steering_law = steering_law
+
+    manifolds = [[28007331, 35007331, 20],
+                 [0, 0, 1],
+                 [1000, 1000, 1],
+                 [0, 0, 1],
+                 [3000, 3000, 1],
+                 [0, 0, 1],
+                 [0, 0, 1]]
+
+    sw_1 = swarm_1.particle_swarm(manifolds, force_model_1)
+    sw_1.integration_points = sim_time
+    sw_1.square_swarm('generic')
+    sw_1.integrate_swarm(rtol=1e-3, parproc=True, cores=11)
+    # sw_1.get_swarm_body_distances(["Moon"])
+    list_of_spacecraft = sw_1.list_of_spacecraft
+
+
+
+    input("Start plotting? Press enter")
+
+    sc = list_of_spacecraft[0]
+    long = list(np.array(sc.orbital_parameters_track[3]) + np.array(sc.orbital_parameters_track[4]) + np.array(sc.orbital_parameters_track[5]))
+    fig = plt.figure(100)
+    ax = fig.add_subplot()
+    ax.plot(sim_time, long)
+    plt.show()
+
+    plots = plotting_functions.graph_output(list_of_spacecraft=[], list_of_resampled_spacecraft=[],
+                                            list_of_special_spacecraft=list_of_spacecraft,
+                                            force_model=force_model_1,
+                                            animated=False,
+                                            axis_visibility=True,
+                                            fps=None)
+
+    plots.parameters_plot()
+    plots.C3_plot()
+    plots.trajectory_xyz()
+    # plots.body_distances_plot(["Moon"])
+    # plots.plot_steering()
+    plots.state_space_slice(index=100, slices = [["x", "y"]])
+    plots.moving_map_plot(plot_central_attractor=True,
+                          match_tail_color=False,
+                          plot_planet_endpoint=True,
+                          init_azim=35,
+                          init_elevation=90,
+                          k_modulo=15)
+
     plt.show()
     plt.waitforbuttonpress(10000000000)
 
@@ -416,7 +493,8 @@ def steering_testing():
 if __name__ == "__main__":
 
     # CR3BP()
-    # CR3BP_ex_2()
+    CR3BP_ex_2()
     # SSO()
-    steering_testing()
+    # steering_testing()
     # orbiting_planet()
+    # Lagrange_targeting()

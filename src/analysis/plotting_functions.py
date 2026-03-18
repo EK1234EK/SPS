@@ -64,7 +64,8 @@ class graph_output:
                         init_elevation=90,
                         azim_rate=0,
                         elevation_rate=0,
-                        k_modulo=None):
+                        k_modulo=None,
+                        override_limits=None):
 
         fig = plt.figure(self.figure_counter + 1, figsize=(16, 9))
         self.figure_counter += 1
@@ -225,9 +226,14 @@ class graph_output:
                 xv, yv, potential_map = self.force_model.get_potential_field(resolution=1000, lim_x=[ax_lower[0], ax_upper[0]], lim_y=[ax_lower[1], ax_upper[1]])
                 ax.contour(xv, yv, potential_map, 500, lw=1, cmap="autumn_r", extend3d=False, offset=0)"""
 
-            ax.set_xlim(ax_lower[0], ax_upper[0])
-            ax.set_ylim(ax_lower[1], ax_upper[1])
-            ax.set_zlim(ax_lower[2], ax_upper[2])
+            if override_limits:
+                ax.set_xlim(override_limits["x"][0], override_limits["x"][1])
+                ax.set_ylim(override_limits["y"][0], override_limits["y"][1])
+                ax.set_zlim(override_limits["z"][0], override_limits["z"][1])
+            else:
+                ax.set_xlim(ax_lower[0], ax_upper[0])
+                ax.set_ylim(ax_lower[1], ax_upper[1])
+                ax.set_zlim(ax_lower[2], ax_upper[2])
 
             fig.set_facecolor(color_data["background"])
             ax.set_facecolor(color_data["background"])
@@ -1085,8 +1091,9 @@ class graph_output:
         colors = cmap(np.linspace(0, 1, n_samp))
 
         for sci, sc_special in enumerate(self.lst_spec_sc):
-
-            if isinstance(sc_special.plot_color, str):
+            if not sc_special.steer_x:
+                pass
+            elif isinstance(sc_special.plot_color, str):
                 ax_1.scatter(self.integration_points,
                                    sc_special.steer_x,
                                    color=colors[sci],
