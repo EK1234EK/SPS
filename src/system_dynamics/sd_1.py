@@ -71,14 +71,6 @@ class inertial_force_model:
                 y_lst.append(float(y))
                 z_lst.append(float(z))
 
-            """if len(times) == 10000:
-                import matplotlib.pyplot as plt
-                plt.figure()
-                plt.plot(list(np.linspace(0, len(x_lst), len(x_lst))), x_lst)
-                plt.plot(list(np.linspace(0, len(y_lst), len(y_lst))), y_lst)
-                plt.plot(list(np.linspace(0, len(z_lst), len(z_lst))), z_lst)
-                plt.show()"""
-
             body_dataset = [x_lst, y_lst, z_lst]
             states[self.names[k]] = body_dataset
 
@@ -149,13 +141,6 @@ class inertial_force_model:
                 x_lst.append(float(x))
                 y_lst.append(float(y))
                 z_lst.append(float(z))
-
-            """import matplotlib.pyplot as plt
-            plt.figure()
-            plt.plot(list(np.linspace(0, len(x_lst), len(x_lst))), x_lst)
-            plt.plot(list(np.linspace(0, len(y_lst), len(y_lst))), y_lst)
-            plt.plot(list(np.linspace(0, len(z_lst), len(z_lst))), z_lst)
-            plt.show()"""
 
             body_dataset = [x_lst, y_lst, z_lst]
             states[self.names[k]] = body_dataset

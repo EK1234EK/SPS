@@ -8,6 +8,7 @@ from src.astrodynamic_functions import kepler_dynamics
 from src.feasibility import valid_set
 from src.guidance import steering_laws
 import math
+import pickle
 
 
 def all_plots():
@@ -269,7 +270,7 @@ def CR3BP():
     plots.magnitude_plot()
     plots.body_distances_plot(["body_1", "body_2"])
     plots.trajectory_xyz()
-    plots.moving_map_plot(plot_central_attractor=False, match_tail_color=True)
+    plots.moving_map_plot(plot_central_attractor=False, match_tail_color=False)
 
 
 def CR3BP_ex_2():
@@ -362,7 +363,7 @@ def CR3BP_ex_2():
 
 def steering_testing():
     t_init = 0
-    t_final = 50000000
+    t_final = 70000000
     steps = 10000
 
     sim_time = list(np.linspace(t_init, t_final, steps))
@@ -390,12 +391,22 @@ def steering_testing():
     sw_1.square_swarm('generic')
     sw_1.integrate_swarm(rtol=1e-3, parproc=False, cores=5)
     list_of_spacecraft = sw_1.list_of_spacecraft
+    list_of_spacecraft[0].plot_color = [0.3, 1, 0.4]
 
-    list_of_spacecraft[0].plot_color = [0.3, 1, 1]
     list_of_spacecraft[0].display_name = "Sc 1"
 
     force_model_1.path_to_data = "./data/target.xlsx"
     force_model_1.get_dataset()
+
+    """# Safe the sauce with pickle
+    pickle.dump(sw_1.list_of_spacecraft, open('sv.p', 'wb'))
+    pickle.dump(force_model_1, open('.p', 'wb'))
+    exit()
+
+    list_of_spacecraft = pickle.load(open('sv.p', 'rb'))
+    force_model_1 = pickle.load(open('.p', 'rb'))"""
+
+    list_of_spacecraft[0].plot_color = [0.1, 1, 0.6]
 
     input("Start plotting? Press enter")
     plots = plotting_functions.graph_output(list_of_spacecraft=[], list_of_resampled_spacecraft=[],
@@ -408,7 +419,6 @@ def steering_testing():
     plots.parameters_plot()
     plots.C3_plot()
     plots.trajectory_xyz()
-    # plots.body_distances_plot(["Moon"])
     plots.plot_steering()
     plots.state_space_slice(index=100, slices = [["x", "y"]])
     plots.moving_map_plot(plot_central_attractor=True,
