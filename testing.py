@@ -503,8 +503,8 @@ def Lagrange_targeting():
 if __name__ == "__main__":
 
     # CR3BP()
-    CR3BP_ex_2()
+    # CR3BP_ex_2()
     # SSO()
     # steering_testing()
     # orbiting_planet()
-    # Lagrange_targeting()
+    Lagrange_targeting()
