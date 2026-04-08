@@ -40,6 +40,10 @@ class inertial_force_model:
         self.steer_acc_z = []
         self.true_time = []
 
+        # Solar radiation pressure
+        self.solar_pressure = None
+        self.radiation_location = None
+
     def get_dataset(self):
         orbital_dataset = pd.read_excel(self.path_to_data)
 
@@ -106,6 +110,10 @@ class inertial_force_model:
                                                                  )
 
         acc_vector = [acc_vector[0] + x_acc, acc_vector[1] + y_acc, acc_vector[2] + z_acc]
+
+        if self.solar_pressure:
+            srp_acc = self.solar_pressure.solar_acceleration(state = position)
+            acc_vector = [acc_vector[0] + srp_acc[0], acc_vector[1] + srp_acc[1], acc_vector[2] + srp_acc[2]]
 
         if self.steering_law:
             #  Adding the acceleration vector from the steering law

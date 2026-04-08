@@ -1,7 +1,9 @@
 import numpy as np
 import matplotlib.pyplot as plt
+from numpy.f2py.crackfortran import analyzeargs
+
 import src.spacecraft.sc
-from src.system_dynamics import sd_1
+from src.system_dynamics import sd_1, SRP
 from src.analysis import plotting_functions
 from src.spacecraft import swarm_1
 from src.astrodynamic_functions import kepler_dynamics
@@ -275,7 +277,7 @@ def CR3BP():
 
 def CR3BP_ex_2():
     t_end = 20
-    sim_time = list(np.linspace(0, t_end, 1000))
+    sim_time = list(np.linspace(0, t_end, 3))
 
     force_model_1 = sd_1.CR3BP(mass_parameter=1.215058560962404E-2)
     # force_model_1 = sd_1.CR3BP(mass_parameter=3.054200000000000E-6)
@@ -301,11 +303,11 @@ def CR3BP_ex_2():
                    [-6.4806934253088289E-1, -6.4806934253088289E-1, 1],
                    [0, 0, 1]]
 
-    manifolds_1 = [[8.0121899389004331E-1-0.1, 8.6121899389004331E-1+0.12, 1],
+    manifolds_1 = [[8.0121899389004331E-1-0.1, 8.6121899389004331E-1+0.12, 20],
                    [-6.1589472580081878E-28, -6.1589472580081878E-28, 1],
                    [-9.0996038678959414E-14, -9.0996038678959414E-14, 1],
                    [1.1168790093094281E-13, 1.1168790093094281E-13, 1],
-                   [8.2512113504271353E-2-0.4, 9.4712113504271353E-2+0.2, 1],
+                   [8.2512113504271353E-2-0.4, 9.4712113504271353E-2+0.2, 20],
                    [-4.3863065793662631E-1, -4.3863065793662631E-1, 1],
                    [0, 0, 1]]
 
@@ -329,7 +331,7 @@ def CR3BP_ex_2():
     sw_1.integration_points = sim_time
     sw_1.direct_transformation = ("State_magnitude")
     sw_1.square_swarm('center')
-    sw_1.integrate_swarm(rtol=1e-3, parproc=True, cores=12, method="LSODA")
+    sw_1.integrate_swarm(rtol=1e-9, parproc=True, cores=12, method="DOP853")
     sw_1.get_swarm_body_distances(body_list=["body_1", "body_2"])
 
     list_of_spacecraft = sw_1.list_of_spacecraft
@@ -341,7 +343,7 @@ def CR3BP_ex_2():
     input("Start plotting?")
     plots = plotting_functions.graph_output(list_of_spacecraft=[], list_of_resampled_spacecraft=[],
                                             list_of_special_spacecraft=list_of_spacecraft,
-                                            force_model=force_model_1, animated=True, axis_visibility=True, fps=None)
+                                            force_model=force_model_1, animated=False, axis_visibility=True, fps=None)
 
     plots.state_space_slice(index=0, slices=[["x", "vy"]])
     """
@@ -350,12 +352,12 @@ def CR3BP_ex_2():
     # plots.parameters_plot()
     # plots.C3_plot()
     plots.body_distances_plot(["body_1", "body_2"])"""
-    plots.trajectory_xyz()
-    plots.plot_steering()
-    plots.moving_map_plot(plot_central_attractor=False,
+    # plots.trajectory_xyz()
+    # plots.plot_steering()
+    """plots.moving_map_plot(plot_central_attractor=False,
                           match_tail_color=False,
-                          override_limits=None,
-                          k_modulo=10)
+                          override_limits={"x": [-2, 2], "y": [-2, 2], "z": [-2, 2]},
+                          k_modulo=10)"""
 
     plt.show()
     plt.waitforbuttonpress(10000000000)
@@ -499,12 +501,57 @@ def Lagrange_targeting():
     plt.show()
     plt.waitforbuttonpress(10000000000)
 
+def SRP_testing():
+    t_start = 0
+    t_end = 100000000
+    integration_points = list(np.linspace(t_start, t_end, 10000))
+
+    central_mass = 5.972*10**24
+
+    force_model = sd_1.inertial_force_model(path="./data/empty_dataset.xlsx")
+    force_model.define_central_attractor(mass=central_mass, position=[0, 0, 0])
+
+    srp_model = SRP.Solar_pressure()
+    srp_model.radiation_location = [149*10**12, 0, 0]
+    # force_model.solar_pressure = srp_model
+
+    list_of_sc = []
+
+    for i in range(1):
+        srp_model.sail_control = [-0.25*math.pi, 0.5*math.pi]
+        sc_1 = src.spacecraft.sc.Spacecraft(init_state_vector=[5000000, 0, 0, 0, 3000, 1000], force_model=force_model)
+        sc_1.integration_points = integration_points
+        sc_1.time_interval = [t_start, t_end]
+        sc_1.plot_color = [1, 0, 1]
+
+        sc_1.integrate_states_sivp(rtol=10**-6)
+
+        sc_1.trajectory_conversion(mass=central_mass)
+
+        list_of_sc.append(sc_1)
+
+    plots = plotting_functions.graph_output(list_of_spacecraft=[],
+                                        list_of_resampled_spacecraft=[],
+                                        list_of_special_spacecraft=list_of_sc,
+                                        force_model=force_model,
+                                        axis_visibility=False,
+                                        animated=False)
+
+    plots.trajectory_xyz()
+    plots.parameters_plot()
+
+    plots.moving_map_plot(k_modulo=200)
+    plt.show()
+    plt.waitforbuttonpress(10000000000)
+
+
 # ex_7_SSO()
 if __name__ == "__main__":
 
     # CR3BP()
-    CR3BP_ex_2()
+    # CR3BP_ex_2()
     # SSO()
     # steering_testing()
     # orbiting_planet()
     # Lagrange_targeting()
+    SRP_testing()
