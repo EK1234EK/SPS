@@ -503,7 +503,7 @@ def Lagrange_targeting():
 
 def SRP_testing():
     t_start = 0
-    t_end = 100000000
+    t_end = 50000000
     integration_points = list(np.linspace(t_start, t_end, 10000))
 
     central_mass = 5.972*10**24
@@ -517,12 +517,17 @@ def SRP_testing():
 
     list_of_sc = []
 
-    for i in range(1):
-        srp_model.sail_control = [-0.25*math.pi, 0.5*math.pi]
-        sc_1 = src.spacecraft.sc.Spacecraft(init_state_vector=[5000000, 0, 0, 0, 3000, 1000], force_model=force_model)
+    for i in range(2):
+        if i == 0:
+            srp_model.sail_control = [0.25*math.pi, 0*math.pi]
+        elif i == 1:
+            srp_model.sail_control = [0.25 * math.pi, 0.5 * math.pi]
+        sc_1 = src.spacecraft.sc.Spacecraft(init_state_vector=[8000000, 0, 0, 0, 7500, 0], force_model=force_model)
         sc_1.integration_points = integration_points
-        sc_1.time_interval = [t_start, t_end]
-        sc_1.plot_color = [1, 0, 1]
+        if i == 0:
+            sc_1.time_interval = [t_start, t_end]
+        elif i == 1:
+            sc_1.time_interval = [0.5 * t_end, t_end]
 
         sc_1.integrate_states_sivp(rtol=10**-6)
 

@@ -2,6 +2,7 @@ from scipy.optimize import direct
 
 from src.astrodynamic_functions import kepler_dynamics
 import numpy as np
+from src.system_dynamics import SRP
 
 
 class LocalOptimal:

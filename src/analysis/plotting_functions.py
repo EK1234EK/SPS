@@ -1199,3 +1199,89 @@ class graph_output:
 
         fig.subplots_adjust(hspace=0.5)
 
+
+    def plot_sail_control(self):
+        fig = plt.figure(self.figure_counter + 1, figsize=(7.5, 2.5 * 1.5))
+        fig.set_facecolor(color_data["background"])
+        self.figure_counter += 1
+
+        ax_1 = fig.add_subplot(211)
+        ax_1.set_title("Tilt control")
+
+        ax_2 = fig.add_subplot(212)
+        ax_2.set_title("Clock control")
+
+
+        n_samp = len(self.lst_spec_sc)
+        cmap = plt.colormaps[color_data["map"]]
+        colors = cmap(np.linspace(0, 1, n_samp))
+
+        for sci, sc_special in enumerate(self.lst_spec_sc):
+            if not sc_special.steer_x:
+                pass
+            elif isinstance(sc_special.plot_color, str):
+                ax_1.scatter(self.integration_points,
+                                   sc_special.steer_x,
+                                   color=colors[sci],
+                                   s=1,
+                                   label=sc_special.display_name)
+                ax_1.plot(self.integration_points,
+                                sc_special.steer_x,
+                                color=colors[sci],
+                                linewidth=size_data["dia_linewidth"],
+                                alpha=size_data["plot_alpha"])
+
+                ax_2.scatter(self.integration_points,
+                             sc_special.steer_y,
+                             color=colors[sci],
+                             s=1,
+                             label=sc_special.display_name)
+                ax_2.plot(self.integration_points,
+                          sc_special.steer_y,
+                          color=colors[sci],
+                          linewidth=size_data["dia_linewidth"],
+                          alpha=size_data["plot_alpha"])
+
+
+            else:
+                ax_1.scatter(self.integration_points,
+                             sc_special.steer_x,
+                             color=sc_special.plot_color,
+                             s=1,
+                             label=sc_special.display_name)
+                ax_1.plot(self.integration_points,
+                          sc_special.steer_x,
+                          color=sc_special.plot_color,
+                          linewidth=size_data["dia_linewidth"],
+                          alpha=size_data["plot_alpha"])
+
+                ax_2.scatter(self.integration_points,
+                             sc_special.steer_y,
+                             color=sc_special.plot_color,
+                             s=1,
+                             label=sc_special.display_name)
+                ax_2.plot(self.integration_points,
+                          sc_special.steer_y,
+                          color=sc_special.plot_color,
+                          linewidth=size_data["dia_linewidth"],
+                          alpha=size_data["plot_alpha"])
+
+
+
+        axes = [ax_1, ax_2]
+        for axis in axes:
+            axis.set_xlabel("Time [s]")
+            axis.set_ylabel("Aceleration [m/s^2]")
+            axis.grid(visible=True, color=[0.5, 0.5, 1])
+
+
+            axis.grid(visible=True, color=[0.5, 0.5, 1])
+            axis.set_facecolor(color_data["background"])
+
+        lgnd = ax_2.legend()
+        lgnd.set_draggable(True)
+        for handle in lgnd.legend_handles:
+            handle.set_sizes([50])
+
+        fig.subplots_adjust(hspace=0.5)
+
