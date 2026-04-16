@@ -2,11 +2,11 @@ import numpy as np
 import math
 
 
-def sail_attitude(sail_control, radiation_location):
+def sail_attitude(sail_control, radiation_location, state):
     alpha = sail_control[0]  # Tilt angle
     gamma = sail_control[1]  # Clock angle
 
-    d_1 = np.array([state[i] - radiation_location[i] for i in range(3)])
+    d_1 = np.array(state) - np.array(radiation_location)
     d_1 = d_1 / np.linalg.norm(d_1)
 
     d_2 = np.cross(d_1, np.array([0, 0, 1]))  # I'm sure this will lead to problems later on
@@ -27,23 +27,9 @@ class Solar_pressure:
 
         self.sail_control = [0, 0]
 
-    def ideal_sail(self, radiation_location, state):
+    def ideal_sail(self, state):
 
-        """alpha = self.sail_control[0]  # Tilt angle
-        gamma = self.sail_control[1]  # Clock angle
-
-        d_1 = np.array([state[i] - radiation_location[i] for i in range(3)])
-        d_1 = d_1 / np.linalg.norm(d_1)
-
-        d_2 = np.cross(d_1, np.array([0, 0, 1]))  # I'm sure this will lead to problems later on
-        d_2 = d_2 / np.linalg.norm(d_2)
-
-        d_3 = np.cross(d_2, d_1)
-        d_3 = d_3 / np.linalg.norm(d_3)
-
-        n = math.cos(alpha) * d_1 + math.sin(alpha) * math.sin(gamma) * d_2 + math.sin(alpha) * math.cos(gamma) * d_3"""
-
-        d_1, d_2, d_3, n = sail_attitude(sail_control=self.sail_control, radiation_location=self.radiation_location)
+        d_1, d_2, d_3, n = sail_attitude(sail_control=self.sail_control, radiation_location=self.radiation_location, state=state)
 
         # Taking into account the direction of the resulting acceleration:
 
@@ -93,8 +79,8 @@ class Solar_pressure:
         acc = (f_n + f_t) / m
         return acc
 
-    def solar_acceleration(self, state, ):
-        return self.ideal_sail(self.radiation_location, state)
+    def solar_acceleration(self, state):
+        return self.ideal_sail(state=state)
 
 
 if __name__ == "__main__":
@@ -104,7 +90,6 @@ if __name__ == "__main__":
     mpl.rcParams['axes3d.mouserotationstyle'] = 'azel'
 
     SRP = Solar_pressure(base_acc=1)
-    SRP.sail_control = [0, 0.4]
     state = [1, 0, 0]
 
 
@@ -114,8 +99,8 @@ if __name__ == "__main__":
         return acc
 
 
-    tilt_angle = np.linspace(-math.pi, math.pi, 50)
-    clock_angle = np.linspace(-math.pi, math.pi, 50)
+    tilt_angle = np.linspace(-math.pi*0, math.pi*0, 50)
+    clock_angle = np.linspace(-math.pi*0, math.pi*0, 50)
 
     # acc_array = list(np.zeros(shape=(len(tilt_angle), len(clock_angle))))
 
