@@ -114,7 +114,8 @@ class inertial_force_model:
         acc_vector = [acc_vector[0] + x_acc, acc_vector[1] + y_acc, acc_vector[2] + z_acc]
 
         if self.solar_pressure:
-            srp_acc = self.solar_pressure.solar_acceleration(state = position)
+            # The acceleration as a result of SRP is also written to the steering acceleration that is used as well for thruster control
+            srp_acc = self.solar_pressure.solar_acceleration(state=position)
             acc_vector = [acc_vector[0] + srp_acc[0], acc_vector[1] + srp_acc[1], acc_vector[2] + srp_acc[2]]
 
             self.steer_acc_x.append(srp_acc[0])

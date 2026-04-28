@@ -1,10 +1,26 @@
 import numpy as np
 import math
+import src.globals.Constants
 
+sigma_star, L_s, R_s, c = src.globals.Constants.get_SRP_globals()
+G, MY, KS_TOLERANCE, GRAV_CONST, EARTH_RADIUS = src.globals.Constants.get_globals()
+
+
+def inverse_square_SRP(tilt_angle, radiation_location, sail_loading, central_attractor_mass, state):
+
+    distance = np.linalg.norm(np.array(state[0:3]) - np.array(radiation_location))
+    acc = (sigma_star / sail_loading) * (central_attractor_mass * GRAV_CONST / distance**2)  #  * math.cos(tilt_angle)**2
+    return acc
+
+def modified_inverse_square_SRP(radiation_location, sail_loading, state):
+    distance = np.linalg.norm(np.array(state[0:3]) - np.array(radiation_location))
+    press = (L_s / (3 * math.pi * c * R_s**2)) * (1 - (1 - (R_s / distance)**2)**1.5)
+    acc = (press / sail_loading)  #  * math.cos(tilt_angle)**2
+    return acc
 
 def sail_attitude(sail_control, radiation_location, state):
-    alpha = sail_control[0]  # Tilt angle
-    gamma = sail_control[1]  # Clock angle
+    alpha = sail_control[0]  # Tilt angle: Alpha, acts around the second axis
+    gamma = sail_control[1]  # Clock angle: Gamma, acts around the inbound radiation axis
 
     d_1 = np.array(state) - np.array(radiation_location)
     d_1 = d_1 / np.linalg.norm(d_1)
@@ -21,32 +37,35 @@ def sail_attitude(sail_control, radiation_location, state):
 
 class Solar_pressure:
 
-    def __init__(self, base_acc=1.7 * 10 ** (-5)):
-        self.base_acc = base_acc
+    def __init__(self, sail_loading, central_attractor_mass):
+        # self.base_acc = base_acc
         self.radiation_location = [0, 0, 0]
 
         self.sail_control = [0, 0]
+        self.sail_loading = sail_loading
+        self.central_attractor_mass = central_attractor_mass
 
     def ideal_sail(self, state):
 
         d_1, d_2, d_3, n = sail_attitude(sail_control=self.sail_control, radiation_location=self.radiation_location, state=state)
+        # base_acc = modified_inverse_square_SRP(radiation_location=self.radiation_location, sail_loading=self.sail_loading, state=state)
+        base_acc = inverse_square_SRP(tilt_angle=self.sail_control[0], radiation_location=self.radiation_location, sail_loading=self.sail_loading, central_attractor_mass=self.central_attractor_mass, state=state)
 
         # Taking into account the direction of the resulting acceleration:
 
         if np.dot(d_1, n) > 0:
-            acc = list(self.base_acc * (np.dot(-d_1, n)) ** 2 * n)
+            acc = list(base_acc * (np.dot(d_1, n)) ** 2 * n)
         else:
-            acc = list(-self.base_acc * (np.dot(-d_1, n)) ** 2 * n)
+            acc = list(-base_acc * (np.dot(d_1, n)) ** 2 * n)
         return acc
 
-    def real_sail(self, radiation_location, state):
+    def real_sail(self, state):
 
         alpha = self.sail_control[0]
         clock = self.sail_control[1]
 
         # Parameter defintions:
-        P = 1  # Photonic pressure
-        A = 1  # Sail area
+        P = modified_inverse_square_SRP(radiation_location=self.radiation_location, sail_loading=self.sail_loading, state=state) * self.sail_loading
         r = 0.9  # Fraction of incidence photons that is reflectd
         s = 0.82  # Fraction of photons that experiences specular reflection
         B_f = 0.79  # Scattered fraction, frontside
@@ -55,32 +74,37 @@ class Solar_pressure:
         epsilon_f = 0.03  # Emissivity front
         epsilon_B = 0.6  # Emissivity back
 
-        m = 1  # Mass of the spacecraft
+        d_1, d_2, d_3, n = sail_attitude(sail_control=[alpha, clock], radiation_location=self.radiation_location, state=state)
 
-        d_1, d_2, d_3, n = sail_attitude(sail_control=self.sail_control, radiation_location=self.radiation_location)
-
-        """if np.dot(d_1, n) < 0:
-            n *= -1"""
+        # Making sure the acceleration only acts away from the sun
+        if np.dot(d_1, n) < 0:
+            n *= -1
 
         # Determining the t-vector
 
         incidence = np.array(state[0:3]) - np.array(self.radiation_location)
         temp = np.cross(n, incidence)
-        t = np.cross(temp, n)
-        t = t / np.linalg.norm(t)
+        if np.linalg.norm(temp) == 0:
+            t = n
+        else:
+            t = np.cross(temp, n)
+            t = t / np.linalg.norm(t)
 
         # Determining the two pre-factors:
         # Normal force
-        f_n = P * A * ((1 + r * s) * math.cos(alpha) ** 2 + B_f * (1 - s) * r * math.cos(alpha) + (1 - r) * (
-                    epsilon_f * B_f - epsilon_B - B_b) / (epsilon_f + epsilon_B)) * n
+        f_n_mag = P * ((1 + r * s) * math.cos(alpha) ** 2 + B_f * (1 - s) * r * math.cos(alpha) + (1 - r) * (
+                    epsilon_f * B_f - epsilon_B - B_b) / (epsilon_f + epsilon_B))
+        f_n = f_n_mag * n
 
-        f_t = P * A * (1 - r*s)*math.cos(alpha)*math.sin(alpha) * t
+        f_t_mag = P * (1 - r*s)*math.cos(alpha)*math.sin(alpha)
+        f_t = f_t_mag * t
 
-        acc = (f_n + f_t) / m
+        acc = (f_n + f_t) / self.sail_loading
         return acc
 
     def solar_acceleration(self, state):
-        return self.ideal_sail(state=state)
+        acc = self.ideal_sail(state=state)
+        return acc
 
 
 if __name__ == "__main__":
@@ -89,8 +113,8 @@ if __name__ == "__main__":
 
     mpl.rcParams['axes3d.mouserotationstyle'] = 'azel'
 
-    SRP = Solar_pressure(base_acc=1)
-    state = [1, 0, 0]
+    SRP = Solar_pressure(sail_loading=1, central_attractor_mass=1.989*10**30)
+    state = [R_s*10, 0, 0]
 
 
     def get_acc(tilt, clock):
@@ -99,8 +123,8 @@ if __name__ == "__main__":
         return acc
 
 
-    tilt_angle = np.linspace(-math.pi*0, math.pi*0, 50)
-    clock_angle = np.linspace(-math.pi*0, math.pi*0, 50)
+    tilt_angle = np.linspace(-0.2*math.pi, 0.2*math.pi, 2)
+    clock_angle = np.linspace(0.5*math.pi, 0.5*math.pi, 1)
 
     # acc_array = list(np.zeros(shape=(len(tilt_angle), len(clock_angle))))
 

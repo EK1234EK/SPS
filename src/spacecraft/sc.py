@@ -2,6 +2,8 @@ import time
 import numpy as np
 from numpy import interp
 from scipy.integrate import solve_ivp
+
+import src.globals.colors
 from src.astrodynamic_functions import kepler_dynamics
 from src.astrodynamic_functions.kepler_dynamics import GRAV_CONST
 
@@ -43,6 +45,10 @@ class Spacecraft:
         self.steer_z = []
         self.steer_magnitude = []
         self.true_time = []
+
+        # Sail control
+        self.tilt = []
+        self.clock = []
 
     def get_acc(self, state_vector, system_time):
         position = state_vector[0:3]
@@ -101,9 +107,13 @@ class Spacecraft:
         self.force_model.steer_acc_y = []
         self.force_model.steer_acc_z = []
         self.force_model.true_time = []
+        self.force_model.tilt_angle = []
+        self.force_model.clock_angle = []
 
         def get_acc_wrapper(t, state_vector):
             return self.get_acc(state_vector, t)
+
+        print(self.display_name + ": ", end="")
 
         if self.time_interval[0] == self.integration_points[0] and self.time_interval[1] == self.integration_points[-1]:
             eval_points = self.integration_points
@@ -121,12 +131,19 @@ class Spacecraft:
                         )
         terminal_time = time.time()
         steps = sol.nfev
+        status = sol.success
+        integrated_time = sol.t
         sol = list(sol.y)
 
 
-        if self.time_interval[0] == self.integration_points[0] and self.time_interval[1] == self.integration_points[-1]:
+        if self.time_interval[0] == self.integration_points[0] and self.time_interval[1] == self.integration_points[-1] and status == True:
             for state in range(6):
                 self.trajectory_track[state] += sol[state].tolist()
+        elif status is not True:
+            self.display_name += " - Integration error"
+            for state in range(6):
+                sol[state] = interp(self.integration_points, integrated_time, sol[state], left=None, right=None).tolist()
+                self.trajectory_track[state] += sol[state]
         else:
             for state in range(6):
                 sol[state] = interp(self.integration_points, eval_points, sol[state], left=None, right=None).tolist()
@@ -134,7 +151,7 @@ class Spacecraft:
 
         # Save the steering acceleration
         if self.force_model.steer_acc_x:
-            print(" - Guiding", end="")
+            print("Guiding", end="")
 
             self.steer_magnitude = [(self.force_model.steer_acc_x[i]**2 + self.force_model.steer_acc_y[i]**2 + self.force_model.steer_acc_z[i]**2)**0.5 for i in range(len(self.force_model.steer_acc_x))]
 
@@ -147,13 +164,21 @@ class Spacecraft:
 
             self.steer_magnitude = steer_mag_res
 
+        if self.force_model.tilt_angle:
+            print(" - Sail control: ", end="")
+
+            self.tilt = interp(self.integration_points, self.force_model.true_time, self.force_model.tilt_angle, left=None, right=None).tolist()
+            self.clock = interp(self.integration_points, self.force_model.true_time, self.force_model.clock_angle, left=None, right=None).tolist()
+
         """self.steer_x = self.force_model.steer_acc_x
         self.steer_y = self.force_model.steer_acc_y
         self.steer_z = self.force_model.steer_acc_z
         self.true_time = self.force_model.true_time"""
 
-        print(self.display_name + ": Integrating " + str(round(terminal_time - init_time, 3)) + " s after " + str(
-            steps) + " evaluations")
+        print("Integrating " + str(round(terminal_time - init_time, 3)) + " s after " + str(
+            steps) + " evaluations" ,end="")
+
+        print()
 
     def get_C3_track(self, central_mass):
         if len(self.orbital_parameters_track[0]) == 0:

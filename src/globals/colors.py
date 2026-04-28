@@ -1,7 +1,7 @@
 def get_color_data():
     colors = dict()
 
-    colors["generic"] = [0, 0, 1]
+    colors["generic"] = [1, 0, 0]
     colors["edge"] = [0, 1, 0]
     colors["center"] = [0.8, 0.2, 1]
     colors["feasible"] = [0.2, 1, 1]

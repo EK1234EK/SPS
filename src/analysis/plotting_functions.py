@@ -219,7 +219,7 @@ class graph_output:
                 ax.scatter([self.force_model.central_attractor_pos[0]],
                            [self.force_model.central_attractor_pos[1]],
                            [self.force_model.central_attractor_pos[2]],
-                           color=[1, 0.7, 0.7], s=50)
+                           color=[1, 0.7, 0.7], s=50, label="Central attractor")
 
             """# Plot the CR3BP pseudo-potential, if corresponding force model
             if self.force_model.is_CR3BP and plot_potential:
@@ -337,8 +337,9 @@ class graph_output:
 
         if self.fps is not None:
             anim.save(filename="animation_out/1.gif", fps=self.fps, dpi=200)
-        if not self.axis_visibility:
-            plt.legend()
+
+        lgnd = ax.legend()
+        lgnd.set_draggable(state=True)
 
         # manager = plt.get_current_fig_manager()
         # manager.full_screen_toggle()
@@ -1070,6 +1071,8 @@ class graph_output:
             ax_1.set_facecolor(color_data["background"])
 
     def plot_steering(self):
+        # ATTENTION: Acceleration as a result of SRP is also written to these variables and plotted in this function
+
         fig = plt.figure(self.figure_counter + 1, figsize=(7.5, 2.5 * 1.5))
         fig.set_facecolor(color_data["background"])
         self.figure_counter += 1
@@ -1192,6 +1195,9 @@ class graph_output:
             axis.grid(visible=True, color=[0.5, 0.5, 1])
             axis.set_facecolor(color_data["background"])
 
+            ylim = axis.get_ylim()
+            axis.set_ylim(ylim[0]-0.00001, ylim[1]+0.00001)
+
         lgnd = ax_3.legend()
         lgnd.set_draggable(True)
         for handle in lgnd.legend_handles:
@@ -1217,27 +1223,27 @@ class graph_output:
         colors = cmap(np.linspace(0, 1, n_samp))
 
         for sci, sc_special in enumerate(self.lst_spec_sc):
-            if not sc_special.steer_x:
+            if not sc_special.tilt:
                 pass
             elif isinstance(sc_special.plot_color, str):
                 ax_1.scatter(self.integration_points,
-                                   sc_special.steer_x,
+                                   sc_special.tilt,
                                    color=colors[sci],
                                    s=1,
                                    label=sc_special.display_name)
                 ax_1.plot(self.integration_points,
-                                sc_special.steer_x,
+                                sc_special.tilt,
                                 color=colors[sci],
                                 linewidth=size_data["dia_linewidth"],
                                 alpha=size_data["plot_alpha"])
 
                 ax_2.scatter(self.integration_points,
-                             sc_special.steer_y,
+                             sc_special.clock,
                              color=colors[sci],
                              s=1,
                              label=sc_special.display_name)
                 ax_2.plot(self.integration_points,
-                          sc_special.steer_y,
+                          sc_special.clock,
                           color=colors[sci],
                           linewidth=size_data["dia_linewidth"],
                           alpha=size_data["plot_alpha"])
@@ -1245,23 +1251,23 @@ class graph_output:
 
             else:
                 ax_1.scatter(self.integration_points,
-                             sc_special.steer_x,
+                             sc_special.tilt,
                              color=sc_special.plot_color,
                              s=1,
                              label=sc_special.display_name)
                 ax_1.plot(self.integration_points,
-                          sc_special.steer_x,
+                          sc_special.tilt,
                           color=sc_special.plot_color,
                           linewidth=size_data["dia_linewidth"],
                           alpha=size_data["plot_alpha"])
 
                 ax_2.scatter(self.integration_points,
-                             sc_special.steer_y,
+                             sc_special.clock,
                              color=sc_special.plot_color,
                              s=1,
                              label=sc_special.display_name)
                 ax_2.plot(self.integration_points,
-                          sc_special.steer_y,
+                          sc_special.clock,
                           color=sc_special.plot_color,
                           linewidth=size_data["dia_linewidth"],
                           alpha=size_data["plot_alpha"])
@@ -1271,7 +1277,7 @@ class graph_output:
         axes = [ax_1, ax_2]
         for axis in axes:
             axis.set_xlabel("Time [s]")
-            axis.set_ylabel("Aceleration [m/s^2]")
+            axis.set_ylabel("Angle [m/s^2]")
             axis.grid(visible=True, color=[0.5, 0.5, 1])
 
 

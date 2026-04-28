@@ -503,49 +503,66 @@ def Lagrange_targeting():
 
 def SRP_testing():
     t_start = 0
-    t_end = 50000000
+    t_end = 1000
     integration_points = list(np.linspace(t_start, t_end, 10000))
 
-    central_mass = 5.972*10**24
+    central_mass = 1.989*10**30
 
     force_model = sd_1.inertial_force_model(path="./data/empty_dataset.xlsx")
     force_model.define_central_attractor(mass=central_mass, position=[0, 0, 0])
 
-    srp_model = SRP.Solar_pressure()
-    srp_model.radiation_location = [149*10**12, 0, 0]
-    # force_model.solar_pressure = srp_model
+    srp_model = SRP.Solar_pressure(sail_loading=1.53 * 10**(-3), central_attractor_mass=force_model.central_mass)
+    srp_model.radiation_location = [0, 0, 0]
+    force_model.solar_pressure = srp_model
+
+    init_state = kepler_dynamics.oe_to_sv(20000000, 0, 0, 0, 0, 0, 0, force_model.central_mass)
+    init_state = [149*10**9, 0, 0, 0, 0, 0]
 
     list_of_sc = []
 
-    for i in range(2):
-        if i == 0:
-            srp_model.sail_control = [0.25*math.pi, 0*math.pi]
-        elif i == 1:
-            srp_model.sail_control = [0.25 * math.pi, 0.5 * math.pi]
-        sc_1 = src.spacecraft.sc.Spacecraft(init_state_vector=[8000000, 0, 0, 0, 7500, 0], force_model=force_model)
-        sc_1.integration_points = integration_points
-        if i == 0:
-            sc_1.time_interval = [t_start, t_end]
-        elif i == 1:
-            sc_1.time_interval = [0.5 * t_end, t_end]
+    srp_model.sail_loading = 1.53 * 10**(-3)
+    sc_1 = src.spacecraft.sc.Spacecraft(init_state_vector=init_state, force_model=force_model)
+    # sc_1.display_name = "SRP deceleration"
+    sc_1.integration_points = integration_points
+    sc_1.time_interval = [t_start, t_end]
+    sc_1.force_model.solar_pressure.sail_control = [+0*0.25*math.pi, 0.5*math.pi]
+    sc_1.integrate_states_sivp(rtol=10**-9)
+    sc_1.trajectory_conversion(mass=central_mass)
+    sc_1.plot_color = [1, 0.5, 1]
+    list_of_sc.append(sc_1)
 
-        sc_1.integrate_states_sivp(rtol=10**-6)
+    """sc_3 = src.spacecraft.sc.Spacecraft(init_state_vector=init_state, force_model=force_model)
+    sc_3.display_name = "SRP acceleration"
+    sc_3.integration_points = integration_points
+    sc_3.time_interval = [t_start, t_end]
+    sc_3.force_model.solar_pressure.sail_control = [-0.25 * math.pi, 0.5 * math.pi]
+    sc_3.integrate_states_sivp(rtol=10 ** -9)
+    sc_3.trajectory_conversion(mass=central_mass)
+    sc_3.plot_color = [0, 1, 0]
 
-        sc_1.trajectory_conversion(mass=central_mass)
 
-        list_of_sc.append(sc_1)
+    sc_2 = src.spacecraft.sc.Spacecraft(init_state_vector=init_state, force_model=force_model)
+    sc_2.display_name = "Gravity only"
+    sc_2.integration_points = integration_points
+    sc_2.time_interval = [t_start, t_end]
+    sc_2.force_model.solar_pressure = None
+    sc_2.integrate_states_sivp(rtol=10 ** -9)
+    sc_2.trajectory_conversion(mass=central_mass)
+    sc_2.plot_color = [1, 0, 0]"""
+
 
     plots = plotting_functions.graph_output(list_of_spacecraft=[],
                                         list_of_resampled_spacecraft=[],
                                         list_of_special_spacecraft=list_of_sc,
                                         force_model=force_model,
-                                        axis_visibility=False,
+                                        axis_visibility=True,
                                         animated=False)
 
     plots.trajectory_xyz()
     plots.parameters_plot()
-
-    plots.moving_map_plot(k_modulo=200)
+    plots.plot_steering()
+    plots.plot_sail_control()
+    plots.moving_map_plot(match_tail_color=True)
     plt.show()
     plt.waitforbuttonpress(10000000000)
 
