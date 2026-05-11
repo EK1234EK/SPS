@@ -1,5 +1,8 @@
 import numpy as np
 import math
+
+from matplotlib.projections import projection_registry
+
 import src.globals.Constants
 
 sigma_star, L_s, R_s, c = src.globals.Constants.get_SRP_globals()
@@ -57,7 +60,7 @@ class Solar_pressure:
             acc = list(base_acc * (np.dot(d_1, n)) ** 2 * n)
         else:
             acc = list(-base_acc * (np.dot(d_1, n)) ** 2 * n)
-        return acc
+        return acc, 0, 0
 
     def real_sail(self, state):
 
@@ -80,6 +83,11 @@ class Solar_pressure:
         if np.dot(d_1, n) < 0:
             n *= -1
 
+        """while alpha > 0.5 * math.pi:
+            alpha -= math.pi
+        while alpha < -0.5 * math.pi:
+            alpha += math.pi"""
+
         # Determining the t-vector
 
         incidence = np.array(state[0:3]) - np.array(self.radiation_location)
@@ -87,12 +95,13 @@ class Solar_pressure:
         if np.linalg.norm(temp) == 0:
             t = n
         else:
-            t = np.cross(temp, n)
-            t = t / np.linalg.norm(t)
+            """t = np.cross(temp, n)
+            t = t / np.linalg.norm(t)"""
+            t = (d_1 + math.cos(alpha) * n) / math.sin(alpha)
 
         # Determining the two pre-factors:
         # Normal force
-        f_n_mag = P * ((1 + r * s) * math.cos(alpha) ** 2 + B_f * (1 - s) * r * math.cos(alpha) + (1 - r) * (
+        f_n_mag = P * ((1 + r * s) * math.cos(alpha) ** 2 + B_f * (1 - s) * r * math.cos(alpha) + (1 - r) * math.cos(alpha) * (
                     epsilon_f * B_f - epsilon_B - B_b) / (epsilon_f + epsilon_B))
         f_n = f_n_mag * n
 
@@ -100,10 +109,19 @@ class Solar_pressure:
         f_t = f_t_mag * t
 
         acc = (f_n + f_t) / self.sail_loading
-        return acc
+        """print("n: ", n)
+        print("t: ", t)
+        print("Acc: ", acc)  # --> TODO this needs fixing it is negative, check clock angle first!
+        print("f_n: ", f_n)
+        print("f_n_mag: ", f_n_mag)
+        print("f_t: ", f_t)
+        print("f_t_mag: ", f_t_mag)
+        print()
+        print("====================")"""
+        return acc, f_n, f_t
 
     def solar_acceleration(self, state):
-        acc = self.ideal_sail(state=state)
+        acc, _, _ = self.real_sail(state=state)
         return acc
 
 
@@ -113,74 +131,210 @@ if __name__ == "__main__":
 
     mpl.rcParams['axes3d.mouserotationstyle'] = 'azel'
 
-    SRP = Solar_pressure(sail_loading=1, central_attractor_mass=1.989*10**30)
-    state = [R_s*10, 0, 0]
+    def cartesian_surface_plots():
+
+        SRP = Solar_pressure(sail_loading=1, central_attractor_mass=1.989*10**30)
+        state = [R_s*10, 0, 0]
 
 
-    def get_acc(tilt, clock):
-        SRP.sail_control = [tilt, clock]
-        acc = SRP.solar_acceleration(state=state)
-        return acc
+        def get_acc(tilt, clock):
+            SRP.sail_control = [tilt, clock]
+            acc = SRP.solar_acceleration(state=state)
+            return acc
 
 
-    tilt_angle = np.linspace(-0.2*math.pi, 0.2*math.pi, 2)
-    clock_angle = np.linspace(0.5*math.pi, 0.5*math.pi, 1)
+        tilt_angle = np.linspace(0*math.pi, 6*math.pi, 500)
+        clock_angle = np.linspace(0*math.pi, 2*math.pi, 2)
 
-    # acc_array = list(np.zeros(shape=(len(tilt_angle), len(clock_angle))))
+        # acc_array = list(np.zeros(shape=(len(tilt_angle), len(clock_angle))))
 
-    acc_x, acc_y, acc_z, TILT, CLOCK, ANGLE = (np.zeros(shape=(len(tilt_angle), len(clock_angle))) for _ in range(6))
+        acc_x, acc_y, acc_z, TILT, CLOCK, ANGLE = (np.zeros(shape=(len(tilt_angle), len(clock_angle))) for _ in range(6))
 
-    for i, tilt in enumerate(tilt_angle):
-        for j, clock in enumerate(clock_angle):
-            acc_vec = get_acc(tilt, clock)
-            TILT[i][j] = tilt * 180 / math.pi
-            CLOCK[i][j] = clock * 180 / math.pi
+        for i, tilt in enumerate(tilt_angle):
+            for j, clock in enumerate(clock_angle):
+                acc_vec = get_acc(tilt, clock)
+                TILT[i][j] = tilt * 180 / math.pi
+                CLOCK[i][j] = clock * 180 / math.pi
 
-            acc_x[i][j] = acc_vec[0]
-            acc_y[i][j] = acc_vec[1]
-            acc_z[i][j] = acc_vec[2]
+                acc_x[i][j] = acc_vec[0]
+                acc_y[i][j] = acc_vec[1]
+                acc_z[i][j] = acc_vec[2]
 
-            ANGLE[i][j] = math.acos((np.dot(acc_vec, np.array(state) - np.array(SRP.radiation_location))) / (
-                    np.linalg.norm(np.array(acc_vec)) * np.linalg.norm(
-                np.array(state) - np.array(SRP.radiation_location))))
+                ANGLE[i][j] = math.acos((np.dot(acc_vec, np.array(state) - np.array(SRP.radiation_location))) / (
+                        np.linalg.norm(np.array(acc_vec)) * np.linalg.norm(
+                    np.array(state) - np.array(SRP.radiation_location))))
 
-    fig_1 = plt.figure()
-    fig_2 = plt.figure()
-    fig_3 = plt.figure()
-    fig_4 = plt.figure()
-    ax_1 = fig_1.add_subplot(111, projection="3d", )
-    ax_2 = fig_2.add_subplot(111, projection="3d")
-    ax_3 = fig_3.add_subplot(111, projection="3d")
-    ax_4 = fig_4.add_subplot(111, projection="3d")
+        fig_1 = plt.figure()
+        fig_2 = plt.figure()
+        fig_3 = plt.figure()
+        fig_4 = plt.figure()
+        ax_1 = fig_1.add_subplot(111, projection="3d", )
+        ax_2 = fig_2.add_subplot(111, projection="3d")
+        ax_3 = fig_3.add_subplot(111, projection="3d")
+        ax_4 = fig_4.add_subplot(111, projection="3d")
 
-    plt_1 = ax_1.plot_surface(TILT, CLOCK, acc_x, label="Acceleration x", cmap=mpl.colormaps["hsv"])
-    plt_2 = ax_2.plot_surface(TILT, CLOCK, acc_y, label="Acceleration y", cmap=mpl.colormaps["hsv"])
-    plt_3 = ax_3.plot_surface(TILT, CLOCK, acc_z, label="Acceleration z", cmap=mpl.colormaps["hsv"])
-    plt_4 = ax_4.plot_surface(TILT, CLOCK, ANGLE * 180 / math.pi, label="Acceleration angle", cmap=mpl.colormaps["hsv"])
+        plt_1 = ax_1.plot_surface(TILT, CLOCK, acc_x, label="Acceleration x", cmap=mpl.colormaps["hsv"])
+        plt_2 = ax_2.plot_surface(TILT, CLOCK, acc_y, label="Acceleration y", cmap=mpl.colormaps["hsv"])
+        plt_3 = ax_3.plot_surface(TILT, CLOCK, acc_z, label="Acceleration z", cmap=mpl.colormaps["hsv"])
+        plt_4 = ax_4.plot_surface(TILT, CLOCK, ANGLE * 180 / math.pi, label="Acceleration angle", cmap=mpl.colormaps["hsv"])
 
-    ax_1.set_title("X acceleration")
-    ax_2.set_title("Y acceleration")
-    ax_3.set_title("Z acceleration")
-    ax_4.set_title("Acceleration angle")
+        ax_1.set_title("X acceleration")
+        ax_2.set_title("Y acceleration")
+        ax_3.set_title("Z acceleration")
+        ax_4.set_title("Acceleration angle")
 
-    axes = [ax_1, ax_2, ax_3, ax_4]
-    for axis in axes:
-        axis.set_xlabel("Tilt angle [rad]")
-        axis.set_ylabel("Clock angle [rad]")
-        axis.set_zlabel("Acceleration angle")
-        # axis.legend()
-        axis.view_init(elev=90, azim=0)
+        axes = [ax_1, ax_2, ax_3, ax_4]
+        for axis in axes:
+            axis.set_xlabel("Tilt angle [rad]")
+            axis.set_ylabel("Clock angle [rad]")
+            axis.set_zlabel("Acceleration angle")
+            # axis.legend()
+            axis.view_init(elev=90, azim=0)
 
-    fig_1.colorbar(plt_1)
-    fig_1.colorbar(plt_2)
-    fig_1.colorbar(plt_3)
-    fig_1.colorbar(plt_4)
+        fig_1.colorbar(plt_1)
+        fig_1.colorbar(plt_2)
+        fig_1.colorbar(plt_3)
+        fig_1.colorbar(plt_4)
 
-    fig_1.tight_layout()
-    fig_2.tight_layout()
-    fig_3.tight_layout()
-    fig_4.tight_layout()
+        fig_1.tight_layout()
+        fig_2.tight_layout()
+        fig_3.tight_layout()
+        fig_4.tight_layout()
 
-    ax_4.set_zlabel("Angle")
+        ax_4.set_zlabel("Angle")
 
-    plt.show()
+        plt.show()
+
+    def envelope_plots():
+
+        import matplotlib
+
+        SRP = Solar_pressure(sail_loading=1, central_attractor_mass=1.989 * 10 ** 30)
+        state = [R_s * 10, 0, 0]
+
+        def get_acc(tilt, clock):
+            SRP.sail_control = [tilt, clock]
+            acc = SRP.solar_acceleration(state=state)
+            return acc
+
+        alpha = np.linspace(-0.5 * math.pi, 0.5 * math.pi, 100)
+        gamma = np.linspace(0, 2 * math.pi, 100)
+
+        tilt, clock = np.meshgrid(alpha, gamma)
+
+        acc_mag = 0 * tilt
+        x = 0 * tilt
+        y = 0 * tilt
+
+        for i, a in enumerate(alpha):
+            for j, g in enumerate(gamma):
+                acc_mag[i][j] = np.linalg.norm(get_acc(a, g))
+                x[i][j] = np.sin(a) * np.sin(g)
+                y[i][j] = np.sin(a) * np.cos(g)
+
+
+        fig = plt.figure()
+        ax_1 = fig.add_subplot(121, projection="3d")
+        ax_1.plot_surface(tilt, clock, acc_mag, cmap=matplotlib.colormaps["jet"])
+
+        ax_2 = fig.add_subplot(122, projection="3d")
+        ax_2.plot_surface(x, y, acc_mag, cmap=matplotlib.colormaps["jet"])
+
+        plt.show()
+
+        pass
+
+    def scatter_plots():
+
+        import matplotlib
+
+        SRP = Solar_pressure(sail_loading=1, central_attractor_mass=1.989 * 10 ** 30)
+        state = [R_s * 10, R_s * 0, 0]
+
+        def get_acc(tilt, clock):
+            SRP.sail_control = [tilt, clock]
+            acc = SRP.solar_acceleration(state=state)
+            return acc
+
+        alpha = np.linspace(0*math.pi, 0.5 * math.pi, 100)
+        gamma = np.linspace(0*math.pi, 2*math.pi, 100)
+
+        [x, y, z] = [[] for _ in range(3)]
+
+
+        for i, a in enumerate(alpha):
+            for j, g in enumerate(gamma):
+                acc = get_acc(a, g)
+                x.append(acc[0])
+                y.append(acc[1])
+                z.append(acc[2])
+
+
+        fig = plt.figure()
+        ax_1 = fig.add_subplot(121, projection="3d")
+        ax_1.scatter(x, y, z, color=[1, 0, 0], label="Positive tilt")
+
+        """alpha = np.linspace(-0.5 * math.pi, 0 * math.pi, 50)
+        gamma = np.linspace(0, math.pi, 50)
+
+        [x, y, z] = [[] for _ in range(3)]
+
+        for i, a in enumerate(alpha):
+            for j, g in enumerate(gamma):
+                acc = get_acc(a, g)
+                x.append(acc[0])
+                y.append(acc[1])
+                z.append(acc[2])
+
+        ax_1.scatter(x, y, z, color=[0, 1, 0], label="Negative alpha")"""
+
+        ax_1.set_xlabel("X")
+        ax_1.set_ylabel("Y")
+        ax_1.set_zlabel("Z")
+        # ax_1.set_zlim([-1, 1])
+        lgnd = fig.legend()
+        lgnd.set_draggable(True)
+        plt.show()
+
+    def curve_eval():
+        SRP = Solar_pressure(sail_loading=1, central_attractor_mass=1.989 * 10 ** 30)
+        state = [R_s * 10, 0, 0]
+
+        def get_acc(tilt, clock):
+            SRP.sail_control = [tilt, clock]
+            acc = SRP.solar_acceleration(state=state)
+            return acc
+
+        tilt_angle = np.linspace(0 * math.pi, 0.49 * math.pi, 500)
+        clock_angle = np.linspace(0 * math.pi, 0 * math.pi, 1)
+
+        # acc_array = list(np.zeros(shape=(len(tilt_angle), len(clock_angle))))
+
+        acc_x, acc_y, acc_z, TILT, CLOCK, ANGLE = (np.zeros(shape=(len(tilt_angle), len(clock_angle))) for _ in range(6))
+
+        for i, tilt in enumerate(tilt_angle):
+            for j, clock in enumerate(clock_angle):
+                acc_vec = get_acc(tilt, clock)
+                TILT[i][j] = tilt * 180 / math.pi
+                CLOCK[i][j] = clock * 180 / math.pi
+
+                acc_x[i][j] = acc_vec[0]
+                acc_y[i][j] = acc_vec[1]
+                acc_z[i][j] = acc_vec[2]
+
+                ANGLE[i][j] = math.acos((np.dot(acc_vec, np.array(state) - np.array(SRP.radiation_location))) / (
+                        np.linalg.norm(np.array(acc_vec)) * np.linalg.norm(
+                    np.array(state) - np.array(SRP.radiation_location))))
+
+        fig = plt.figure()
+        ax_1 = fig.add_subplot(121)
+        ax_2 = fig.add_subplot(122)
+
+        ax_1.plot(TILT, TILT - ANGLE * 180 / math.pi)
+        ax_1.grid()
+
+        ax_2.plot(TILT, ANGLE * 180 / math.pi)
+        ax_2.grid()
+        plt.show()
+
+    curve_eval()
