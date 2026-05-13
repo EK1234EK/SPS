@@ -3,7 +3,7 @@ import numpy as np
 
 def check_and(sc):
     def condition_1(sc):
-        if min(sc.body_distances["Jupiter"]) < 1.355e9:
+        if min(sc.body_distances["Moon"]) < 3e7:
             return True
 
     def condition_2(sc):
@@ -28,4 +28,4 @@ def check_and(sc):
         if max(sc.trajectory_track[0]) < 1 and min(sc.trajectory_track[0]) > 0.6:
             return True
 
-    return condition_6(sc)
+    return condition_1(sc)

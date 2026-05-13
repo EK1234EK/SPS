@@ -34,7 +34,7 @@ class inertial_force_model:
         self.is_CR3BP = False
 
         # Steering
-        self.steering_law = None
+        self.guidance = None
         self.steer_acc_x = []
         self.steer_acc_y = []
         self.steer_acc_z = []
@@ -45,6 +45,8 @@ class inertial_force_model:
         self.radiation_location = None
         self.tilt_angle = []
         self.clock_angle = []
+
+        self.control_input = dict()
 
     def get_dataset(self):
         orbital_dataset = pd.read_excel(self.path_to_data)
@@ -113,7 +115,7 @@ class inertial_force_model:
 
         acc_vector = [acc_vector[0] + x_acc, acc_vector[1] + y_acc, acc_vector[2] + z_acc]
 
-        if self.solar_pressure:
+        """if self.solar_pressure:
             # The acceleration as a result of SRP is also written to the steering acceleration that is used as well for thruster control
             srp_acc, _, _ = self.solar_pressure.solar_acceleration(state=position)
             acc_vector = [acc_vector[0] + srp_acc[0], acc_vector[1] + srp_acc[1], acc_vector[2] + srp_acc[2]]
@@ -125,11 +127,11 @@ class inertial_force_model:
             self.tilt_angle.append(self.solar_pressure.sail_control[0])
             self.clock_angle.append(self.solar_pressure.sail_control[1])
 
-            self.true_time.append(system_time)
+            self.true_time.append(system_time)"""
 
-        if self.steering_law:
+        if self.guidance:
             #  Adding the acceleration vector from the steering law
-            command = self.steering_law.guidance(state=[x, y, z, velocity[0], velocity[1], velocity[2]], time=system_time, force_model=self)
+            command = self.guidance.guidance(state=[x, y, z, velocity[0], velocity[1], velocity[2]], time=system_time, force_model=self)
             acc_vector = [acc_vector[0] + command[0], acc_vector[1] + command[1], acc_vector[2] + command[2]]
 
             self.steer_acc_x.append(command[0])
@@ -138,7 +140,8 @@ class inertial_force_model:
 
             self.true_time.append(system_time)
 
-        return [acc_vector[0], acc_vector[1], acc_vector[2]]
+        # return [acc_vector[0], acc_vector[1], acc_vector[2]]
+        return acc_vector
 
     def get_plotting_track(self):
 

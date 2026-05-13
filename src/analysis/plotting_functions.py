@@ -261,7 +261,8 @@ class graph_output:
         ####################
         # Begin of animate(k)
         def animate(k_in):
-            k = math.floor(k_in * self.frame_multiplier)  # Account for the case of no animation - just show the final state
+            k = math.floor(
+                k_in * self.frame_multiplier)  # Account for the case of no animation - just show the final state
 
             if k_modulo and self.animated:
                 k = math.floor(k * k_modulo)
@@ -314,7 +315,7 @@ class graph_output:
 
             #Rotate
             if azim_rate != 0 or elevation_rate != 0:
-                ax.view_init(azim=init_azim+k*azim_rate, elev=init_elevation+k*elevation_rate)
+                ax.view_init(azim=init_azim + k * azim_rate, elev=init_elevation + k * elevation_rate)
 
             return artists
 
@@ -418,12 +419,12 @@ class graph_output:
 
                 if self.integration_points[index] < 86000 / 2:
                     axis.set_title(ind_slice[0] + " - " + ind_slice[1] + " - " + ind_slice[2] + "    " + str(
-                    round(self.integration_points[index], 2)) + " / " + str(
-                    round(self.integration_points[-1], 2)) + " [s]")
+                        round(self.integration_points[index], 2)) + " / " + str(
+                        round(self.integration_points[-1], 2)) + " [s]")
                 else:
                     axis.set_title(ind_slice[0] + " - " + ind_slice[1] + " - " + ind_slice[2] + "    " + str(
-                    round(self.integration_points[index] / (24 * 3600), 2)) + " / " + str(
-                    round(self.integration_points[-1] / (24 * 3600), 2)) + " [d]")
+                        round(self.integration_points[index] / (24 * 3600), 2)) + " / " + str(
+                        round(self.integration_points[-1] / (24 * 3600), 2)) + " [d]")
 
                 axis.xaxis.pane.fill = False
                 axis.yaxis.pane.fill = False
@@ -1070,8 +1071,8 @@ class graph_output:
             ax_1.set_xlabel("Time [s]")
             ax_1.set_facecolor(color_data["background"])
 
-    def plot_steering(self):
-        # ATTENTION: Acceleration as a result of SRP is also written to these variables and plotted in this function
+    def plot_steering_acceleration(self):
+        # ATTENTION: Acceleration as a result of all steering contributions is listed right here
 
         fig = plt.figure(self.figure_counter + 1, figsize=(7.5, 2.5 * 1.5))
         fig.set_facecolor(color_data["background"])
@@ -1098,15 +1099,15 @@ class graph_output:
                 pass
             elif isinstance(sc_special.plot_color, str):
                 ax_1.scatter(self.integration_points,
-                                   sc_special.steer_x,
-                                   color=colors[sci],
-                                   s=1,
-                                   label=sc_special.display_name)
+                             sc_special.steer_x,
+                             color=colors[sci],
+                             s=1,
+                             label=sc_special.display_name)
                 ax_1.plot(self.integration_points,
-                                sc_special.steer_x,
-                                color=colors[sci],
-                                linewidth=size_data["dia_linewidth"],
-                                alpha=size_data["plot_alpha"])
+                          sc_special.steer_x,
+                          color=colors[sci],
+                          linewidth=size_data["dia_linewidth"],
+                          alpha=size_data["plot_alpha"])
 
                 ax_2.scatter(self.integration_points,
                              sc_special.steer_y,
@@ -1191,12 +1192,11 @@ class graph_output:
             axis.set_ylabel("Aceleration [m/s^2]")
             axis.grid(visible=True, color=[0.5, 0.5, 1])
 
-
             axis.grid(visible=True, color=[0.5, 0.5, 1])
             axis.set_facecolor(color_data["background"])
 
             ylim = axis.get_ylim()
-            axis.set_ylim(ylim[0]-0.00001, ylim[1]+0.00001)
+            axis.set_ylim(ylim[0] - 0.00001, ylim[1] + 0.00001)
 
         lgnd = ax_3.legend()
         lgnd.set_draggable(True)
@@ -1205,89 +1205,62 @@ class graph_output:
 
         fig.subplots_adjust(hspace=0.5)
 
+    def plot_control(self):
+        if not self.lst_spec_sc[0].control_input_track:
+            return None
 
-    def plot_sail_control(self):
         fig = plt.figure(self.figure_counter + 1, figsize=(7.5, 2.5 * 1.5))
         fig.set_facecolor(color_data["background"])
         self.figure_counter += 1
 
-        ax_1 = fig.add_subplot(211)
-        ax_1.set_title("Tilt control")
-
-        ax_2 = fig.add_subplot(212)
-        ax_2.set_title("Clock control")
-
+        axes = []
+        n_key = len(list(self.lst_spec_sc[0].control_input_track.keys()))
+        for i, key in enumerate(self.lst_spec_sc[0].control_input_track.keys()):
+            axis = fig.add_subplot(n_key, 1, i+1)
+            axis.set_title(key)
+            axes.append(axis)
 
         n_samp = len(self.lst_spec_sc)
         cmap = plt.colormaps[color_data["map"]]
         colors = cmap(np.linspace(0, 1, n_samp))
 
         for sci, sc_special in enumerate(self.lst_spec_sc):
-            if not sc_special.tilt:
-                pass
-            elif isinstance(sc_special.plot_color, str):
-                ax_1.scatter(self.integration_points,
-                                   sc_special.tilt,
-                                   color=colors[sci],
-                                   s=1,
-                                   label=sc_special.display_name)
-                ax_1.plot(self.integration_points,
-                                sc_special.tilt,
-                                color=colors[sci],
-                                linewidth=size_data["dia_linewidth"],
-                                alpha=size_data["plot_alpha"])
-
-                ax_2.scatter(self.integration_points,
-                             sc_special.clock,
-                             color=colors[sci],
-                             s=1,
-                             label=sc_special.display_name)
-                ax_2.plot(self.integration_points,
-                          sc_special.clock,
-                          color=colors[sci],
-                          linewidth=size_data["dia_linewidth"],
-                          alpha=size_data["plot_alpha"])
-
-
+            if isinstance(sc_special.plot_color, str):
+                for axis, key in zip(axes, sc_special.control_input_track.keys()):
+                    axis.scatter(self.integration_points,
+                                 sc_special.control_input_track[key],
+                                 color=colors[sci],
+                                 s=1,
+                                 label=sc_special.display_name)
+                    axis.plot(self.integration_points,
+                              sc_special.control_input_track[key],
+                              color=colors[sci],
+                              linewidth=size_data["dia_linewidth"],
+                              alpha=size_data["plot_alpha"])
             else:
-                ax_1.scatter(self.integration_points,
-                             sc_special.tilt,
-                             color=sc_special.plot_color,
-                             s=1,
-                             label=sc_special.display_name)
-                ax_1.plot(self.integration_points,
-                          sc_special.tilt,
-                          color=sc_special.plot_color,
-                          linewidth=size_data["dia_linewidth"],
-                          alpha=size_data["plot_alpha"])
+                for axis, key in zip(axes, sc_special.control_input_track.keys()):
+                    axis.scatter(self.integration_points,
+                                 sc_special.control_input_track[key],
+                                 color=sc_special.plot_color,
+                                 s=1,
+                                 label=sc_special.display_name)
+                    axis.plot(self.integration_points,
+                              sc_special.control_input_track[key],
+                              color=sc_special.plot_color,
+                              linewidth=size_data["dia_linewidth"],
+                              alpha=size_data["plot_alpha"])
 
-                ax_2.scatter(self.integration_points,
-                             sc_special.clock,
-                             color=sc_special.plot_color,
-                             s=1,
-                             label=sc_special.display_name)
-                ax_2.plot(self.integration_points,
-                          sc_special.clock,
-                          color=sc_special.plot_color,
-                          linewidth=size_data["dia_linewidth"],
-                          alpha=size_data["plot_alpha"])
-
-
-
-        axes = [ax_1, ax_2]
         for axis in axes:
             axis.set_xlabel("Time [s]")
             axis.set_ylabel("Angle [m/s^2]")
             axis.grid(visible=True, color=[0.5, 0.5, 1])
 
-
             axis.grid(visible=True, color=[0.5, 0.5, 1])
             axis.set_facecolor(color_data["background"])
 
-        lgnd = ax_2.legend()
+        lgnd = axes[0].legend()
         lgnd.set_draggable(True)
         for handle in lgnd.legend_handles:
             handle.set_sizes([50])
 
         fig.subplots_adjust(hspace=0.5)
-

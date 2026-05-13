@@ -14,10 +14,11 @@ class LocalOptimal:
         self.current_control = []
 
         self.oe_direction = []
-        self.target_oe = dict()
+        self.target_oe = {"True time": []}
 
         self.track_time = 0
 
+        self.control_command_track = dict()
 
     def maximize_oe_change(self, state):
         pass
@@ -125,7 +126,6 @@ class LocalOptimal:
 
         return direction
 
-
     def target_orbit(self, state):
 
         if self.target_oe == {}:
@@ -190,7 +190,7 @@ class LocalOptimal:
         if self.target_oe == {}:
             raise ValueError("No target orbital parameter set defined!")
 
-        oe_name_list = ["SMA", "ECC", "INC","Lon"]
+        oe_name_list = ["SMA", "ECC", "INC", "Lon"]
 
         dv = 0.1  # Incement, by which to estimate the derivativs in the Jacobian
         acc_mag = 0.005
@@ -203,7 +203,8 @@ class LocalOptimal:
         solution_mat = dict()
         state_mat["center"] = state
         oe_mat["center"] = kepler_dynamics.sv_to_oe(state_vector=state_mat["center"], mass=self.conversion_mass)
-        solution_mat["center"] = oe_mat["center"][0:2] + [oe_mat["center"][3] + oe_mat["center"][4] + oe_mat["center"][5]]
+        solution_mat["center"] = oe_mat["center"][0:2] + [
+            oe_mat["center"][3] + oe_mat["center"][4] + oe_mat["center"][5]]
 
         dvx = [0, 0, 0, dv, 0, 0]
         state_mat["+vx"] = [state[i] + dvx[i] for i in range(6)]
@@ -280,7 +281,7 @@ class LocalOptimal:
         self.target_orbit(state=state)
         return self.current_control
 
-    def guidance(self, state, time, force_model):
+    def guidance_3(self, state, time, force_model):
 
         k_v = 0
         k_x = 10
@@ -305,4 +306,22 @@ class LocalOptimal:
 
         self.track_time += min_dt
 
+        return self.current_control
+
+    def guidance(self, state, time, force_model):
+        # Controls a solar sail
+        import math
+        if state[5] < 0:
+            force_model.solar_pressure.sail_control = list(np.array([0.25*math.pi, math.pi]))
+        else:
+            force_model.solar_pressure.sail_control = list(np.array([0.25*math.pi, 0*math.pi]))
+        self.current_control = force_model.solar_pressure.solar_acceleration(state=state[0:3])
+
+        if "Tilt" not in self.control_command_track.keys():
+            self.control_command_track["Tilt"] = []
+        if "Clock" not in self.control_command_track.keys():
+            self.control_command_track["Clock"] = []
+
+        self.control_command_track["Tilt"].append(force_model.solar_pressure.sail_control[0])
+        self.control_command_track["Clock"].append(force_model.solar_pressure.sail_control[1])
         return self.current_control

@@ -30,7 +30,7 @@ class Spacecraft:
         self.is_center_spacecraft: bool = False
         self.is_resampled_spacecraft: bool = False
 
-        self.plot_color = "map" # [1, 0, 1]
+        self.plot_color = "map"  # [1, 0, 1]
         self.tail_color = [0.5, 0.5, 0.5]
         self.display_name = ''
 
@@ -49,6 +49,7 @@ class Spacecraft:
         # Sail control
         self.tilt = []
         self.clock = []
+        self.control_input_track = dict()
 
     def get_acc(self, state_vector, system_time):
         position = state_vector[0:3]
@@ -74,7 +75,7 @@ class Spacecraft:
         # t_2 = time.time()
         # print(self.display_name + ": Cartesian to Keplerian " + str(round(t_2 - t_1, 3)) + " s")
 
-    def get_body_distances(self, body_list: list, body_trajectories = None):
+    def get_body_distances(self, body_list: list, body_trajectories=None):
         distances = dict()
         if body_trajectories is None:
             self.force_model.trajectory_track = self.force_model.propagate_body_states(self.integration_points)
@@ -135,14 +136,15 @@ class Spacecraft:
         integrated_time = sol.t
         sol = list(sol.y)
 
-
-        if self.time_interval[0] == self.integration_points[0] and self.time_interval[1] == self.integration_points[-1] and status == True:
+        if self.time_interval[0] == self.integration_points[0] and self.time_interval[1] == self.integration_points[
+            -1] and status == True:
             for state in range(6):
                 self.trajectory_track[state] += sol[state].tolist()
         elif status is not True:
             self.display_name += " - Integration error"
             for state in range(6):
-                sol[state] = interp(self.integration_points, integrated_time, sol[state], left=None, right=None).tolist()
+                sol[state] = interp(self.integration_points, integrated_time, sol[state], left=None,
+                                    right=None).tolist()
                 self.trajectory_track[state] += sol[state]
         else:
             for state in range(6):
@@ -150,33 +152,42 @@ class Spacecraft:
                 self.trajectory_track[state] += sol[state]
 
         # Save the steering acceleration
-        if self.force_model.steer_acc_x:
-            print("Guiding", end="")
+        if self.force_model.guidance is not None:
+            print("Guiding, ", end="")
 
-            self.steer_magnitude = [(self.force_model.steer_acc_x[i]**2 + self.force_model.steer_acc_y[i]**2 + self.force_model.steer_acc_z[i]**2)**0.5 for i in range(len(self.force_model.steer_acc_x))]
+            self.steer_magnitude = [(self.force_model.steer_acc_x[i] ** 2 + self.force_model.steer_acc_y[i] ** 2 +
+                                     self.force_model.steer_acc_z[i] ** 2) ** 0.5 for i in
+                                    range(len(self.force_model.steer_acc_x))]
 
-            self.steer_x = interp(self.integration_points, self.force_model.true_time, self.force_model.steer_acc_x, left=None, right=None).tolist()
-            self.steer_y = interp(self.integration_points, self.force_model.true_time, self.force_model.steer_acc_y, left=None, right=None).tolist()
-            self.steer_z = interp(self.integration_points, self.force_model.true_time, self.force_model.steer_acc_z, left=None, right=None).tolist()
+            self.steer_x = interp(self.integration_points, self.force_model.true_time, self.force_model.steer_acc_x,
+                                  left=None, right=None).tolist()
+            self.steer_y = interp(self.integration_points, self.force_model.true_time, self.force_model.steer_acc_y,
+                                  left=None, right=None).tolist()
+            self.steer_z = interp(self.integration_points, self.force_model.true_time, self.force_model.steer_acc_z,
+                                  left=None, right=None).tolist()
 
             steer_mag_res = interp(self.integration_points, self.force_model.true_time, self.steer_magnitude,
-                                  left=None, right=None).tolist()
+                                   left=None, right=None).tolist()
 
             self.steer_magnitude = steer_mag_res
 
-        if self.force_model.tilt_angle:
-            print(" - Sail control: ", end="")
+            """if self.force_model.tilt_angle:
+                print(" - Sail control: ", end="")
+    
+                self.tilt = interp(self.integration_points, self.force_model.true_time, self.force_model.tilt_angle,
+                                   left=None, right=None).tolist()
+                self.clock = interp(self.integration_points, self.force_model.true_time, self.force_model.clock_angle,
+                                    left=None, right=None).tolist()"""
 
-            self.tilt = interp(self.integration_points, self.force_model.true_time, self.force_model.tilt_angle, left=None, right=None).tolist()
-            self.clock = interp(self.integration_points, self.force_model.true_time, self.force_model.clock_angle, left=None, right=None).tolist()
+            self.control_input_track = self.force_model.guidance.control_command_track
 
-        """self.steer_x = self.force_model.steer_acc_x
-        self.steer_y = self.force_model.steer_acc_y
-        self.steer_z = self.force_model.steer_acc_z
-        self.true_time = self.force_model.true_time"""
+            # Interpolating everything onto the integration points:
+            for key in self.control_input_track.keys():
+                self.control_input_track[key] = interp(self.integration_points, self.force_model.true_time,
+                                                       self.control_input_track[key], left=None, right=None).tolist()
 
         print("Integrating " + str(round(terminal_time - init_time, 3)) + " s after " + str(
-            steps) + " evaluations" ,end="")
+            steps) + " evaluations", end="")
 
         print()
 

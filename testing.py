@@ -100,10 +100,12 @@ def SSO():
         kepler_dynamics.oe_to_sv(oe_vec[0], oe_vec[1], oe_vec[2], oe_vec[3], oe_vec[4],
                                  oe_vec[5], 0, cent_mass), force_model=force_model_1)
     sc_2 = src.spacecraft.sc.Spacecraft(
-        kepler_dynamics.oe_to_sv(oe_vec[0], oe_vec[1], oe_vec[2]+20*math.pi/180, oe_vec[3], oe_vec[4], oe_vec[5], 0, cent_mass),
+        kepler_dynamics.oe_to_sv(oe_vec[0], oe_vec[1], oe_vec[2] + 20 * math.pi / 180, oe_vec[3], oe_vec[4], oe_vec[5],
+                                 0, cent_mass),
         force_model=force_model_1)
     sc_3 = src.spacecraft.sc.Spacecraft(
-        kepler_dynamics.oe_to_sv(oe_vec[0], oe_vec[1], oe_vec[2]+40*math.pi/180, oe_vec[3], oe_vec[4], oe_vec[5], 0, cent_mass),
+        kepler_dynamics.oe_to_sv(oe_vec[0], oe_vec[1], oe_vec[2] + 40 * math.pi / 180, oe_vec[3], oe_vec[4], oe_vec[5],
+                                 0, cent_mass),
         force_model=force_model_1)
 
     sc_list = [sc_1]
@@ -286,7 +288,6 @@ def CR3BP_ex_2():
     force_model_1.steering_law = steering_law
     force_model_1.get_lagrange_points()
 
-
     manifolds_4 = [[6.3891964038363835E-1, 6.3891964038363835E-1, 1],
                    [4.2544999999999999E-1, 4.2544999999999999E-1, 1],
                    [6.3338764777407142E-1, 6.3338764777407142E-1, 1],
@@ -303,11 +304,11 @@ def CR3BP_ex_2():
                    [-6.4806934253088289E-1, -6.4806934253088289E-1, 1],
                    [0, 0, 1]]
 
-    manifolds_1 = [[8.0121899389004331E-1-0.1, 8.6121899389004331E-1+0.12, 20],
+    manifolds_1 = [[8.0121899389004331E-1 - 0.1, 8.6121899389004331E-1 + 0.12, 20],
                    [-6.1589472580081878E-28, -6.1589472580081878E-28, 1],
                    [-9.0996038678959414E-14, -9.0996038678959414E-14, 1],
                    [1.1168790093094281E-13, 1.1168790093094281E-13, 1],
-                   [8.2512113504271353E-2-0.4, 9.4712113504271353E-2+0.2, 20],
+                   [8.2512113504271353E-2 - 0.4, 9.4712113504271353E-2 + 0.2, 20],
                    [-4.3863065793662631E-1, -4.3863065793662631E-1, 1],
                    [0, 0, 1]]
 
@@ -370,7 +371,7 @@ def steering_testing():
 
     sim_time = list(np.linspace(t_init, t_final, steps))
 
-    cent_mass = 5.972*10**24
+    cent_mass = 5.972 * 10 ** 24
 
     force_model_1 = sd_1.inertial_force_model("./data/empty_dataset.xlsx")
     force_model_1.define_central_attractor(mass=cent_mass, position=[0, 0, 0])
@@ -378,7 +379,7 @@ def steering_testing():
     steering_law = steering_laws.LocalOptimal()
     steering_law.conversion_mass = cent_mass
 
-    force_model_1.steering_law = steering_law
+    force_model_1.guidance = steering_law
 
     manifolds = [[30000000, 30000000, 1],
                  [2000000, 2000000, 1],
@@ -421,8 +422,8 @@ def steering_testing():
     plots.parameters_plot()
     plots.C3_plot()
     plots.trajectory_xyz()
-    plots.plot_steering()
-    plots.state_space_slice(index=100, slices = [["x", "y"]])
+    plots.plot_steering_acceleration()
+    plots.state_space_slice(index=100, slices=[["x", "y"]])
     plots.moving_map_plot(plot_central_attractor=True,
                           match_tail_color=False,
                           plot_planet_endpoint=False,
@@ -442,15 +443,15 @@ def Lagrange_targeting():
 
     sim_time = list(np.linspace(t_init, t_final, steps))
 
-    cent_mass = 5.972*10**24
+    cent_mass = 5.972 * 10 ** 24
 
     force_model_1 = sd_1.inertial_force_model("./data/empty_dataset.xlsx")
     force_model_1.define_central_attractor(mass=cent_mass, position=[0, 0, 0])
 
     steering_law = steering_laws.LocalOptimal()
-    steering_law.conversion_mass = cent_mass#  * (380073311**3) / (384748000**3)
+    steering_law.conversion_mass = cent_mass  #  * (380073311**3) / (384748000**3)
 
-    force_model_1.steering_law = steering_law
+    force_model_1.guidance = steering_law
 
     manifolds = [[28007331, 35007331, 20],
                  [0, 0, 1],
@@ -467,12 +468,11 @@ def Lagrange_targeting():
     # sw_1.get_swarm_body_distances(["Moon"])
     list_of_spacecraft = sw_1.list_of_spacecraft
 
-
-
     input("Start plotting? Press enter")
 
     sc = list_of_spacecraft[0]
-    long = list(np.array(sc.orbital_parameters_track[3]) + np.array(sc.orbital_parameters_track[4]) + np.array(sc.orbital_parameters_track[5]))
+    long = list(np.array(sc.orbital_parameters_track[3]) + np.array(sc.orbital_parameters_track[4]) + np.array(
+        sc.orbital_parameters_track[5]))
     fig = plt.figure(100)
     ax = fig.add_subplot()
     ax.plot(sim_time, long)
@@ -490,7 +490,7 @@ def Lagrange_targeting():
     plots.trajectory_xyz()
     # plots.body_distances_plot(["Moon"])
     # plots.plot_steering()
-    plots.state_space_slice(index=100, slices = [["x", "y"]])
+    plots.state_space_slice(index=100, slices=[["x", "y"]])
     plots.moving_map_plot(plot_central_attractor=True,
                           match_tail_color=False,
                           plot_planet_endpoint=True,
@@ -501,32 +501,35 @@ def Lagrange_targeting():
     plt.show()
     plt.waitforbuttonpress(10000000000)
 
+
 def SRP_testing():
     t_start = 0
-    t_end = 1000
+    t_end = 3000000000
     integration_points = list(np.linspace(t_start, t_end, 10000))
-
-    central_mass = 1.989*10**30
+    # Sebastian Greisinger
+    central_mass = 1.989 * 10 ** 30
 
     force_model = sd_1.inertial_force_model(path="./data/empty_dataset.xlsx")
     force_model.define_central_attractor(mass=central_mass, position=[0, 0, 0])
 
-    srp_model = SRP.Solar_pressure(sail_loading=1.53 * 10**(-3), central_attractor_mass=force_model.central_mass)
+    srp_model = SRP.Solar_pressure(sail_model="ACS3", central_attractor_mass=force_model.central_mass)
     srp_model.radiation_location = [0, 0, 0]
+    srp_model.sail_control = [0.25*math.pi, -0.5*math.pi]
     force_model.solar_pressure = srp_model
 
-    init_state = kepler_dynamics.oe_to_sv(20000000, 0, 0, 0, 0, 0, 0, force_model.central_mass)
-    init_state = [149*10**9, 0, 0, 0, 0, 0]
+    guidance_law = steering_laws.LocalOptimal()
+    force_model.guidance = guidance_law
+
+    init_state = kepler_dynamics.oe_to_sv(20000000000, 0, 0.01, 0, 0, 0, 0, force_model.central_mass)
+    # init_state = [149 * 10 ** 9, 0, 0, 0, 0, 0]
 
     list_of_sc = []
 
-    srp_model.sail_loading = 1.53 * 10**(-3)
     sc_1 = src.spacecraft.sc.Spacecraft(init_state_vector=init_state, force_model=force_model)
-    # sc_1.display_name = "SRP deceleration"
+    sc_1.display_name = "SRP"
     sc_1.integration_points = integration_points
     sc_1.time_interval = [t_start, t_end]
-    sc_1.force_model.solar_pressure.sail_control = [+0*0.25*math.pi, 0.5*math.pi]
-    sc_1.integrate_states_sivp(rtol=10**-9)
+    sc_1.integrate_states_sivp(rtol=10 ** -6)
     sc_1.trajectory_conversion(mass=central_mass)
     sc_1.plot_color = [1, 0.5, 1]
     list_of_sc.append(sc_1)
@@ -550,26 +553,26 @@ def SRP_testing():
     sc_2.trajectory_conversion(mass=central_mass)
     sc_2.plot_color = [1, 0, 0]"""
 
+    input("Start plotting?")
 
     plots = plotting_functions.graph_output(list_of_spacecraft=[],
-                                        list_of_resampled_spacecraft=[],
-                                        list_of_special_spacecraft=list_of_sc,
-                                        force_model=force_model,
-                                        axis_visibility=True,
-                                        animated=False)
+                                            list_of_resampled_spacecraft=[],
+                                            list_of_special_spacecraft=list_of_sc,
+                                            force_model=force_model,
+                                            axis_visibility=True,
+                                            animated=True)
 
     plots.trajectory_xyz()
     plots.parameters_plot()
-    plots.plot_steering()
-    plots.plot_sail_control()
-    plots.moving_map_plot(match_tail_color=True)
+    plots.plot_steering_acceleration()
+    plots.plot_control()
+    plots.moving_map_plot(match_tail_color=True, init_elevation=45, init_azim=0, azim_rate=0.3, k_modulo=20)
     plt.show()
     plt.waitforbuttonpress(10000000000)
 
 
 # ex_7_SSO()
 if __name__ == "__main__":
-
     # CR3BP()
     # CR3BP_ex_2()
     # SSO()
