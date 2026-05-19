@@ -1196,7 +1196,7 @@ class graph_output:
             axis.set_facecolor(color_data["background"])
 
             ylim = axis.get_ylim()
-            axis.set_ylim(ylim[0] - 0.00001, ylim[1] + 0.00001)
+            axis.set_ylim(ylim[0] - 0.00000001, ylim[1] + 0.00000001)
 
         lgnd = ax_3.legend()
         lgnd.set_draggable(True)
@@ -1218,6 +1218,14 @@ class graph_output:
         for i, key in enumerate(self.lst_spec_sc[0].control_input_track.keys()):
             axis = fig.add_subplot(n_key, 1, i+1)
             axis.set_title(key)
+
+            axis.set_xlabel("Time [s]")
+            axis.set_ylabel(key)
+            axis.grid(visible=True, color=[0.5, 0.5, 1])
+
+            axis.grid(visible=True, color=[0.5, 0.5, 1])
+            axis.set_facecolor(color_data["background"])
+
             axes.append(axis)
 
         n_samp = len(self.lst_spec_sc)
@@ -1250,13 +1258,6 @@ class graph_output:
                               linewidth=size_data["dia_linewidth"],
                               alpha=size_data["plot_alpha"])
 
-        for axis in axes:
-            axis.set_xlabel("Time [s]")
-            axis.set_ylabel("Angle [m/s^2]")
-            axis.grid(visible=True, color=[0.5, 0.5, 1])
-
-            axis.grid(visible=True, color=[0.5, 0.5, 1])
-            axis.set_facecolor(color_data["background"])
 
         lgnd = axes[0].legend()
         lgnd.set_draggable(True)

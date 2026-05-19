@@ -1,7 +1,9 @@
 from scipy.optimize import direct
+from scipy.stats import alpha
 
 from src.astrodynamic_functions import kepler_dynamics
 import numpy as np
+import math
 from src.system_dynamics import SRP
 
 
@@ -19,6 +21,10 @@ class LocalOptimal:
         self.track_time = 0
 
         self.control_command_track = dict()
+
+        self.prev_time = 0
+        self.prev_acc = np.array([0, 0, 0])
+        self.scaling_acc = 0
 
     def maximize_oe_change(self, state):
         pass
@@ -174,13 +180,13 @@ class LocalOptimal:
                 jacobian[i][j] = (oe_mat[delta_state][i] - oe_mat["center"][i]) / dv
 
         J = np.array(jacobian)
-
         J_T_p = np.linalg.pinv(J)
-
         dr = J_T_p.dot(target_oe_list)
         mag = (dr[0] ** 2 + dr[1] ** 2 + dr[2] ** 2) ** 0.5
         if mag == 0:
-            return [0, 0, 0]
+            self.current_control = [0, 0, 0]
+            return None
+
         direction = dr / mag
         direction = list(direction * acc_mag)
         self.current_control = direction
@@ -250,6 +256,222 @@ class LocalOptimal:
         direction = list(direction * acc_mag)
         self.current_control = direction
 
+    def solar_sail_local_try_1(self, state, force_model, system_time):
+
+        if self.target_oe == {}:
+            raise ValueError("No target orbital parameter set defined!")
+
+        oe_name_list = ["SMA", "ECC", "INC", "RAAN", "APERI", "TAEPO"]
+
+        dv = 0.1  # Incement, by which to estimate the derivativs in the Jacobian
+        acc_mag = 0.001
+
+        # The Jacobian has six lines with three columns, corresponding to six orbital parameters
+        # and the three velocity state
+
+        state_mat = dict()
+        oe_mat = dict()
+        state_mat["center"] = state
+        oe_mat["center"] = kepler_dynamics.sv_to_oe(state_vector=state_mat["center"], mass=self.conversion_mass)
+
+        dvx = [0, 0, 0, dv, 0, 0]
+        state_mat["+vx"] = [state[i] + dvx[i] for i in range(6)]
+        oe_mat["+vx"] = kepler_dynamics.sv_to_oe(state_vector=state_mat["+vx"], mass=self.conversion_mass)
+
+        dvy = [0, 0, 0, 0, dv, 0]
+        state_mat["+vy"] = [state[i] + dvy[i] for i in range(6)]
+        oe_mat["+vy"] = kepler_dynamics.sv_to_oe(state_vector=state_mat["+vy"], mass=self.conversion_mass)
+
+        dvz = [0, 0, 0, 0, 0, dv]
+        state_mat["+vz"] = [state[i] + dvz[i] for i in range(6)]
+        oe_mat["+vz"] = kepler_dynamics.sv_to_oe(state_vector=state_mat["+vz"], mass=self.conversion_mass)
+
+        # Filling in the empty parameters in the taret orbital element list
+        target_oe_list = [0 for _ in range(6)]
+        for i, oe in enumerate(oe_name_list):
+            if oe in self.target_oe.keys():
+                target_oe_list[i] = (self.target_oe[oe] - oe_mat["center"][i]) / self.target_oe[oe]
+            else:
+                target_oe_list[i] = 0
+
+        target_oe_list = np.array(target_oe_list)
+
+        # Jacobian J
+        jacobian = [[0, 0, 0] for _ in range(6)]
+
+        for i in range(6):
+            for j, delta_state in enumerate(["+vx", "+vy", "+vz"]):
+                # We are now using the difference between target and current orbital elements for the Jacobian
+                jacobian[i][j] = (oe_mat[delta_state][i] - oe_mat["center"][i]) / dv
+
+        J = np.array(jacobian)
+
+        J_T_p = np.linalg.pinv(J)
+
+        # C matrix: Control matrix, mapping changes in sail attitude to changes in acceleration
+        delta_ang = 0.001
+
+        control_mat = dict()
+        acc_mat = dict()
+
+        control_mat["center"] = force_model.solar_pressure.sail_control
+        acc_mat["center"] = force_model.solar_pressure.solar_acceleration(state=state[0:3])
+
+        force_model.solar_pressure.sail_control[0] += delta_ang
+        control_mat["+dt"] = force_model.solar_pressure.sail_control
+        acc_mat["+dt"] = force_model.solar_pressure.solar_acceleration(state=state[0:3])
+
+        force_model.solar_pressure.sail_control[0] -= delta_ang
+        force_model.solar_pressure.sail_control[1] += delta_ang
+
+        control_mat["+dc"] = force_model.solar_pressure.sail_control
+        acc_mat["+dc"] = force_model.solar_pressure.solar_acceleration(state=state[0:3])
+
+        force_model.solar_pressure.sail_control[1] -= delta_ang
+
+        # Getting the control matrix C
+
+        C = [[0, 0] for _ in range(3)]
+
+        for i in range(3):
+            for j, delta_control in enumerate(["+dt", "+dc"]):
+                C[i][j] = (acc_mat[delta_control][i] - acc_mat["center"][i]) / delta_ang
+
+        C_p = np.linalg.pinv(np.array(C))  # Pseudo_inverse of control matrix
+
+        # Evaluating everything
+
+        du = C_p.dot(J_T_p.dot(target_oe_list)) / self.time_constant
+        du = du * min([0.01, np.linalg.norm(du)]) / np.linalg.norm(du)
+
+        force_model.solar_pressure.sail_control = list(np.array(force_model.solar_pressure.sail_control) + du)
+
+        # Fixing the sail control magnitude
+        for i, ang in enumerate(force_model.solar_pressure.sail_control):
+            ang = ang - 2 * math.pi * math.floor(ang / (2 * math.pi))
+            force_model.solar_pressure.sail_control[i] = ang
+
+        self.current_control = force_model.solar_pressure.solar_acceleration(state=state[0:3])
+        return force_model.solar_pressure.sail_control
+
+    def solar_sail_local(self, state, force_model, system_time):
+
+        if self.target_oe == {}:
+            raise ValueError("No target orbital parameter set defined!")
+
+        oe_name_list = ["SMA", "ECC", "INC", "RAAN", "APERI", "TAEPO"]
+
+        dv = 0.1  # Incement, by which to estimate the derivativs in the Jacobian
+        acc_mag = 0.001
+
+        # The Jacobian has six lines with three columns, corresponding to six orbital parameters
+        # and the three velocity state
+
+        state_mat = dict()
+        oe_mat = dict()
+        state_mat["center"] = state
+        oe_mat["center"] = kepler_dynamics.sv_to_oe(state_vector=state_mat["center"], mass=self.conversion_mass)
+
+        dvx = [0, 0, 0, dv, 0, 0]
+        state_mat["+vx"] = [state[i] + dvx[i] for i in range(6)]
+        oe_mat["+vx"] = kepler_dynamics.sv_to_oe(state_vector=state_mat["+vx"], mass=self.conversion_mass)
+
+        dvy = [0, 0, 0, 0, dv, 0]
+        state_mat["+vy"] = [state[i] + dvy[i] for i in range(6)]
+        oe_mat["+vy"] = kepler_dynamics.sv_to_oe(state_vector=state_mat["+vy"], mass=self.conversion_mass)
+
+        dvz = [0, 0, 0, 0, 0, dv]
+        state_mat["+vz"] = [state[i] + dvz[i] for i in range(6)]
+        oe_mat["+vz"] = kepler_dynamics.sv_to_oe(state_vector=state_mat["+vz"], mass=self.conversion_mass)
+
+        # Filling in the empty parameters in the taret orbital element list
+        target_oe_delta_list = [0 for _ in range(6)]
+        for i, oe in enumerate(oe_name_list):
+            if oe in self.target_oe.keys():
+                target_oe_delta_list[i] = (self.target_oe[oe] - oe_mat["center"][i])
+            else:
+                target_oe_delta_list[i] = 0
+
+        target_oe_delta_list = np.array(target_oe_delta_list)
+
+        # Jacobian J
+        jacobian = [[0, 0, 0] for _ in range(6)]
+
+        for i in range(6):
+            for j, delta_state in enumerate(["+vx", "+vy", "+vz"]):
+                # We are now using the difference between target and current orbital elements for the Jacobian
+                jacobian[i][j] = (oe_mat[delta_state][i] - oe_mat["center"][i]) / dv
+
+        J = np.array(jacobian)
+
+        J_T_p = np.linalg.pinv(J)
+
+        # C matrix: Control matrix, mapping changes in sail attitude to changes in acceleration
+        delta_ang = 0.001
+
+        control_mat = dict()
+        acc_mat = dict()
+
+        control_mat["center"] = force_model.solar_pressure.sail_control
+        acc_mat["center"] = force_model.solar_pressure.solar_acceleration(state=state[0:3])
+
+        force_model.solar_pressure.sail_control[0] += delta_ang
+        control_mat["+dt"] = force_model.solar_pressure.sail_control
+        acc_mat["+dt"] = force_model.solar_pressure.solar_acceleration(state=state[0:3])
+
+        force_model.solar_pressure.sail_control[0] -= delta_ang
+        force_model.solar_pressure.sail_control[1] += delta_ang
+
+        control_mat["+dc"] = force_model.solar_pressure.sail_control
+        acc_mat["+dc"] = force_model.solar_pressure.solar_acceleration(state=state[0:3])
+
+        force_model.solar_pressure.sail_control[1] -= delta_ang
+
+        # Getting the control matrix C
+
+        C = [[0, 0] for _ in range(3)]
+
+        for i in range(3):
+            for j, delta_control in enumerate(["+dt", "+dc"]):
+                C[i][j] = (acc_mat[delta_control][i] - acc_mat["center"][i]) / delta_ang
+
+        C_p = np.linalg.pinv(np.array(C))  # Pseudo_inverse of control matrix
+
+        # Evaluating everything
+        if (system_time - self.prev_time) == 0:
+            force_model.solar_pressure.sail_control = np.array([0, 0])
+            # self.scaling_acc = np.linalg.norm(force_model.solar_pressure.solar_acceleration(state=state[0:3]))
+            self.current_control = [0, 0, 0]
+            self.prev_acc = self.current_control
+            self.prev_time = system_time
+        else:
+            new_acc = J_T_p.dot(target_oe_delta_list) * (system_time - self.prev_time)**(-1)
+            new_acc = new_acc * np.linalg.norm(self.prev_acc) / np.linalg.norm(new_acc)
+            delta_ddx = new_acc - self.prev_acc
+            du = C_p.dot(delta_ddx)
+
+            # Limit change in orientation within a given time step
+            if np.linalg.norm(du) > 0.1:
+                du = du * 0.1 / np.linalg.norm(du)
+            force_model.solar_pressure.sail_control = force_model.solar_pressure.sail_control + du
+
+            self.current_control = force_model.solar_pressure.solar_acceleration(state=state[0:3])
+            self.prev_acc = self.current_control
+            self.prev_time = system_time
+
+        """du = C_p.dot(J_T_p.dot(target_oe_delta_list)) / self.time_constant
+        du = du * min([0.01, np.linalg.norm(du)]) / np.linalg.norm(du)
+
+        force_model.solar_pressure.sail_control = list(np.array(force_model.solar_pressure.sail_control) + du)"""
+
+        # Fixing the sail control magnitude
+        for i, ang in enumerate(force_model.solar_pressure.sail_control):
+            ang = ang - 2 * math.pi * math.floor(ang / (2 * math.pi))
+            force_model.solar_pressure.sail_control[i] = ang
+
+        return force_model.solar_pressure.sail_control
+
+
     def guidance_2(self, state, time, force_model):
         """if time < 15000000:
             self.target_oe = {"SMA": 200000000, "ECC": 0.1, "INC": 0.1, "RAAN": 1.0, "APERI": 1}
@@ -277,7 +499,7 @@ class LocalOptimal:
         """self.target_oe = {"SMA": 380073311, "ECC": 0, "INC": 0, "Lon": 0}
         self.target_inline_lagrange(state=state)"""
 
-        self.target_oe = {"SMA": 20007331, "ECC": 0, "INC": 0, "RAAN": 0, "APERI": 0, "TAEPO": 0}
+        self.target_oe = {"SMA": 20007331, "ECC": 0.1, "INC": 0.01, "RAAN": 1, "APERI": 1, "TAEPO": 1}
         self.target_orbit(state=state)
         return self.current_control
 
@@ -310,18 +532,27 @@ class LocalOptimal:
 
     def guidance(self, state, time, force_model):
         # Controls a solar sail
-        import math
-        if state[5] < 0:
-            force_model.solar_pressure.sail_control = list(np.array([0.25*math.pi, math.pi]))
+        self.target_oe = {"SMA": 500000000}
+        sail_control = self.solar_sail_local(state=state, force_model=force_model, system_time=time)
+        # self.current_control = force_model.solar_pressure.solar_acceleration(state=state[0:3])
+        if not self.control_command_track:
+            self.control_command_track = {"Tilt": [], "Clock": []}
+        self.control_command_track["Tilt"].append(sail_control[0])
+        self.control_command_track["Clock"].append(sail_control[1])
+        return self.current_control
+
+    """def guidance(self, state, time, force_model):
+        # Controls a solar sail
+        self.target_oe = {"SMA": 500000000}
+        # sail_control = self.solar_sail_local(state=state, force_model=force_model, system_time=time)
+        # self.current_control = force_model.solar_pressure.solar_acceleration(state=state[0:3])
+        if np.array(state[3:6]).dot(np.array(force_model.solar_pressure.radiation_location) - np.array(state[0:3]))<0:
+            force_model.solar_pressure.sail_control = [0, 0]
         else:
-            force_model.solar_pressure.sail_control = list(np.array([0.25*math.pi, 0*math.pi]))
+            force_model.solar_pressure.sail_control = [0.5 * math.pi, 0]
         self.current_control = force_model.solar_pressure.solar_acceleration(state=state[0:3])
-
-        if "Tilt" not in self.control_command_track.keys():
-            self.control_command_track["Tilt"] = []
-        if "Clock" not in self.control_command_track.keys():
-            self.control_command_track["Clock"] = []
-
+        if not self.control_command_track:
+            self.control_command_track = {"Tilt": [], "Clock": []}
         self.control_command_track["Tilt"].append(force_model.solar_pressure.sail_control[0])
         self.control_command_track["Clock"].append(force_model.solar_pressure.sail_control[1])
-        return self.current_control
+        return self.current_control"""

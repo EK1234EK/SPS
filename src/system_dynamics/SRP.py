@@ -117,7 +117,7 @@ class Solar_pressure:
         if np.linalg.norm(temp) == 0:
             t = n
         else:
-            t = (d_1 + math.cos(alpha) * n) / math.sin(alpha)
+            t = (d_1 - math.cos(alpha) * n) / math.sin(alpha)  # TODO Check if minus in numerator instead
 
         # Determining the two pre-factors:
         # Normal force
@@ -143,7 +143,7 @@ class Solar_pressure:
         return acc, f_n, f_t
 
     def solar_acceleration(self, state):
-        acc, _, _ = self.real_sail(state=state)
+        acc, _, _ = self.ideal_sail(state=state)
         return acc
 
 
@@ -157,15 +157,15 @@ if __name__ == "__main__":
     def cartesian_surface_plots():
 
         SRP = Solar_pressure(sail_model="ACS3", central_attractor_mass=1.989 * 10 ** 30)
-        state = [R_s * 10, 0, 0]
+        state = [149*10**9, 0, 0]
 
         def get_acc(tilt, clock):
             SRP.sail_control = [tilt, clock]
             acc = SRP.solar_acceleration(state=state)
             return acc
 
-        tilt_angle = np.linspace(0 * math.pi, 2 * math.pi, 500)
-        clock_angle = np.linspace(0 * math.pi, 2 * math.pi, 2)
+        tilt_angle = np.linspace(0 * math.pi, 2 * math.pi, 50)
+        clock_angle = np.linspace(0 * math.pi, 2 * math.pi, 50)
 
         # acc_array = list(np.zeros(shape=(len(tilt_angle), len(clock_angle))))
 
@@ -362,4 +362,4 @@ if __name__ == "__main__":
         plt.show()
 
 
-    scatter_plots()
+    cartesian_surface_plots()

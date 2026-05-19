@@ -110,6 +110,7 @@ class Spacecraft:
         self.force_model.true_time = []
         self.force_model.tilt_angle = []
         self.force_model.clock_angle = []
+        self.force_model.guidance.control_command_track = dict()
 
         def get_acc_wrapper(t, state_vector):
             return self.get_acc(state_vector, t)
