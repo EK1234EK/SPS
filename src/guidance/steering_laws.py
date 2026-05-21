@@ -1,11 +1,22 @@
 from scipy.optimize import direct
 from scipy.stats import alpha
 
+import src.system_dynamics.SRP
 from src.astrodynamic_functions import kepler_dynamics
 import numpy as np
 import math
 from src.system_dynamics import SRP
 
+def vector_from_angle(alpha, gamma, d_1, d_2, d_3):
+    return math.cos(alpha) * d_1 + math.sin(alpha) * math.sin(gamma) * d_2 + math.sin(alpha) * math.cos(gamma) * d_3
+
+def angle_from_vector(v, d_1, d_2, d_3):
+    alpha = math.acos((v.dot(d_1)) / (np.linalg.norm(v) * np.linalg.norm(d_1)))
+
+    v_d1 =  (d_1 / (np.linalg.norm(d_1))**2) * v.dot(d_1)
+    v_plane = v - v_d1
+    gamma = math.acos((d_1.dot(v_plane)) / (np.linalg.norm(d_3) * np.linalg.norm(v_plane)))
+    return alpha, gamma
 
 class LocalOptimal:
     def __init__(self):
@@ -470,6 +481,14 @@ class LocalOptimal:
             force_model.solar_pressure.sail_control[i] = ang
 
         return force_model.solar_pressure.sail_control
+
+    def direct_control_inversion(self, state, force_model):
+        # Attention only use with ideal sail!
+        vel = np.array(state[3:6])
+        n, d_1, d_2, d_3 = src.system_dynamics.SRP.sail_attitude([0, 0], radiation_location=force_model.solar_pressure.radiation_location, state=state[0:3])
+        gamma = math.atan()
+
+        return 0
 
 
     def guidance_2(self, state, time, force_model):
