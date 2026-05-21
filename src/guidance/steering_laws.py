@@ -7,16 +7,19 @@ import numpy as np
 import math
 from src.system_dynamics import SRP
 
+
 def vector_from_angle(alpha, gamma, d_1, d_2, d_3):
     return math.cos(alpha) * d_1 + math.sin(alpha) * math.sin(gamma) * d_2 + math.sin(alpha) * math.cos(gamma) * d_3
 
-def angle_from_vector(v, d_1, d_2, d_3):
+
+def angle_from_vector(v, d_1, d_3):
     alpha = math.acos((v.dot(d_1)) / (np.linalg.norm(v) * np.linalg.norm(d_1)))
 
-    v_d1 =  (d_1 / (np.linalg.norm(d_1))**2) * v.dot(d_1)
-    v_plane = v - v_d1
-    gamma = math.acos((d_1.dot(v_plane)) / (np.linalg.norm(d_3) * np.linalg.norm(v_plane)))
+    v_d1 = (d_1 / (np.linalg.norm(d_1)) ** 2) * v.dot(d_1)  # Projection onto d_1
+    v_plane = v - v_d1  # Component in d_2 - d_3 plane
+    gamma = math.acos((d_3.dot(v_plane)) / (np.linalg.norm(d_3) * np.linalg.norm(v_plane)))
     return alpha, gamma
+
 
 class LocalOptimal:
     def __init__(self):
@@ -456,7 +459,7 @@ class LocalOptimal:
             self.prev_acc = self.current_control
             self.prev_time = system_time
         else:
-            new_acc = J_T_p.dot(target_oe_delta_list) * (system_time - self.prev_time)**(-1)
+            new_acc = J_T_p.dot(target_oe_delta_list) * (system_time - self.prev_time) ** (-1)
             new_acc = new_acc * np.linalg.norm(self.prev_acc) / np.linalg.norm(new_acc)
             delta_ddx = new_acc - self.prev_acc
             du = C_p.dot(delta_ddx)
@@ -485,11 +488,12 @@ class LocalOptimal:
     def direct_control_inversion(self, state, force_model):
         # Attention only use with ideal sail!
         vel = np.array(state[3:6])
-        n, d_1, d_2, d_3 = src.system_dynamics.SRP.sail_attitude([0, 0], radiation_location=force_model.solar_pressure.radiation_location, state=state[0:3])
+        n, d_1, d_2, d_3 = src.system_dynamics.SRP.sail_attitude([0, 0],
+                                                                 radiation_location=force_model.solar_pressure.radiation_location,
+                                                                 state=state[0:3])
         gamma = math.atan()
 
         return 0
-
 
     def guidance_2(self, state, time, force_model):
         """if time < 15000000:
@@ -575,3 +579,20 @@ class LocalOptimal:
         self.control_command_track["Tilt"].append(force_model.solar_pressure.sail_control[0])
         self.control_command_track["Clock"].append(force_model.solar_pressure.sail_control[1])
         return self.current_control"""
+
+if __name__ == "__main__":
+    import random
+    for i in range(100):
+        d_1 = np.array([1, 0, 0])
+        d_2 = np.array([0, 1, 0])
+        d_3 = np.array([0, 0, -1])
+
+        v = np.array([random.random(), random.random(), random.random()])
+        v_mag = np.linalg.norm(v)
+
+        alpha, gamma = angle_from_vector(v, d_1, d_3)
+
+        vec = v_mag * vector_from_angle(alpha, gamma, d_1, d_2, d_3)
+
+        print(np.linalg.norm(vec-v))
+    pass
