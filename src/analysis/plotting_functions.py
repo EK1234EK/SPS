@@ -1259,6 +1259,75 @@ class graph_output:
                               alpha=size_data["plot_alpha"])
 
 
+        for axis in axes:
+            ylim = axis.get_ylim()
+            axis.set_ylim(ylim[0] - 0.1, ylim[1] + 0.1)
+
+        lgnd = axes[0].legend()
+        lgnd.set_draggable(True)
+        for handle in lgnd.legend_handles:
+            handle.set_sizes([50])
+
+        fig.subplots_adjust(hspace=0.5)
+
+    def plot_target_velocity_angles(self):
+        if not self.lst_spec_sc[0].control_input_track:
+            return None
+
+        fig = plt.figure(self.figure_counter + 1, figsize=(7.5, 2.5 * 1.5))
+        fig.set_facecolor(color_data["background"])
+        self.figure_counter += 1
+
+        axes = []
+        n_key = len(list(self.lst_spec_sc[0].vel_angle_track.keys()))
+        for i, key in enumerate(self.lst_spec_sc[0].vel_angle_track.keys()):
+            axis = fig.add_subplot(n_key, 1, i+1)
+            axis.set_title(key)
+
+            axis.set_xlabel("Time [s]")
+            axis.set_ylabel(key)
+            axis.grid(visible=True, color=[0.5, 0.5, 1])
+
+            axis.grid(visible=True, color=[0.5, 0.5, 1])
+            axis.set_facecolor(color_data["background"])
+
+            axes.append(axis)
+
+        n_samp = len(self.lst_spec_sc)
+        cmap = plt.colormaps[color_data["map"]]
+        colors = cmap(np.linspace(0, 1, n_samp))
+
+        for sci, sc_special in enumerate(self.lst_spec_sc):
+            if isinstance(sc_special.plot_color, str):
+                for axis, key in zip(axes, sc_special.vel_angle_track.keys()):
+                    axis.scatter(self.integration_points,
+                                 sc_special.vel_angle_track[key],
+                                 color=colors[sci],
+                                 s=1,
+                                 label=sc_special.display_name)
+                    axis.plot(self.integration_points,
+                              sc_special.vel_angle_track[key],
+                              color=colors[sci],
+                              linewidth=size_data["dia_linewidth"],
+                              alpha=size_data["plot_alpha"])
+            else:
+                for axis, key in zip(axes, sc_special.vel_angle_track.keys()):
+                    axis.scatter(self.integration_points,
+                                 sc_special.vel_angle_track[key],
+                                 color=sc_special.plot_color,
+                                 s=1,
+                                 label=sc_special.display_name)
+                    axis.plot(self.integration_points,
+                              sc_special.vel_angle_track[key],
+                              color=sc_special.plot_color,
+                              linewidth=size_data["dia_linewidth"],
+                              alpha=size_data["plot_alpha"])
+
+
+        for axis in axes:
+            ylim = axis.get_ylim()
+            axis.set_ylim(ylim[0] - 0.1, ylim[1] + 0.1)
+
         lgnd = axes[0].legend()
         lgnd.set_draggable(True)
         for handle in lgnd.legend_handles:

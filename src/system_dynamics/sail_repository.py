@@ -2,7 +2,7 @@ class Sail_parameters:
     def __init__(self):
         self.sets = {"ACS3":
             {
-                "sigma": 1,
+                "sigma": 5,
                 "r_f": 0.9,
                 "r_b": 0.9,
                 "s_f": 0.82,

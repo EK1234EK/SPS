@@ -50,6 +50,7 @@ class Spacecraft:
         self.tilt = []
         self.clock = []
         self.control_input_track = dict()
+        self.vel_angle_track = dict()
 
     def get_acc(self, state_vector, system_time):
         position = state_vector[0:3]
@@ -181,11 +182,16 @@ class Spacecraft:
                                     left=None, right=None).tolist()"""
 
             self.control_input_track = self.force_model.guidance.control_command_track
+            self.vel_angle_track = self.force_model.guidance.vel_angle_track
 
             # Interpolating everything onto the integration points:
             for key in self.control_input_track.keys():
                 self.control_input_track[key] = interp(self.integration_points, self.force_model.true_time,
                                                        self.control_input_track[key], left=None, right=None).tolist()
+
+            for key in self.vel_angle_track.keys():
+                self.vel_angle_track[key] = interp(self.integration_points, self.force_model.true_time,
+                                                       self.vel_angle_track[key], left=None, right=None).tolist()
 
         print("Integrating " + str(round(terminal_time - init_time, 3)) + " s after " + str(
             steps) + " evaluations", end="")
