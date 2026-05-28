@@ -62,8 +62,10 @@ class Spacecraft:
         velocity.extend(self.acc_vec)
         return velocity
 
-    def trajectory_to_orbital_parameters(self, mass):
+    def trajectory_to_orbital_parameters(self, mass, reference=None):
         # t_1 = time.time()
+        if reference:
+            self.force_model.propagate_body_states()
 
         for k in range(len(self.trajectory_track[0])):
             state_vector = [self.trajectory_track[0][k], self.trajectory_track[1][k], self.trajectory_track[2][k],
@@ -111,7 +113,9 @@ class Spacecraft:
         self.force_model.true_time = []
         self.force_model.tilt_angle = []
         self.force_model.clock_angle = []
-        self.force_model.guidance.control_command_track = dict()
+
+        if self.force_model.guidance:
+            self.force_model.guidance.control_command_track = dict()
 
         def get_acc_wrapper(t, state_vector):
             return self.get_acc(state_vector, t)

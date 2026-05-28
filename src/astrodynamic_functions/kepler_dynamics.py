@@ -31,8 +31,12 @@ def Kepler_solver(M_e, e):
     return m
 
 
-def time_to_true_anomaly(a, e, ny_0, t):
-    n = (MY / (a ** 3)) ** (1 / 2)
+def time_to_true_anomaly(a, e, ny_0, t, *args):
+    if args:
+        MY_arg = args[0] * GRAV_CONST
+        n = (MY_arg / (a ** 3)) ** (1 / 2)
+    else:
+        n = (MY / (a ** 3)) ** (1 / 2)
     E_0 = math.atan((math.tan(0.5 * ny_0) * ((1 - e) / (1 + e)) ** 0.5)) * 2
     M_0 = E_0 - e * math.sin(E_0)
 
@@ -81,13 +85,16 @@ def oe_to_sv(a, e, i, RAAN, APERI, ny_0, t, *args):
     import warnings
     warnings.filterwarnings('ignore')
 
-    ny = time_to_true_anomaly(a, e, ny_0, t)
-    x, y, z = position_orbital_system(a, e, ny)
-    vec_inertial = rotate_orbit_to_inertial(i, RAAN, APERI, [x, y, z])
-
     if len(args) == 0:
+        ny = time_to_true_anomaly(a, e, ny_0, t)
+        x, y, z = position_orbital_system(a, e, ny)
+        vec_inertial = rotate_orbit_to_inertial(i, RAAN, APERI, [x, y, z])
         return vec_inertial[0], vec_inertial[1], vec_inertial[2]
     else:
+        ny = time_to_true_anomaly(a, e, ny_0, t, args[0])
+        x, y, z = position_orbital_system(a, e, ny)
+        vec_inertial = rotate_orbit_to_inertial(i, RAAN, APERI, [x, y, z])
+
         # Calculating the velocity vector:
         mu = args[0] * GRAV_CONST
         P = rotate_orbit_to_inertial(i, RAAN, APERI, [1, 0, 0])

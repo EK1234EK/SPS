@@ -27,6 +27,26 @@ def angle_from_vector(v, d_1, d_2, d_3):
     return alpha, gamma
 
 
+def direct_control_inversion(vel_change, state, force_model):
+    # Attention only use with ideal sail!
+    d_1, d_2, d_3, n = src.system_dynamics.SRP.sail_attitude([0, 0],
+                                                             radiation_location=force_model.solar_pressure.radiation_location,
+                                                             state=state[0:3])
+    alpha_v, gamma_v = angle_from_vector(vel_change, d_1, d_2, d_3)
+
+    if np.dot(n, vel_change) < 0:
+        alpha = 0.5*math.pi
+        gamma = gamma_v
+        return [alpha, gamma], [alpha_v, gamma_v]
+    gamma = gamma_v
+    alpha = math.atan((-3 + (9 + 8 * math.tan(alpha_v)**2)**0.5) / (4 * math.tan(alpha_v)))
+    if alpha < 0:
+        alpha *= -1
+
+
+    return [alpha, gamma], [alpha_v, gamma_v]
+
+
 class LocalOptimal:
     def __init__(self):
         self.jacobian = [[]]
@@ -494,25 +514,6 @@ class LocalOptimal:
 
         return force_model.solar_pressure.sail_control
 
-    def direct_control_inversion(self, vel, state, force_model):
-        # Attention only use with ideal sail!
-        d_1, d_2, d_3, n = src.system_dynamics.SRP.sail_attitude([0, 0],
-                                                                 radiation_location=force_model.solar_pressure.radiation_location,
-                                                                 state=state[0:3])
-        alpha_v, gamma_v = angle_from_vector(vel, d_1, d_2, d_3)
-
-        if np.dot(n, vel) < 0:
-            alpha = 0.5*math.pi
-            gamma = gamma_v
-            return [alpha, gamma], [alpha_v, gamma_v]
-        gamma = gamma_v
-        alpha = math.atan((-3 + (9 + 8 * math.tan(alpha_v)**2)**0.5) / (4 * math.tan(alpha_v)))
-        if alpha < 0:
-            alpha *= -1
-
-
-        return [alpha, gamma], [alpha_v, gamma_v]
-
     def guidance_2(self, state, time, force_model):
         """if time < 15000000:
             self.target_oe = {"SMA": 200000000, "ECC": 0.1, "INC": 0.1, "RAAN": 1.0, "APERI": 1}
@@ -575,9 +576,9 @@ class LocalOptimal:
 
         self.target_oe = {"SMA": 200000000, "ECC": 0.2, "INC": 0.5}
 
-        target_vel = np.array(self.target_orbit(state=state))
+        target_vel_change = np.array(self.target_orbit(state=state))
 
-        sail_control, vel_angle = self.direct_control_inversion(vel=target_vel, state=state, force_model=force_model)
+        sail_control, vel_angle = direct_control_inversion(vel_change=target_vel_change, state=state, force_model=force_model)
         force_model.solar_pressure.sail_control = sail_control
         self.current_control = force_model.solar_pressure.solar_acceleration(state=state[0:3])
         if not self.control_command_track:
