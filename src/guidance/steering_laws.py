@@ -574,7 +574,10 @@ class LocalOptimal:
 
     def guidance(self, state, time, force_model):
 
-        self.target_oe = {"SMA": 200000000, "ECC": 0.2, "INC": 0.5}
+        if time <= 1.3 * 10**7:
+            self.target_oe = {"SMA": 150000000}
+        else:
+            self.target_oe = {"ECC": 0.9, "INC": 0.2}
 
         target_vel_change = np.array(self.target_orbit(state=state))
 

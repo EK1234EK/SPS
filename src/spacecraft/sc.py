@@ -13,6 +13,7 @@ class Spacecraft:
         self.init_state_vector = init_state_vector  # [x1_1, x2_1, x3_1, dx1, dx2, dx3]
         self.trajectory_track = [[], [], [], [], [], []]
         self.orbital_parameters_track = [[], [], [], [], [], []]
+        self.orbital_parameters_reference = ""
         self.force_model = force_model
         self.acc_vec = []
 
@@ -62,19 +63,25 @@ class Spacecraft:
         velocity.extend(self.acc_vec)
         return velocity
 
-    def trajectory_to_orbital_parameters(self, mass, reference=None):
+    def trajectory_to_orbital_parameters(self, conversion_mass, reference=None):
         # t_1 = time.time()
         if reference:
-            self.force_model.propagate_body_states()
+            if reference not in self.force_model.names.to_list():
+                raise ValueError("Name " + reference + " not in force model!")
+            body_states = self.force_model.propagate_body_states(times=self.integration_points, mass=self.force_model.central_mass, body_list=[reference])[reference]
+            for k in range(len(self.trajectory_track[0])):
+                state_vector = [self.trajectory_track[i][k] - body_states[i][k] for i in range(6)]
+                orbital_parameters = kepler_dynamics.sv_to_oe(state_vector, conversion_mass, -self.integration_points[k])
+                for i in range(6):
+                    self.orbital_parameters_track[i].append(orbital_parameters[i])
+            self.orbital_parameters_reference = reference
+        else:
+            for k in range(len(self.trajectory_track[0])):
+                state_vector = [self.trajectory_track[i][k] for i in range(6)]
+                orbital_parameters = kepler_dynamics.sv_to_oe(state_vector, conversion_mass, -self.integration_points[k])
 
-        for k in range(len(self.trajectory_track[0])):
-            state_vector = [self.trajectory_track[0][k], self.trajectory_track[1][k], self.trajectory_track[2][k],
-                            self.trajectory_track[3][k], self.trajectory_track[4][k], self.trajectory_track[5][k]]
-            orbital_parameters = kepler_dynamics.sv_to_oe(state_vector, mass, -self.integration_points[k])
-            # orbital_parameters = kepler_dynamics.sv_to_oe(state_vector, mass)
-
-            for i in range(6):
-                self.orbital_parameters_track[i].append(orbital_parameters[i])
+                for i in range(6):
+                    self.orbital_parameters_track[i].append(orbital_parameters[i])
         # t_2 = time.time()
         # print(self.display_name + ": Cartesian to Keplerian " + str(round(t_2 - t_1, 3)) + " s")
 
@@ -224,7 +231,7 @@ class Spacecraft:
 
     def trajectory_conversion(self, mass, transformations=("Kepler", "C3", "State_magnitude")):
         if "Kepler" in transformations:
-            self.trajectory_to_orbital_parameters(mass=mass)
+            self.trajectory_to_orbital_parameters(conversion_mass=mass)
         if "C3" in transformations:
             self.get_C3_track(central_mass=mass)
         if "State_magnitude" in transformations:

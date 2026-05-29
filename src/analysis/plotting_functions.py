@@ -717,7 +717,7 @@ class graph_output:
                                sc.orbital_parameters_track[i],
                                color=colors[sci],
                                s=1,
-                               label=sc.display_name)
+                               label=sc.display_name + " - " + sc.orbital_parameters_reference)
                     ax.plot(self.integration_points,
                             sc.orbital_parameters_track[i],
                             color=colors[sci],
@@ -728,7 +728,7 @@ class graph_output:
                                sc.orbital_parameters_track[i],
                                color=sc.plot_color,
                                s=1,
-                               label=sc.display_name)
+                               label=sc.display_name + " - " + sc.orbital_parameters_reference)
                     ax.plot(self.integration_points,
                             sc.orbital_parameters_track[i],
                             color=sc.plot_color,
@@ -1073,6 +1073,9 @@ class graph_output:
 
     def plot_steering_acceleration(self):
         # ATTENTION: Acceleration as a result of all steering contributions is listed right here
+
+        if not self.lst_spec_sc[0].steer_x:
+            return None
 
         fig = plt.figure(self.figure_counter + 1, figsize=(7.5, 2.5 * 1.5))
         fig.set_facecolor(color_data["background"])

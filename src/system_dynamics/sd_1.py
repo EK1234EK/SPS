@@ -64,27 +64,44 @@ class inertial_force_model:
         self.central_mass = mass
         self.central_attractor_pos = position
 
-    def propagate_body_states(self, times: list):
-
+    def propagate_body_states(self, times: list, mass=None, body_list=None):
+        if not body_list:
+            body_list = self.names
         states = dict()
-        for k in range(len(self.names)):
-            x_lst = []
-            y_lst = []
-            z_lst = []
+        if not mass:
+            for k in range(len(body_list)):
+                x_lst = []
+                y_lst = []
+                z_lst = []
 
-            for time in times:
-                x, y, z = kds.oe_to_sv(self.SMAs[k], self.ECCs[k], self.INCs[k], self.RAANs[k], self.APERIs[k],
-                                       self.TAEPOs[k], time)
-                x_lst.append(float(x))
-                y_lst.append(float(y))
-                z_lst.append(float(z))
+                for time in times:
+                    x, y, z = kds.oe_to_sv(self.SMAs[k], self.ECCs[k], self.INCs[k], self.RAANs[k], self.APERIs[k],
+                                           self.TAEPOs[k], time)
+                    x_lst.append(x)
+                    y_lst.append(y)
+                    z_lst.append(z)
 
-            body_dataset = [x_lst, y_lst, z_lst]
-            states[self.names[k]] = body_dataset
+                body_dataset = [x_lst, y_lst, z_lst]
+                states[body_list[k]] = body_dataset
 
-            # Safe the trajectories to the class object as well
-            self.trajectory_track = states
-        return states
+                # Safe the trajectories to the class object as well
+                self.trajectory_track = states
+            return states
+        else:
+            for k in range(len(body_list)):
+                body_dataset = [[], [], [], [], [], []]
+
+                for time in times:
+                    state = kds.oe_to_sv(self.SMAs[k], self.ECCs[k], self.INCs[k], self.RAANs[k], self.APERIs[k],
+                                         self.TAEPOs[k], time, mass)
+                    for i in range(6):
+                        body_dataset[i].append(state[i])
+
+                states[body_list[k]] = body_dataset
+
+                # Safe the trajectories to the class object as well !!!NOT IN THE CASE OF VELOCITY DETERMINATION AS WELL
+                # self.trajectory_track = states
+            return states
 
     def get_acceleration(self, position, velocity, system_time):
         # self.singularities = []
@@ -131,7 +148,8 @@ class inertial_force_model:
 
         if self.guidance:
             #  Adding the acceleration vector from the steering law
-            command = self.guidance.guidance(state=[x, y, z, velocity[0], velocity[1], velocity[2]], time=system_time, force_model=self)
+            command = self.guidance.guidance(state=[x, y, z, velocity[0], velocity[1], velocity[2]], time=system_time,
+                                             force_model=self)
             acc_vector = [acc_vector[0] + command[0], acc_vector[1] + command[1], acc_vector[2] + command[2]]
 
             self.steer_acc_x.append(command[0])
@@ -155,7 +173,7 @@ class inertial_force_model:
             SMA = self.SMAs[k]
             # terminal_time = 2 * math.pi * ((SMA ** 3) / (GRAV_CONST * self.central_mass)) ** 0.5
             # terminal_time = 2 * math.pi * ((SMA ** 3) / MY) ** 0.5
-            terminal_time = 2*math.pi * ((SMA ** 1.5) / (MY ** 0.5))
+            terminal_time = 2 * math.pi * ((SMA ** 1.5) / (MY ** 0.5))
             times = list(np.linspace(0, terminal_time, 200))
 
             for time in times:
@@ -259,7 +277,8 @@ class CR3BP:
 
         if self.steering_law:
             #  Adding the acceleration vector from the steering law
-            command = self.steering_law.guidance(state=[x, y, z, velocity[0], velocity[1], velocity[2]], time=system_time, force_model=self)
+            command = self.steering_law.guidance(state=[x, y, z, velocity[0], velocity[1], velocity[2]],
+                                                 time=system_time, force_model=self)
             acc_vector = [acc_vector[0] + command[0], acc_vector[1] + command[1], acc_vector[2] + command[2]]
 
             self.steer_acc_x.append(command[0])
@@ -296,27 +315,33 @@ class CR3BP:
         return states
 
     def get_lagrange_points(self):
-        self.lagrange_points["L1"] = [1 - ((self.mass_parameter**0.33071) / (0.51233 * self.mass_parameter**0.49128 + 1.487864)), 0, 0]
-        self.lagrange_points["L2"] = [1 + ((self.mass_parameter**0.8383 + 2.891 * self.mass_parameter**0.3358) / (1.525 * self.mass_parameter**0.848 + 4.046596)), 0, 0]
-        self.lagrange_points["L3"] = [-1 + ((self.mass_parameter**1.007) / (1.653 * self.mass_parameter**0.9375 + 1.66308)), 0, 0]
-        self.lagrange_points["L4"] = [0.5 - self.mass_parameter, 0.5 * 3**0.5, 0]
-        self.lagrange_points["L5"] = [0.5 - self.mass_parameter, -0.5 * 3**0.5, 0]
+        self.lagrange_points["L1"] = [
+            1 - ((self.mass_parameter ** 0.33071) / (0.51233 * self.mass_parameter ** 0.49128 + 1.487864)), 0, 0]
+        self.lagrange_points["L2"] = [1 + ((self.mass_parameter ** 0.8383 + 2.891 * self.mass_parameter ** 0.3358) / (
+                    1.525 * self.mass_parameter ** 0.848 + 4.046596)), 0, 0]
+        self.lagrange_points["L3"] = [
+            -1 + ((self.mass_parameter ** 1.007) / (1.653 * self.mass_parameter ** 0.9375 + 1.66308)), 0, 0]
+        self.lagrange_points["L4"] = [0.5 - self.mass_parameter, 0.5 * 3 ** 0.5, 0]
+        self.lagrange_points["L5"] = [0.5 - self.mass_parameter, -0.5 * 3 ** 0.5, 0]
         pass
 
     def get_potential_field(self, resolution, lim_x, lim_y):
         x_arr = list(np.linspace(lim_x[0], lim_x[1], resolution))
         y_arr = list(np.linspace(lim_y[0], lim_y[1], resolution))
-        xv, yv = np.meshgrid(np.linspace(lim_x[0], lim_x[1], resolution), np.linspace(lim_y[0], lim_y[1], resolution), indexing='ij')
+        xv, yv = np.meshgrid(np.linspace(lim_x[0], lim_x[1], resolution), np.linspace(lim_y[0], lim_y[1], resolution),
+                             indexing='ij')
 
-        potential_map, _ = np.meshgrid(np.linspace(lim_x[0], lim_x[1], resolution), np.linspace(lim_y[0], lim_y[1], resolution), indexing='ij')
+        potential_map, _ = np.meshgrid(np.linspace(lim_x[0], lim_x[1], resolution),
+                                       np.linspace(lim_y[0], lim_y[1], resolution), indexing='ij')
         for i in range(resolution):
             for j in range(resolution):
                 potential_map[i][j] = self.pseudo_potential(x_arr[i], y_arr[j])
         return list(xv), list(yv), list(potential_map)
 
     def pseudo_potential(self, x, y):
-        r_1 = ((x + self.mass_parameter)**2 + y**2)**0.5
-        r_2 =((x - 1 + self.mass_parameter)**2 + y**2)**0.5
+        r_1 = ((x + self.mass_parameter) ** 2 + y ** 2) ** 0.5
+        r_2 = ((x - 1 + self.mass_parameter) ** 2 + y ** 2) ** 0.5
 
-        V = - ((1 - self.mass_parameter) / r_1) - self.mass_parameter / r_2 - 0.5 * self.mass_parameter * (1 - self.mass_parameter) - 0.5 * (x ** 2 + y ** 2)
+        V = - ((1 - self.mass_parameter) / r_1) - self.mass_parameter / r_2 - 0.5 * self.mass_parameter * (
+                    1 - self.mass_parameter) - 0.5 * (x ** 2 + y ** 2)
         return V
