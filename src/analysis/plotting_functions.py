@@ -46,26 +46,29 @@ class graph_output:
     def get_reference_data(self):
         if self.list_of_spacecraft:
             self.integration_points = self.list_of_spacecraft[0].integration_points
-            self.bodies_traj = self.force_model.propagate_body_states(self.list_of_spacecraft[0].integration_points)
+            self.bodies_traj = self.force_model.propagate_body_states(self.list_of_spacecraft[0].integration_points, self.force_model.central_mass, position_only=True)
         elif self.lst_spec_sc:
             self.integration_points = self.lst_spec_sc[0].integration_points
-            self.bodies_traj = self.force_model.propagate_body_states(self.lst_spec_sc[0].integration_points)
+            self.bodies_traj = self.force_model.propagate_body_states(self.lst_spec_sc[0].integration_points, self.force_model.central_mass, position_only=True)
         else:
             raise ValueError("No integration points found!")
 
-        self.bodies_plot_trajectories = self.force_model.get_plotting_track()
+        self.bodies_plot_trajectories = self.force_model.get_plotting_track(self.force_model.central_mass)
         pass
 
     def moving_map_plot(self, plot_central_attractor=True,
                         match_tail_color=False,
-                        plot_potential=False,
                         plot_planet_endpoint=True,
                         init_azim=0,
                         init_elevation=90,
                         azim_rate=0,
                         elevation_rate=0,
                         k_modulo=None,
-                        override_limits=None):
+                        override_limits=None,
+                        moving_window=None):
+
+        # moving_window accepts a dict of the following structure:
+        # moving_window = {"Body": <reference body>, "x": float, "y": float, "z": float}
 
         fig = plt.figure(self.figure_counter + 1, figsize=(16, 9))
         self.figure_counter += 1
@@ -154,6 +157,10 @@ class graph_output:
             body_artists.append(body_end)
 
         artists.append([group_artists, body_artists, special_artists, special_tails])
+
+        # Get the body reference trajectory, in case of moving_window. dict()
+        if moving_window:
+            ref_trajectory = self.force_model.propagate_body_states(times=self.integration_points, mass=self.force_model.central_mass, body_list=[moving_window["Body"]])[moving_window["Body"]]
 
         # Begin of init()
         def init():
@@ -316,6 +323,12 @@ class graph_output:
             #Rotate
             if azim_rate != 0 or elevation_rate != 0:
                 ax.view_init(azim=init_azim + k * azim_rate, elev=init_elevation + k * elevation_rate)
+
+            # Apply moving window:
+            if moving_window:
+                ax.set_xlim(ref_trajectory[0][k] - moving_window["x"] * 0.5, ref_trajectory[0][k] + moving_window["x"] * 0.5)
+                ax.set_ylim(ref_trajectory[1][k] - moving_window["y"] * 0.5, ref_trajectory[1][k] + moving_window["y"] * 0.5)
+                ax.set_zlim(ref_trajectory[2][k] - moving_window["z"] * 0.5, ref_trajectory[2][k] + moving_window["z"] * 0.5)
 
             return artists
 

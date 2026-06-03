@@ -4,7 +4,7 @@ import math
 import numpy as np
 import pandas as pd
 from src.astrodynamic_functions import kepler_dynamics as kds
-from src.astrodynamic_functions.kepler_dynamics import GRAV_CONST, MY
+from src.astrodynamic_functions.kepler_dynamics import GRAV_CONST
 
 """A force model that accepts a set of orbital parameters """
 
@@ -64,22 +64,22 @@ class inertial_force_model:
         self.central_mass = mass
         self.central_attractor_pos = position
 
-    def propagate_body_states(self, times: list, mass=None, body_list=None):
+    def propagate_body_states(self, times: list, mass, body_list=None, position_only=False):
         if not body_list:
             body_list = self.names
         states = dict()
-        if not mass:
+        if position_only:
             for k in range(len(body_list)):
                 x_lst = []
                 y_lst = []
                 z_lst = []
 
                 for time in times:
-                    x, y, z = kds.oe_to_sv(self.SMAs[k], self.ECCs[k], self.INCs[k], self.RAANs[k], self.APERIs[k],
-                                           self.TAEPOs[k], time)
-                    x_lst.append(x)
-                    y_lst.append(y)
-                    z_lst.append(z)
+                    s_vec = kds.oe_to_sv(self.SMAs[k], self.ECCs[k], self.INCs[k], self.RAANs[k], self.APERIs[k],
+                                           self.TAEPOs[k], time, mass)
+                    x_lst.append(s_vec[0])
+                    y_lst.append(s_vec[1])
+                    z_lst.append(s_vec[2])
 
                 body_dataset = [x_lst, y_lst, z_lst]
                 states[body_list[k]] = body_dataset
@@ -112,7 +112,7 @@ class inertial_force_model:
 
         acc_vector = [0, 0, 0]
 
-        body_states = self.propagate_body_states([system_time])
+        body_states = self.propagate_body_states([system_time], mass=self.central_mass, position_only=True)
         body_names = list(body_states.keys())
 
         for k in range(len(body_names)):
@@ -161,8 +161,8 @@ class inertial_force_model:
         # return [acc_vector[0], acc_vector[1], acc_vector[2]]
         return acc_vector
 
-    def get_plotting_track(self):
-
+    def get_plotting_track(self, mass):
+        MY = GRAV_CONST * mass
         states = dict()
         for k in range(len(self.names)):
             x_lst = []
@@ -177,11 +177,11 @@ class inertial_force_model:
             times = list(np.linspace(0, terminal_time, 200))
 
             for time in times:
-                x, y, z = kds.oe_to_sv(self.SMAs[k], self.ECCs[k], self.INCs[k], self.RAANs[k], self.APERIs[k],
-                                       self.TAEPOs[k], time)
-                x_lst.append(float(x))
-                y_lst.append(float(y))
-                z_lst.append(float(z))
+                s_vec = kds.oe_to_sv(self.SMAs[k], self.ECCs[k], self.INCs[k], self.RAANs[k], self.APERIs[k],
+                                       self.TAEPOs[k], time, self.central_mass)
+                x_lst.append(s_vec[0])
+                y_lst.append(s_vec[1])
+                z_lst.append(s_vec[2])
 
             body_dataset = [x_lst, y_lst, z_lst]
             states[self.names[k]] = body_dataset

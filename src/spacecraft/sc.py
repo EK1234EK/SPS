@@ -88,7 +88,7 @@ class Spacecraft:
     def get_body_distances(self, body_list: list, body_trajectories=None):
         distances = dict()
         if body_trajectories is None:
-            self.force_model.trajectory_track = self.force_model.propagate_body_states(self.integration_points)
+            self.force_model.trajectory_track = self.force_model.propagate_body_states(self.integration_points, self.force_model.central_mass)
         else:
             self.force_model.trajectory_track = body_trajectories
 

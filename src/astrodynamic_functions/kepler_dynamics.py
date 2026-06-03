@@ -2,7 +2,7 @@ import math
 import numpy as np
 from src.globals import Constants
 
-G, MY, KS_TOLERANCE, GRAV_CONST, EARTH_RADIUS = Constants.get_globals()
+G, _, KS_TOLERANCE, GRAV_CONST, EARTH_RADIUS = Constants.get_globals()
 
 
 def Kepler_solver(M_e, e):
@@ -31,12 +31,11 @@ def Kepler_solver(M_e, e):
     return m
 
 
-def time_to_true_anomaly(a, e, ny_0, t, *args):
-    if args:
-        MY_arg = args[0] * GRAV_CONST
-        n = (MY_arg / (a ** 3)) ** (1 / 2)
-    else:
-        n = (MY / (a ** 3)) ** (1 / 2)
+def time_to_true_anomaly(a, e, ny_0, t, mass):
+    MY = mass * GRAV_CONST
+    n = (MY / (a ** 3)) ** (1 / 2)
+
+    n = (MY / (a ** 3)) ** (1 / 2)
     E_0 = math.atan((math.tan(0.5 * ny_0) * ((1 - e) / (1 + e)) ** 0.5)) * 2
     M_0 = E_0 - e * math.sin(E_0)
 
@@ -78,36 +77,36 @@ def rotate_orbit_to_inertial(INC, RAAN, APERI, vec):
     return step_3
 
 
-def oe_to_sv(a, e, i, RAAN, APERI, ny_0, t, *args):
+def oe_to_sv(a, e, i, RAAN, APERI, ny_0, t, mass):
     # Additional arguments: Mass, in order to calculate the velocity vector. If no mass is provided,
     # only the position vector is calculated
 
     import warnings
     warnings.filterwarnings('ignore')
 
-    if len(args) == 0:
+    """if len(args) == 0:
         ny = time_to_true_anomaly(a, e, ny_0, t)
         x, y, z = position_orbital_system(a, e, ny)
         vec_inertial = rotate_orbit_to_inertial(i, RAAN, APERI, [x, y, z])
         return vec_inertial[0], vec_inertial[1], vec_inertial[2]
-    else:
-        ny = time_to_true_anomaly(a, e, ny_0, t, args[0])
-        x, y, z = position_orbital_system(a, e, ny)
-        vec_inertial = rotate_orbit_to_inertial(i, RAAN, APERI, [x, y, z])
+    else:"""
+    ny = time_to_true_anomaly(a, e, ny_0, t, mass)
+    x, y, z = position_orbital_system(a, e, ny)
+    vec_inertial = rotate_orbit_to_inertial(i, RAAN, APERI, [x, y, z])
 
-        # Calculating the velocity vector:
-        mu = args[0] * GRAV_CONST
-        P = rotate_orbit_to_inertial(i, RAAN, APERI, [1, 0, 0])
-        Q = rotate_orbit_to_inertial(i, RAAN, APERI, [0, 1, 0])
+    # Calculating the velocity vector:
+    mu = mass * GRAV_CONST
+    P = rotate_orbit_to_inertial(i, RAAN, APERI, [1, 0, 0])
+    Q = rotate_orbit_to_inertial(i, RAAN, APERI, [0, 1, 0])
 
-        # mag_vec = [-P[0] + Q[0], -P[1] + Q[1], -P[2] + Q[2]]
+    # mag_vec = [-P[0] + Q[0], -P[1] + Q[1], -P[2] + Q[2]]
 
-        p_mag = np.linalg.norm(vec_inertial) * (1 + e * math.cos(ny))
+    p_mag = np.linalg.norm(vec_inertial) * (1 + e * math.cos(ny))
 
-        v_vec = math.sqrt(mu / p_mag) * (-math.sin(ny) * P + Q * (e + math.cos(ny)))
+    v_vec = math.sqrt(mu / p_mag) * (-math.sin(ny) * P + Q * (e + math.cos(ny)))
 
-        return [float(vec_inertial[0]), float(vec_inertial[1]), float(vec_inertial[2]), float(v_vec[0]),
-                float(v_vec[1]), float(v_vec[2])]
+    return [float(vec_inertial[0]), float(vec_inertial[1]), float(vec_inertial[2]), float(v_vec[0]),
+            float(v_vec[1]), float(v_vec[2])]
 
 
 def gravitational_law(mass, x, y, z):
@@ -213,7 +212,7 @@ def sv_to_oe(state_vector, mass, *args):
 
     if len(args) != 0:
         # Calculate true anomaly at epoch from true anomaly
-        true_anom = time_to_true_anomaly(a, ecc, true_anom, args[0])
+        true_anom = time_to_true_anomaly(a, ecc, true_anom,args[0], mass)
 
     kep = np.zeros(6)
     kep[0] = a
@@ -232,9 +231,9 @@ def get_sv_list(sc_list, idx):
     return sv_list
 
 
-if __name__ == "__main__":
+"""if __name__ == "__main__":
     tspan = np.linspace(0, -1e8, 100).tolist()
     for t in tspan:
         veci = oe_to_sv(1e11, 0.1, 0, 0, 0, 0, t)
         vec = [float(veci[0]), float(veci[1]), float(veci[2])]
-        # print(t)
+        # print(t)"""

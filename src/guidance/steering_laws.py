@@ -574,10 +574,11 @@ class LocalOptimal:
 
     def guidance(self, state, time, force_model):
 
-        if time <= 1.3 * 10**7:
-            self.target_oe = {"SMA": 150000000}
-        else:
-            self.target_oe = {"ECC": 0.9, "INC": 0.2}
+        arc_sun = (time / (24*3600*365)) * 2 * math.pi
+        pos_sun = np.array([math.cos(arc_sun), math.sin(arc_sun), 0]) * 149000000000
+        force_model.solar_pressure.radiation_location = pos_sun
+
+        self.target_oe = {"SMA": 1000000000}
 
         target_vel_change = np.array(self.target_orbit(state=state))
 
