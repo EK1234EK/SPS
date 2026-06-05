@@ -594,15 +594,16 @@ def tBP_dynamics_testing():
 
 def solar_pressure():
     t_start = 0
-    t_end = 1000000
-    integration_points = list(np.linspace(t_start, t_end, 10000))
+    t_end = 3*10**8
+    integration_points = list(np.linspace(t_start, t_end, 1000))
     earth_mass = 5.97e24
     solar_mass = 1.989 * 10 ** 30
 
+    sigma = 0.0429
+
     force_model = sd_1.inertial_force_model(path="./data/empty_dataset.xlsx")
     force_model.define_central_attractor(mass=earth_mass, position=[0, 0, 0])
-
-    srp_model = SRP.Solar_pressure(sail_model="ACS3", central_attractor_mass=solar_mass)
+    srp_model = SRP.Solar_pressure(sail_model="ACS3", central_attractor_mass=solar_mass, sigma=sigma)
     srp_model.radiation_location = [149000000000, 0, 0]
     srp_model.sail_control = [0, 0]
     force_model.solar_pressure = srp_model
@@ -611,18 +612,20 @@ def solar_pressure():
     guidance_law.conversion_mass = earth_mass
     force_model.guidance = guidance_law
 
+    print("Sigma: ", sigma)
 
-    orbit_state = kepler_dynamics.oe_to_sv(10000000, 0, 0.1, 3, 3, 3, 0, earth_mass)
+    orbit_state_1 = kepler_dynamics.oe_to_sv((6378+600)*10000, 0.7, 0.00001, 3, 3, 3, 0, earth_mass)
+    # orbit_state_2 = kepler_dynamics.oe_to_sv((6378 + 700) * 1000, 0, 0.01, 3, 3, 3, 0, earth_mass)
 
-    sc_1 = src.spacecraft.sc.Spacecraft(init_state_vector=orbit_state, force_model=force_model)
-    sc_1.display_name = "Earth gravity moving sun"
+    sc_1 = src.spacecraft.sc.Spacecraft(init_state_vector=orbit_state_1, force_model=force_model)
+    sc_1.display_name = "Balls"
     sc_1.integration_points = integration_points
     sc_1.time_interval = [t_start, t_end]
-    sc_1.integrate_states_sivp(rtol=10 ** - 6)
+    sc_1.integrate_states_sivp(rtol=10 ** - 6, terminator=src.guidance.steering_laws.kill_integrator)
     sc_1.trajectory_conversion(mass=earth_mass)
-    # sc_1.get_body_distances(body_list=["Earth"])
-    sc_1.plot_color = [0.5, 0.8, 1]
+    # sc_1.plot_color = [0.5, 0.8, 1]
 
+    print(sc_1.event_time)
 
     input("Start plotting?")
 

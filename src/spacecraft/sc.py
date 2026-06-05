@@ -40,6 +40,8 @@ class Spacecraft:
 
         self.condition_value = [0]
 
+        self.event_time = None
+
         # Steering track
         self.steer_x = []
         self.steer_y = []
@@ -103,7 +105,7 @@ class Spacecraft:
             distances[body] = ind_dist
         self.body_distances = distances
 
-    def integrate_states_sivp(self, method='DOP853', rtol=1e-3, atol=1e-6):
+    def integrate_states_sivp(self, method='DOP853', rtol=1e-3, atol=1e-6, terminator=None):
         """
         :param method: RK45, RK23, DOP853, Radau, BDF, LSODA
         :param rtol:
@@ -123,6 +125,7 @@ class Spacecraft:
 
         if self.force_model.guidance:
             self.force_model.guidance.control_command_track = dict()
+            self.force_model.guidance.vel_angle_track = dict()
 
         def get_acc_wrapper(t, state_vector):
             return self.get_acc(state_vector, t)
@@ -135,22 +138,34 @@ class Spacecraft:
             eval_points = np.linspace(self.time_interval[0], self.time_interval[1],
                                       len(self.integration_points)).tolist()
         init_time = time.time()
+
+        terminator.terminal = True
+
         sol = solve_ivp(get_acc_wrapper,
                         t_span=[self.time_interval[0], self.time_interval[1]],
                         y0=self.init_state_vector,
                         method=method,
                         t_eval=eval_points,
                         atol=atol,
-                        rtol=rtol
+                        rtol=rtol,
+                        events=terminator,
+                        dense_output=True
                         )
         terminal_time = time.time()
         steps = sol.nfev
         status = sol.success
         integrated_time = sol.t
+        terminal_message = sol.message
+
+        if terminal_message == 'A termination event occurred.':
+            # print("Escape: ", sol.t_events[0][0] / (24*3600))
+            self.time_interval = [integrated_time[0], integrated_time[-1]]
+            self.event_time = sol.t_events
+
         sol = list(sol.y)
 
         if self.time_interval[0] == self.integration_points[0] and self.time_interval[1] == self.integration_points[
-            -1] and status == True:
+            -1] and status == True and terminal_message != 'A termination event occurred.':
             for state in range(6):
                 self.trajectory_track[state] += sol[state].tolist()
         elif status is not True:
@@ -158,6 +173,11 @@ class Spacecraft:
             for state in range(6):
                 sol[state] = interp(self.integration_points, integrated_time, sol[state], left=None,
                                     right=None).tolist()
+                self.trajectory_track[state] += sol[state]
+        elif terminal_message == 'A termination event occurred.':
+            for state in range(6):
+                sol[state] = interp(self.integration_points, integrated_time, sol[state], left=np.nan, right=np.nan).tolist()
+                sol[state] = [None if x == np.nan else x for x in sol[state]]
                 self.trajectory_track[state] += sol[state]
         else:
             for state in range(6):

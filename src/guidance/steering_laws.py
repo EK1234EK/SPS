@@ -8,6 +8,10 @@ import math
 from src.system_dynamics import SRP
 
 
+def kill_integrator(time, state):
+    return kepler_dynamics.sv_to_oe(state_vector=state, mass=5.97e24)[1] - 0.95
+
+
 def vector_from_angle(alpha, gamma, d_1, d_2, d_3):
     return math.cos(alpha) * d_1 + math.sin(alpha) * math.sin(gamma) * d_2 + math.sin(alpha) * math.cos(gamma) * d_3
 
@@ -66,6 +70,8 @@ class LocalOptimal:
         self.prev_time = 0
         self.prev_acc = np.array([0, 0, 0])
         self.scaling_acc = 0
+
+        self.terminate_integration = -1 # Set to zero to terminate!
 
     def maximize_oe_change(self, state):
         pass
@@ -181,7 +187,7 @@ class LocalOptimal:
         oe_name_list = ["SMA", "ECC", "INC", "RAAN", "APERI", "TAEPO"]
 
         dv = 0.1  # Incement, by which to estimate the derivativs in the Jacobian
-        acc_mag = 0.001
+        acc_mag = 1
 
         # The Jacobian has six lines with three columns, corresponding to six orbital parameters
         # and the three velocity state
@@ -514,63 +520,6 @@ class LocalOptimal:
 
         return force_model.solar_pressure.sail_control
 
-    def guidance_2(self, state, time, force_model):
-        """if time < 15000000:
-            self.target_oe = {"SMA": 200000000, "ECC": 0.1, "INC": 0.1, "RAAN": 1.0, "APERI": 1}
-        elif 15000000 < time < 30000000:
-            self.target_oe = {"SMA": 400000000, "ECC": 0.5, "INC": 0.6, "RAAN": 2.0, "APERI": 1}
-        elif 30000000 < time < 40000000:
-            self.target_oe = {"SMA": 300000000, "ECC": 0.1, "INC": 1.1, "RAAN": 4.0, "APERI": 1}
-        elif 40000000 < time < 500000000:
-            self.target_oe = {"SMA": 400000000, "ECC": 0.05, "INC": 0.2, "RAAN": 4.0, "APERI": 1}"""
-
-        if time < 20000000:
-            self.target_oe = {"SMA": 200000000, "ECC": 0.1, "INC": 0.1, "RAAN": 1.0, "APERI": 1}
-        elif 20000000 < time < 40000000:
-            self.target_oe = {"SMA": 400000000, "ECC": 0.5, "INC": 0.6, "RAAN": 2.0, "APERI": 1}
-        elif 40000000 < time < 60000000:
-            self.target_oe = {"SMA": 300000000, "ECC": 0.1, "INC": 1.1, "RAAN": 4.0, "APERI": 1}
-        elif 60000000 < time < 70000000:
-            self.target_oe = {"SMA": 400000000, "ECC": 0.05, "INC": 0.2, "RAAN": 4.0, "APERI": 1}
-
-        self.target_orbit(state=state)
-        return self.current_control
-
-    def guidance_1(self, state, time, force_model):
-
-        """self.target_oe = {"SMA": 380073311, "ECC": 0, "INC": 0, "Lon": 0}
-        self.target_inline_lagrange(state=state)"""
-
-        self.target_oe = {"SMA": 20007331, "ECC": 0.1, "INC": 0.01, "RAAN": 1, "APERI": 1, "TAEPO": 1}
-        self.target_orbit(state=state)
-        return self.current_control
-
-    def guidance_3(self, state, time, force_model):
-
-        k_v = 0
-        k_x = 10
-        acc_mag = 1
-
-        min_dt = 0.001
-
-        # if time >= self.track_time:
-
-        L1_location = np.array(force_model.lagrange_points["L1"])
-        loc = np.array(state[0:3])
-        vel = np.array(state[3:])
-        velocity_control = k_v * (-vel)
-        position_control = k_x * (L1_location - loc)
-
-        self.current_control = velocity_control + position_control
-
-        if np.linalg.norm(self.current_control) > acc_mag:
-            self.current_control = (self.current_control / np.linalg.norm(self.current_control)) * acc_mag
-
-        self.current_control = list(self.current_control)
-
-        self.track_time += min_dt
-
-        return self.current_control
 
     def guidance(self, state, time, force_model):
 
@@ -578,11 +527,16 @@ class LocalOptimal:
         pos_sun = np.array([math.cos(arc_sun), math.sin(arc_sun), 0]) * 149000000000
         force_model.solar_pressure.radiation_location = pos_sun
 
-        self.target_oe = {"SMA": 1000000000}
+        self.target_oe = {"SMA": 100000000000}
 
         target_vel_change = np.array(self.target_orbit(state=state))
+        target_vel_change_aux = np.array(state[3:6])
+
+        target_vel_change = target_vel_change / np.linalg.norm(target_vel_change) * np.linalg.norm(target_vel_change_aux)
+        target_vel_change_aux = target_vel_change_aux / np.linalg.norm(target_vel_change_aux)
 
         sail_control, vel_angle = direct_control_inversion(vel_change=target_vel_change, state=state, force_model=force_model)
+
         force_model.solar_pressure.sail_control = sail_control
         self.current_control = force_model.solar_pressure.solar_acceleration(state=state[0:3])
         if not self.control_command_track:
@@ -596,21 +550,6 @@ class LocalOptimal:
         self.vel_angle_track["Target velocity clock"].append(vel_angle[1])
         return self.current_control
 
-    """def guidance(self, state, time, force_model):
-        # Controls a solar sail
-        self.target_oe = {"SMA": 500000000}
-        # sail_control = self.solar_sail_local(state=state, force_model=force_model, system_time=time)
-        # self.current_control = force_model.solar_pressure.solar_acceleration(state=state[0:3])
-        if np.array(state[3:6]).dot(np.array(force_model.solar_pressure.radiation_location) - np.array(state[0:3]))<0:
-            force_model.solar_pressure.sail_control = [0, 0]
-        else:
-            force_model.solar_pressure.sail_control = [0.5 * math.pi, 0]
-        self.current_control = force_model.solar_pressure.solar_acceleration(state=state[0:3])
-        if not self.control_command_track:
-            self.control_command_track = {"Tilt": [], "Clock": []}
-        self.control_command_track["Tilt"].append(force_model.solar_pressure.sail_control[0])
-        self.control_command_track["Clock"].append(force_model.solar_pressure.sail_control[1])
-        return self.current_control"""
 
 if __name__ == "__main__":
     import random

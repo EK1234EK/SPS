@@ -70,8 +70,8 @@ def flip(sail_parameters):
 
 class Solar_pressure:
 
-    def __init__(self, sail_model, central_attractor_mass):
-        self.sail_parameters = sail_repository.Sail_parameters().fetch(name=sail_model)
+    def __init__(self, sail_model, central_attractor_mass, sigma):
+        self.sail_parameters = sail_repository.Sail_parameters(sigma=sigma).fetch(name=sail_model)
         self.radiation_location = [0, 0, 0]
 
         self.sail_control = [0, 0]
