@@ -213,7 +213,7 @@ class LocalOptimal:
         target_oe_list = [0 for _ in range(6)]
         for i, oe in enumerate(oe_name_list):
             if oe in self.target_oe.keys():
-                target_oe_list[i] = self.target_oe[oe] - oe_mat["center"][i]
+                target_oe_list[i] = (self.target_oe[oe] - oe_mat["center"][i]) / oe_mat["center"][i]
             else:
                 target_oe_list[i] = 0
 
@@ -224,7 +224,7 @@ class LocalOptimal:
         for i in range(6):
             for j, delta_state in enumerate(["+vx", "+vy", "+vz"]):
                 # We are now using the difference between target and current orbital elements for the Jacobian
-                jacobian[i][j] = (oe_mat[delta_state][i] - oe_mat["center"][i]) / dv
+                jacobian[i][j] = (oe_mat[delta_state][i] - oe_mat["center"][i]) / (dv * oe_mat["center"][i])
 
         J = np.array(jacobian)
         J_T_p = np.linalg.pinv(J)
@@ -532,7 +532,7 @@ class LocalOptimal:
         target_vel_change = np.array(self.target_orbit(state=state))
         target_vel_change_aux = np.array(state[3:6])
 
-        target_vel_change = target_vel_change / np.linalg.norm(target_vel_change) * np.linalg.norm(target_vel_change_aux)
+        target_vel_change = target_vel_change / np.linalg.norm(target_vel_change)
         target_vel_change_aux = target_vel_change_aux / np.linalg.norm(target_vel_change_aux)
 
         sail_control, vel_angle = direct_control_inversion(vel_change=target_vel_change, state=state, force_model=force_model)
