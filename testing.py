@@ -594,44 +594,73 @@ def tBP_dynamics_testing():
 
 def solar_pressure():
     t_start = 0
-    t_end = 3*10**8
-    integration_points = list(np.linspace(t_start, t_end, 1000))
+    t_end = 10**9
+    integration_points = list(np.linspace(t_start, t_end, 30000))
     earth_mass = 5.97e24
     solar_mass = 1.989 * 10 ** 30
 
-    sigma = 0.0429
+    tof_ref = [230, 460, 690, 920, 1150, 1380, 1610, 1840, 2070, 2300, 2530, 2760, 2990, 3220, 3450, 3680, 3910, 4140, 4370, 4600]
+    sigma_ref = list(np.linspace(0.01, 0.20, len(tof_ref)))
+    tof_lst = []
+    sc_list = []
+    inp = input("Load pickle? (y)")
+    if inp =="y":
+        force_model = pickle.load(open('.p', 'rb'))
+        sc_list = pickle.load(open('sv.p', 'rb'))
+    else:
+        print("Integrating all initial conditions")
+        for sigma in sigma_ref:
 
-    force_model = sd_1.inertial_force_model(path="./data/empty_dataset.xlsx")
-    force_model.define_central_attractor(mass=earth_mass, position=[0, 0, 0])
-    srp_model = SRP.Solar_pressure(sail_model="ACS3", central_attractor_mass=solar_mass, sigma=sigma)
-    srp_model.radiation_location = [149000000000, 0, 0]
-    srp_model.sail_control = [0, 0]
-    force_model.solar_pressure = srp_model
+            force_model = sd_1.inertial_force_model(path="./data/empty_dataset.xlsx")
+            force_model.define_central_attractor(mass=earth_mass, position=[0, 0, 0])
+            force_model.central_attractor_gravity_law = src.astrodynamic_functions.kepler_dynamics.J_X_acceleration
+            srp_model = SRP.Solar_pressure(sail_model="ACS3", central_attractor_mass=solar_mass, sigma=sigma)
+            srp_model.radiation_location = [149000000000, 0, 0]
+            srp_model.sail_control = [0, 0]
+            force_model.solar_pressure = srp_model
 
-    guidance_law = steering_laws.LocalOptimal()
-    guidance_law.conversion_mass = earth_mass
-    force_model.guidance = guidance_law
+            guidance_law = steering_laws.LocalOptimal()
+            guidance_law.conversion_mass = earth_mass
+            guidance_law.guidance_function = guidance_law.guidance_1
+            force_model.guidance = guidance_law
 
-    print("Sigma: ", sigma)
+            orbit_state_1 = kepler_dynamics.oe_to_sv((6378+600)*1000, 0, 23.44*math.pi / 180, 3, 3, 3, 0, earth_mass)
 
-    orbit_state_1 = kepler_dynamics.oe_to_sv((6378+600)*10000, 0.7, 0.00001, 3, 3, 3, 0, earth_mass)
-    # orbit_state_2 = kepler_dynamics.oe_to_sv((6378 + 700) * 1000, 0, 0.01, 3, 3, 3, 0, earth_mass)
+            force_model.guidance.guidance_function = force_model.guidance.guidance_2
 
-    sc_1 = src.spacecraft.sc.Spacecraft(init_state_vector=orbit_state_1, force_model=force_model)
-    sc_1.display_name = "Balls"
-    sc_1.integration_points = integration_points
-    sc_1.time_interval = [t_start, t_end]
-    sc_1.integrate_states_sivp(rtol=10 ** - 6, terminator=src.guidance.steering_laws.kill_integrator)
-    sc_1.trajectory_conversion(mass=earth_mass)
-    # sc_1.plot_color = [0.5, 0.8, 1]
+            sc_2 = src.spacecraft.sc.Spacecraft(init_state_vector=orbit_state_1, force_model=force_model)
+            sc_2.display_name = str(sigma)
+            sc_2.integration_points = integration_points
+            sc_2.time_interval = [t_start, t_end]
+            sc_2.integrate_states_sivp(rtol=10 ** - 6, terminator=src.guidance.steering_laws.kill_integrator_C3)
+            sc_2.trajectory_conversion(mass=earth_mass)
+            sc_list.append(sc_2)
 
-    print(sc_1.event_time)
+    for i, sc in enumerate(sc_list):
+        print("Sigma: ", sigma_ref[i], ", escape time: ", round(sc.event_time[0][0] / (24 * 3600), 3))
+        tof_lst.append(sc.event_time[0][0] / (24 * 3600))
+
+    plt.figure()
+    plt.scatter(np.array(sigma_ref) * 1000, tof_lst, color=[1, 0, 1], label="Calculated")
+    plt.scatter(np.array(sigma_ref) * 1000, tof_ref, color=[0, 1, 1], label="Armando")
+    plt.legend()
+    plt.grid()
+    plt.show()
+
+    print("sigma_lst: ", sigma_ref)
+    print("tof_lst ", tof_lst)
+
+    inp = input("Save= (y / n)")
+    if inp == "y":
+        # Safe the stuff with pickle
+        pickle.dump(sc_list, open('sv.p', 'wb'))
+        pickle.dump(force_model, open('.p', 'wb'))
 
     input("Start plotting?")
 
     plots = plotting_functions.graph_output(list_of_spacecraft=[],
                                             list_of_resampled_spacecraft=[],
-                                            list_of_special_spacecraft=[sc_1],
+                                            list_of_special_spacecraft=sc_list,
                                             force_model=force_model,
                                             axis_visibility=True,
                                             animated=False)

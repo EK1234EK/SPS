@@ -226,6 +226,8 @@ class Spacecraft:
 
         print("Integrating " + str(round(terminal_time - init_time, 3)) + " s after " + str(
             steps) + " evaluations", end="")
+        if terminal_message == 'A termination event occurred.':
+            print(", terminated at ", round(self.event_time[0][0], 3), "s", end="")
 
         print()
 
