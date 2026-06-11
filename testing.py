@@ -624,7 +624,7 @@ def solar_pressure():
             guidance_law.guidance_function = guidance_law.guidance_1
             force_model.guidance = guidance_law
 
-            orbit_state_1 = kepler_dynamics.oe_to_sv((6378+600)*1000, 0, 23.44*math.pi / 180, 3, 3, 3, 0, earth_mass)
+            orbit_state_1 = kepler_dynamics.oe_to_sv((6378+700)*1000, 0, 23.44*math.pi / 180, 3, 3, 3, 0, earth_mass)
 
             force_model.guidance.guidance_function = force_model.guidance.guidance_2
 
