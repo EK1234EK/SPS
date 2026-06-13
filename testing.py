@@ -599,8 +599,10 @@ def solar_pressure():
     earth_mass = 5.97e24
     solar_mass = 1.989 * 10 ** 30
 
-    tof_ref = [230, 460, 690, 920, 1150, 1380, 1610, 1840, 2070, 2300, 2530, 2760, 2990, 3220, 3450, 3680, 3910, 4140, 4370, 4600]
-    sigma_ref = list(np.linspace(0.01, 0.20, len(tof_ref)))
+    # tof_ref = [230, 460, 690, 920, 1150, 1380, 1610, 1840, 2070, 2300, 2530, 2760, 2990, 3220, 3450, 3680, 3910, 4140, 4370, 4600]
+    tof_ref = [230, 460]
+    # sigma_ref = list(np.linspace(0.01, 0.20, len(tof_ref)))
+    sigma_ref = list(np.linspace(0.01, 0.02, len(tof_ref)))
     tof_lst = []
     sc_list = []
     inp = input("Load pickle? (y)")
