@@ -604,7 +604,7 @@ def solar_pressure():
     tof_lst = []
     sc_list = []
     inp = input("Load pickle? (y)")
-    if inp =="y":
+    if inp == "y":
         force_model = pickle.load(open('.p', 'rb'))
         sc_list = pickle.load(open('sv.p', 'rb'))
     else:
