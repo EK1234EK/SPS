@@ -11,6 +11,7 @@ from src.spacecraft import swarm_1
 from src.astrodynamic_functions import kepler_dynamics
 from src.feasibility import valid_set
 from src.guidance import steering_laws
+from src.computation import parallel
 import math
 import pickle
 
@@ -43,7 +44,7 @@ def all_plots():
     sw_1 = swarm_1.particle_swarm(manifolds=manifolds, force_model=force_model_1)
     sw_1.integration_points = integration_points
     sw_1.square_swarm("generic")
-    sw_1.integrate_swarm(rtol=1e-3, parproc=True, cores=11)
+    sw_1.create_and_integrate_swarm(rtol=1e-3, parproc=True, cores=11)
     sw_1.get_swarm_body_distances(["body_1"])
 
     sw_3 = swarm_1.particle_swarm(manifolds=manifolds_2, force_model=force_model_1)
@@ -51,7 +52,7 @@ def all_plots():
     # sw_3.square_swarm("center")
     # sw_3.square_swarm("edge")
     sw_3.square_swarm("generic")
-    sw_3.integrate_swarm(rtol=1e-3, parproc=True, cores=11)
+    sw_3.create_and_integrate_swarm(rtol=1e-3, parproc=True, cores=11)
     sw_3.get_swarm_body_distances(["body_1"])
 
     fs = valid_set.feasibility_setup(list_of_sc=sw_3.list_of_spacecraft, force_model=force_model_1,
@@ -62,7 +63,7 @@ def all_plots():
     sw_2 = swarm_1.particle_swarm(manifolds=manifolds, force_model=force_model_1)
     sw_2.integration_points = integration_points
     sw_2.sensitivity_swarm(center=[1.5e11, 0, 0, 0, 35000, 0])
-    sw_2.integrate_swarm(rtol=1e-3, parproc=True, cores=5)
+    sw_2.create_and_integrate_swarm(rtol=1e-3, parproc=True, cores=5)
     sw_2.get_sensitivity()
 
     plots = plotting_functions.graph_output(list_of_spacecraft=sw_3.list_of_spacecraft,
@@ -94,7 +95,7 @@ def SSO():
 
     force_model_1 = sd_1.inertial_force_model("./data/empty_dataset.xlsx")
     force_model_1.define_central_attractor(mass=cent_mass, position=[0, 0, 0])
-    force_model_1.central_attractor_gravity_law = kepler_dynamics.J_X_acceleration
+    force_model_1.central_attractor_gravity_law = kepler_dynamics.J_X_acceleration_equator_reference
 
     oe_vec = [15479300, 0.4, 60 * math.pi / 180, 100 * math.pi / 180, 26 * math.pi / 180, 206 * math.pi / 180]
 
@@ -162,7 +163,7 @@ def orbiting_planet():
     sw_1 = swarm_1.particle_swarm(manifolds, force_model_1)
     sw_1.integration_points = sim_time
     sw_1.square_swarm('generic')
-    sw_1.integrate_swarm(rtol=1e-6, parproc=True, cores=5)
+    sw_1.create_and_integrate_swarm(rtol=1e-6, parproc=True, cores=5)
     sw_1.get_swarm_body_distances(body_list=["body_1"])
     list_of_spacecraft = sw_1.list_of_spacecraft
     list_of_spacecraft[0].plot_color = [1, 0.4, 1]
@@ -249,7 +250,7 @@ def CR3BP():
     sw_1.square_swarm('generic')
     sw_1.manifolds = manifolds_3
     sw_1.square_swarm('generic')
-    sw_1.integrate_swarm(rtol=1e-10, parproc=True, cores=11)
+    sw_1.create_and_integrate_swarm(rtol=1e-10, parproc=True, cores=11)
     sw_1.get_swarm_body_distances(body_list=["body_1", "body_2"])
 
     list_of_spacecraft = sw_1.list_of_spacecraft
@@ -334,7 +335,7 @@ def CR3BP_ex_2():
     sw_1.integration_points = sim_time
     sw_1.direct_transformation = ("State_magnitude")
     sw_1.square_swarm('center')
-    sw_1.integrate_swarm(rtol=1e-9, parproc=True, cores=12, method="DOP853")
+    sw_1.create_and_integrate_swarm(method="DOP853", rtol=1e-9, parproc=True, cores=12)
     sw_1.get_swarm_body_distances(body_list=["body_1", "body_2"])
 
     list_of_spacecraft = sw_1.list_of_spacecraft
@@ -394,7 +395,7 @@ def steering_testing():
     sw_1 = swarm_1.particle_swarm(manifolds, force_model_1)
     sw_1.integration_points = sim_time
     sw_1.square_swarm('generic')
-    sw_1.integrate_swarm(rtol=1e-3, parproc=False, cores=5)
+    sw_1.create_and_integrate_swarm(rtol=1e-3, parproc=False, cores=5)
     list_of_spacecraft = sw_1.list_of_spacecraft
     list_of_spacecraft[0].plot_color = [0.3, 1, 0.4]
 
@@ -466,7 +467,7 @@ def Lagrange_targeting():
     sw_1 = swarm_1.particle_swarm(manifolds, force_model_1)
     sw_1.integration_points = sim_time
     sw_1.square_swarm('generic')
-    sw_1.integrate_swarm(rtol=1e-3, parproc=True, cores=11)
+    sw_1.create_and_integrate_swarm(rtol=1e-3, parproc=True, cores=11)
     # sw_1.get_swarm_body_distances(["Moon"])
     list_of_spacecraft = sw_1.list_of_spacecraft
 
@@ -599,10 +600,8 @@ def solar_pressure():
     earth_mass = 5.97e24
     solar_mass = 1.989 * 10 ** 30
 
-    # tof_ref = [230, 460, 690, 920, 1150, 1380, 1610, 1840, 2070, 2300, 2530, 2760, 2990, 3220, 3450, 3680, 3910, 4140, 4370, 4600]
-    tof_ref = [230, 460]
-    # sigma_ref = list(np.linspace(0.01, 0.20, len(tof_ref)))
-    sigma_ref = list(np.linspace(0.01, 0.02, len(tof_ref)))
+    tof_ref = [230, 460, 690, 920, 1150, 1380, 1610, 1840, 2070, 2300, 2530, 2760, 2990, 3220, 3450, 3680, 3910, 4140, 4370, 4600]
+    sigma_ref = list(np.linspace(0.01, 0.20, len(tof_ref)))
     tof_lst = []
     sc_list = []
     inp = input("Load pickle? (y)")
@@ -615,7 +614,7 @@ def solar_pressure():
 
             force_model = sd_1.inertial_force_model(path="./data/empty_dataset.xlsx")
             force_model.define_central_attractor(mass=earth_mass, position=[0, 0, 0])
-            force_model.central_attractor_gravity_law = src.astrodynamic_functions.kepler_dynamics.J_X_acceleration
+            force_model.central_attractor_gravity_law = src.astrodynamic_functions.kepler_dynamics.J_X_acceleration_equator_reference
             srp_model = SRP.Solar_pressure(sail_model="ACS3", central_attractor_mass=solar_mass, sigma=sigma)
             srp_model.radiation_location = [149000000000, 0, 0]
             srp_model.sail_control = [0, 0]
@@ -623,23 +622,22 @@ def solar_pressure():
 
             guidance_law = steering_laws.LocalOptimal()
             guidance_law.conversion_mass = earth_mass
-            guidance_law.guidance_function = guidance_law.guidance_1
+            guidance_law.guidance_function = guidance_law.guidance_2
+            guidance_law.terminator = src.guidance.steering_laws.kill_integrator_C3
             force_model.guidance = guidance_law
 
             orbit_state_1 = kepler_dynamics.oe_to_sv((6378+700)*1000, 0, 23.44*math.pi / 180, 3, 3, 3, 0, earth_mass)
-
-            force_model.guidance.guidance_function = force_model.guidance.guidance_2
 
             sc_2 = src.spacecraft.sc.Spacecraft(init_state_vector=orbit_state_1, force_model=force_model)
             sc_2.display_name = str(sigma)
             sc_2.integration_points = integration_points
             sc_2.time_interval = [t_start, t_end]
-            sc_2.integrate_states_sivp(rtol=10 ** - 6, terminator=src.guidance.steering_laws.kill_integrator_C3)
-            sc_2.trajectory_conversion(mass=earth_mass)
+            sc_2.integrate_states_sivp(rtol=10 ** - 6)
+            sc_2.trajectory_conversion(mass=5.97e24)
             sc_list.append(sc_2)
 
     for i, sc in enumerate(sc_list):
-        print("Sigma: ", sigma_ref[i], ", escape time: ", round(sc.event_time[0][0] / (24 * 3600), 3))
+        print("Sigma: ", sigma_ref[i], ", ", round(sc.event_time[0][0] / (24 * 3600), 10))
         tof_lst.append(sc.event_time[0][0] / (24 * 3600))
 
     plt.figure()
@@ -681,6 +679,100 @@ def solar_pressure():
     plt.waitforbuttonpress(10000000000)
 
 
+def solar_swarm():
+    t_start = 0
+    t_end = 10**9
+    integration_points = list(np.linspace(t_start, t_end, 10000))
+    earth_mass = 5.97e24
+    solar_mass = 1.989 * 10 ** 30
+
+    tof_ref = [230, 460, 690, 920, 1150, 1380, 1610, 1840, 2070, 2300, 2530, 2760, 2990, 3220, 3450, 3680, 3910, 4140, 4370, 4600]
+    sigma_ref = list(np.linspace(0.01, 0.20, len(tof_ref)))
+    tof_lst = []
+
+    inp = input("Load pickle? (y)")
+    if inp == "y":
+        force_model = pickle.load(open('.p', 'rb'))
+        sc_list = pickle.load(open('sv.p', 'rb'))
+    else:
+        print("Integrating all initial conditions")
+    sigma = 0.02
+
+    force_model = sd_1.inertial_force_model(path="./data/empty_dataset.xlsx")
+    force_model.define_central_attractor(mass=earth_mass, position=[0, 0, 0])
+    force_model.central_attractor_gravity_law = src.astrodynamic_functions.kepler_dynamics.J_X_acceleration_ecliptic_reference
+    srp_model = SRP.Solar_pressure(sail_model="ACS3", central_attractor_mass=solar_mass, sigma=sigma)
+    srp_model.radiation_location = [149000000000, 0, 0]
+    srp_model.sail_control = [0, 0]
+    force_model.solar_pressure = srp_model
+
+    guidance_law = steering_laws.LocalOptimal()
+    guidance_law.conversion_mass = earth_mass
+    guidance_law.guidance_function = guidance_law.guidance_2
+    guidance_law.terminator = src.guidance.steering_laws.kill_integrator_C3
+    force_model.guidance = guidance_law
+
+    manifolds = [[-6472011.6676383335, -6472011.6676383335, 1],
+                 [2755402.046278103, 2755402.046278103, 1],
+                 [-786707.4026089477, -786707.4026089477, 1],
+                 [-3008.2264873386243, -3008.2264873386243, 1],
+                 [-6247.649438051772, -6247.649438051772, len(tof_ref)],
+                 [2865.7298398891703, 2865.7298398891703, 1],
+                 [0, 0, 1]]
+
+    sw_1 = swarm_1.particle_swarm(manifolds, force_model)
+    sw_1.do_integration = False
+    sw_1.integration_points = integration_points
+    sw_1.square_swarm('generic')
+    sw_1.create_and_integrate_swarm(rtol=1e-6, parproc=True, cores=11)
+    # sw_1.get_swarm_body_distances(["Moon"])
+
+    for i, sc in enumerate(sw_1.list_of_spacecraft):
+        sc.force_model.solar_pressure.sail_parameters["sigma"] = sigma_ref[i]
+
+    sw_1.do_integration = True
+
+    sw_1.create_and_integrate_swarm(rtol=1e-7, parproc=True, cores=11)
+
+    for i, sc in enumerate(sw_1.list_of_spacecraft):
+        print("Sigma: ", sigma_ref[i], ", ", round(sc.event_time[0][0] / (24 * 3600), 10))
+        tof_lst.append(sc.event_time[0][0] / (24 * 3600))
+
+    plt.figure()
+    plt.scatter(np.array(sigma_ref) * 1000, tof_lst, color=[1, 0, 1], label="Calculated")
+    plt.scatter(np.array(sigma_ref) * 1000, tof_ref, color=[0, 1, 1], label="Armando")
+    plt.legend()
+    plt.grid()
+    plt.show()
+
+    inp = input("Save= (y / n)")
+    if inp == "y":
+        # Safe the stuff with pickle
+        pickle.dump(sw_1.list_of_spacecraft, open('sv.p', 'wb'))
+        pickle.dump(force_model, open('.p', 'wb'))
+
+    input("Start plotting?")
+
+    plots = plotting_functions.graph_output(list_of_spacecraft=[],
+                                            list_of_resampled_spacecraft=[],
+                                            list_of_special_spacecraft=sw_1.list_of_spacecraft,
+                                            force_model=force_model,
+                                            axis_visibility=True,
+                                            animated=False)
+
+    plots.trajectory_xyz()
+    plots.parameters_plot()
+    plots.parameters_plot()
+    plots.plot_steering_acceleration()
+    plots.plot_control()
+    plots.plot_target_velocity_angles()
+    plots.magnitude_plot()
+    plots.C3_plot()
+    plots.moving_map_plot(k_modulo=10, match_tail_color=True)
+    # plots.moving_map_plot(match_tail_color=False)
+    plt.show()
+    plt.waitforbuttonpress(10000000000)
+
 
 # ex_7_SSO()
 if __name__ == "__main__":
@@ -690,4 +782,4 @@ if __name__ == "__main__":
     # steering_testing()
     # orbiting_planet()
     # Lagrange_targeting()
-    solar_pressure()
+    solar_swarm()

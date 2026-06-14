@@ -117,7 +117,7 @@ def gravitational_law(mass, x, y, z):
     return x_acc, y_acc, z_acc
 
 
-def J_X_acceleration(mass, x, y, z):
+def J_X_acceleration_equator_reference(mass, x, y, z):
     # Define the J-X constants:
     J_2 = 1082.63e-6
     J_3 = -2.53e-6
@@ -126,15 +126,48 @@ def J_X_acceleration(mass, x, y, z):
     r = math.sqrt(x ** 2 + y ** 2 + z ** 2)
     my = GRAV_CONST * mass
 
-    x_acc = (-my * x / (r ** 3)) * (1 -
-                                    (1.5 * J_2 * (EARTH_RADIUS / r) ** 2) * (5 * ((z ** 2) / (r ** 2)) - 1) +
+    x_acc_base = (-my * x / (r ** 3))
+    x_acc_add = (-my * x / (r ** 3)) * -( (1.5 * J_2 * (EARTH_RADIUS / r) ** 2) * (5 * ((z ** 2) / (r ** 2)) - 1) +
                                     (2.5 * J_3 * (EARTH_RADIUS / r) ** 3) * (3 * (z / r) - 7 * ((z ** 3) / (r ** 3))) -
                                     (5 / 8) * J_4 * (EARTH_RADIUS / r) ** 4 * (
                                             3 - 42 * ((z ** 2) / (r ** 2)) + 63 * ((z ** 4) / (r ** 4)))
                                     )
-    y_acc = (y / x) * x_acc
 
-    z_acc = (-my * z / (r ** 3)) * (1 +
+    y_acc_base = (y / x) * x_acc_base
+    y_acc_add = (y / x) * x_acc_add
+
+    z_acc_base = (-my * z / (r ** 3))
+    z_acc_add = (-my * z / (r ** 3)) * ((1.5 * J_2 * (EARTH_RADIUS / r) ** 2) * (3 - 5 * ((z ** 2) / (r ** 2))) +
+                                    (1.5 * J_3 * (EARTH_RADIUS / r) ** 3) * (
+                                            10 * (z / r) - (35 / 3) * ((z ** 3) / (r ** 3)) - z / r) -
+                                    (5 / 8) * J_4 * (EARTH_RADIUS / r) ** 4 * (
+                                            15 - 70 * ((z ** 2) / (r ** 2)) + 63 * ((z ** 4) / (r ** 4)))
+                                    )
+
+    rot_mat = np.array([[1, 0, 0], [0, math.cos(23.5 * math.pi / 180), math.sin(23.5 * math.pi / 180)], [0, -math.sin(23.5 * math.pi / 180), math.cos(23.5 * math.pi / 180)]])
+    tilt_acc = np.dot(rot_mat, np.array([x_acc_add, y_acc_add, z_acc_add]))
+    acc= tilt_acc + np.array([x_acc_base, y_acc_base, z_acc_base])
+
+    return acc[0], acc[1], acc[2]
+
+def J_X_acceleration_ecliptic_reference(mass, x, y, z):
+    # Define the J-X constants:
+    J_2 = 1082.63e-6
+    J_3 = -2.53e-6
+    J_4 = -1.61e-6
+
+    r = math.sqrt(x ** 2 + y ** 2 + z ** 2)
+    my = GRAV_CONST * mass
+
+    x_acc_base = (-my * x / (r ** 3)) *(1 - (1.5 * J_2 * (EARTH_RADIUS / r) ** 2) * (5 * ((z ** 2) / (r ** 2)) - 1) +
+                                    (2.5 * J_3 * (EARTH_RADIUS / r) ** 3) * (3 * (z / r) - 7 * ((z ** 3) / (r ** 3))) -
+                                    (5 / 8) * J_4 * (EARTH_RADIUS / r) ** 4 * (
+                                            3 - 42 * ((z ** 2) / (r ** 2)) + 63 * ((z ** 4) / (r ** 4)))
+                                    )
+
+    y_acc_base = (y / x) * x_acc_base
+
+    z_acc_base = (-my * z / (r ** 3)) * (1 +
                                     (1.5 * J_2 * (EARTH_RADIUS / r) ** 2) * (3 - 5 * ((z ** 2) / (r ** 2))) +
                                     (1.5 * J_3 * (EARTH_RADIUS / r) ** 3) * (
                                             10 * (z / r) - (35 / 3) * ((z ** 3) / (r ** 3)) - z / r) -
@@ -142,7 +175,9 @@ def J_X_acceleration(mass, x, y, z):
                                             15 - 70 * ((z ** 2) / (r ** 2)) + 63 * ((z ** 4) / (r ** 4)))
                                     )
 
-    return x_acc, y_acc, z_acc
+
+
+    return x_acc_base, y_acc_base, z_acc_base
 
 
 def CR3BP_acceleration(x, y, z, vx, vy, my):

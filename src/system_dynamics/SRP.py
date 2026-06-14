@@ -75,7 +75,6 @@ class Solar_pressure:
         self.radiation_location = [0, 0, 0]
 
         self.sail_control = [0, 0]
-        self.sail_loading = self.sail_parameters["sigma"]
         self.central_attractor_mass = central_attractor_mass
 
     def ideal_sail(self, state):
@@ -84,7 +83,7 @@ class Solar_pressure:
                                          state=state)
         # base_acc = modified_inverse_square_SRP(radiation_location=self.radiation_location, sail_loading=self.sail_loading, state=state)
         base_acc = inverse_square_SRP(tilt_angle=self.sail_control[0], radiation_location=self.radiation_location,
-                                      sail_loading=self.sail_loading,
+                                      sail_loading=self.sail_parameters["sigma"],
                                       central_attractor_mass=self.central_attractor_mass, state=state)
 
         # Taking into account the direction of the resulting acceleration:
@@ -101,8 +100,8 @@ class Solar_pressure:
         clock = self.sail_control[1]
 
         # Parameter defintions:
-        P = modified_inverse_square_SRP(radiation_location=self.radiation_location, sail_loading=self.sail_loading,
-                                        state=state) * self.sail_loading
+        P = modified_inverse_square_SRP(radiation_location=self.radiation_location, sail_loading=self.sail_parameters["sigma"],
+                                        state=state) * self.sail_parameters["sigma"]
 
         d_1, d_2, d_3, n = sail_attitude(sail_control=[alpha, clock], radiation_location=self.radiation_location,
                                          state=state)
@@ -130,7 +129,7 @@ class Solar_pressure:
         f_t_mag = P * (1 - r * s) * math.cos(alpha) * math.sin(alpha)
         f_t = f_t_mag * t
 
-        acc = (f_n + f_t) / self.sail_loading
+        acc = (f_n + f_t) / self.sail_parameters["sigma"]
         """print("n: ", n)
         print("t: ", t)
         print("Acc: ", acc)  # --> TODO this needs fixing it is negative, check clock angle first!

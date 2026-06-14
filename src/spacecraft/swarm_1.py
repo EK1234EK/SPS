@@ -3,6 +3,7 @@ from matplotlib.pyplot import pause
 import copy
 from src.astrodynamic_functions.kepler_dynamics import time_to_true_anomaly
 from src.spacecraft import sc
+from src.guidance import steering_laws
 import time
 import multiprocessing
 
@@ -29,6 +30,9 @@ class particle_swarm:
 
         self.sensitivity_delta = (100, 100, 100, 0.1, 0.1, 0.1)
         self.sens_mat = None
+
+        # Only for spacecraft generation, not for actual integration
+        self.do_integration = True
 
     def square_swarm(self, point_type: str = 'generic'):
         """
@@ -102,7 +106,7 @@ class particle_swarm:
             mat[linenum] = line
         self.sens_mat = mat
 
-    def integrate_swarm(self, method='DOP853', rtol=1e-3, atol=1e-6, parproc=False, cores=4):
+    def create_and_integrate_swarm(self, method='DOP853', rtol=1e-3, atol=1e-6, parproc=False, cores=4):
 
         self.method = method
         self.rtol = rtol
@@ -211,56 +215,68 @@ class particle_swarm:
             print("Integrating center states: " + str(t_2 - t_1) + " s")
 
     def _integrate_generic_states(self, i):
-        pause(0.05)
-        print(str(i + 1) + " / " + str(len(self.list_of_state_vectors)), end="")
-        state_vector = self.list_of_state_vectors[i]
-        spacecraft = sc.Spacecraft(state_vector, self.force_model_1)
-        spacecraft.integration_points = self.integration_points
-        spacecraft.time_interval = self.list_of_time_ivs[i]
-        spacecraft.integrate_states_sivp(method=self.method, rtol=self.rtol, atol=self.atol)
-        spacecraft.plot_color = 'map'
-        # self.list_of_spacecraft.append(spacecraft)
-        if not self.postintegration_check(spacecraft):
-            print("Warning! Spacecraft did not pass validity check! Returning None")
-            return None
-        if self.direct_transformation:
-            spacecraft.trajectory_conversion(mass=self.force_model_1.central_mass, transformations=self.direct_transformation)
+        if not self.do_integration:
+            print("Creating ", str(i + 1) + " / " + str(len(self.list_of_state_vectors)))
+            state_vector = self.list_of_state_vectors[i]
+            spacecraft = sc.Spacecraft(state_vector, copy.deepcopy(self.force_model_1))
+            spacecraft.integration_points = self.integration_points
+            spacecraft.time_interval = self.list_of_time_ivs[i]
+            spacecraft.plot_color = 'map'
+        if self.do_integration:
+            pause(0.05)
+            print(str(i + 1) + " / " + str(len(self.list_of_state_vectors)), end="")
+            spacecraft = self.list_of_spacecraft[i]
+            spacecraft.integrate_states_sivp(method=self.method, rtol=self.rtol, atol=self.atol)
+
+            # self.list_of_spacecraft.append(spacecraft)
+            if not self.postintegration_check(spacecraft):
+                print("Warning! Spacecraft did not pass validity check! Returning None")
+                return None
+            if self.direct_transformation:
+                spacecraft.trajectory_conversion(mass=self.force_model_1.central_mass, transformations=self.direct_transformation)
         return spacecraft
 
     def _integrate_edge_states(self, i):
-        pause(0.05)
-        print(str(i + 1) + " / " + str(len(self.list_of_edge_state_vectors)), end="")
         state_vector = self.list_of_edge_state_vectors[i]
         spacecraft = sc.Spacecraft(state_vector, self.force_model_1)
         spacecraft.integration_points = self.integration_points
         spacecraft.time_interval = self.list_of_edge_time_ivs[i]
-        spacecraft.integrate_states_sivp(method=self.method, rtol=self.rtol, atol=self.atol)
         spacecraft.is_edge_spacecraft = True
         spacecraft.plot_color = [0, 1, 0]
-        # self.list_of_spacecraft.append(spacecraft)
-        if not self.postintegration_check(spacecraft):
-            print("Warning! Spacecraft did not pass validity check! Returning None")
-            return None
-        if self.direct_transformation:
-            spacecraft.trajectory_conversion(mass=self.force_model_1.central_mass, transformations=self.direct_transformation)
+        if self.do_integration:
+            pause(0.05)
+            print(str(i + 1) + " / " + str(len(self.list_of_edge_state_vectors)), end="")
+            spacecraft.integrate_states_sivp(method=self.method, rtol=self.rtol, atol=self.atol)
+
+            # self.list_of_spacecraft.append(spacecraft)
+            if not self.postintegration_check(spacecraft):
+                print("Warning! Spacecraft did not pass validity check! Returning None")
+                return None
+            if self.direct_transformation:
+                spacecraft.trajectory_conversion(mass=self.force_model_1.central_mass, transformations=self.direct_transformation)
         return spacecraft
 
     def _integrate_center_states(self, i):
-        pause(0.05)
-        print(str(i + 1) + " / " + str(len(self.list_of_center_state_vectors)), end="")
-        state_vector = self.list_of_center_state_vectors[i]
-        spacecraft = sc.Spacecraft(state_vector, self.force_model_1)
-        spacecraft.integration_points = self.integration_points
-        spacecraft.time_interval = self.list_of_center_time_ivs[i]
-        spacecraft.integrate_states_sivp(method=self.method, rtol=self.rtol, atol=self.atol)
-        spacecraft.is_center_spacecraft = True
-        spacecraft.plot_color = [1, 0, 1]
-        # self.list_of_spacecraft.append(spacecraft)
-        if not self.postintegration_check(spacecraft):
-            print("Warning! Spacecraft did not pass validity check! Returning None")
-            return None
-        if self.direct_transformation:
-            spacecraft.trajectory_conversion(mass=self.force_model_1.central_mass, transformations=self.direct_transformation)
+        if not self.do_integration:
+            state_vector = self.list_of_center_state_vectors[i]
+            spacecraft = sc.Spacecraft(state_vector, self.force_model_1)
+            spacecraft.integration_points = self.integration_points
+            spacecraft.time_interval = self.list_of_center_time_ivs[i]
+            spacecraft.is_center_spacecraft = True
+            spacecraft.plot_color = [1, 0, 1]
+
+        if self.do_integration:
+            spacecraft = self.list_of_center_spacecraft[i]
+            pause(0.05)
+            print(str(i + 1) + " / " + str(len(self.list_of_center_state_vectors)), end="")
+            spacecraft.integrate_states_sivp(method=self.method, rtol=self.rtol, atol=self.atol)
+
+            # self.list_of_spacecraft.append(spacecraft)
+            if not self.postintegration_check(spacecraft):
+                print("Warning! Spacecraft did not pass validity check! Returning None")
+                return None
+            if self.direct_transformation:
+                spacecraft.trajectory_conversion(mass=self.force_model_1.central_mass, transformations=self.direct_transformation)
         return spacecraft
 
     def postintegration_check(self, spacecraft):

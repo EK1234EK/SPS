@@ -105,7 +105,7 @@ class Spacecraft:
             distances[body] = ind_dist
         self.body_distances = distances
 
-    def integrate_states_sivp(self, method='DOP853', rtol=1e-3, atol=1e-6, terminator=None):
+    def integrate_states_sivp(self, method='DOP853', rtol=1e-3, atol=1e-6):
         """
         :param method: RK45, RK23, DOP853, Radau, BDF, LSODA
         :param rtol:
@@ -139,7 +139,7 @@ class Spacecraft:
                                       len(self.integration_points)).tolist()
         init_time = time.time()
 
-        terminator.terminal = True
+        self.force_model.guidance.terminator.terminal = True
 
         sol = solve_ivp(get_acc_wrapper,
                         t_span=[self.time_interval[0], self.time_interval[1]],
@@ -148,7 +148,7 @@ class Spacecraft:
                         t_eval=eval_points,
                         atol=atol,
                         rtol=rtol,
-                        events=terminator,
+                        events=self.force_model.guidance.terminator,
                         dense_output=True
                         )
         terminal_time = time.time()

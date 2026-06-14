@@ -55,5 +55,5 @@ class Atmopshere:
         self.rho = params[1]
 
     def get_density(self, state):
-        h = np.linalg.norm(state[0:3]) - EARTH_RADIUS
+        h = np.linalg.norm(np.array(state[0:3])) - EARTH_RADIUS
         self.rho = self.scale_rho * math.exp(-(h - self.lower_altitude) / self.H)

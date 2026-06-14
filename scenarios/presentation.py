@@ -48,14 +48,14 @@ def ex_8():
     sw_1.integration_points = sim_time
     sw_1.square_swarm('edge')
     sw_1.square_swarm("center")
-    sw_1.integrate_swarm(rtol=1e-6, parproc=True, cores=11)
+    sw_1.create_and_integrate_swarm(rtol=1e-6, parproc=True, cores=11)
 
     sw_2 = swarm_1.particle_swarm([], force_model_1)
     sw_2.integration_points = sim_time
     sw_2.sensitivity_swarm(
         center=[1.301321370230550E+11, -7.657362855080509E+10, 0 * 3.855886646107025E+08, 1.72046078838E+04, 3.4738504E+04,
                 0 * 3.265482868525462E+03])
-    sw_2.integrate_swarm(rtol=1e-6, parproc=True, cores=11)
+    sw_2.create_and_integrate_swarm(rtol=1e-6, parproc=True, cores=11)
     sw_2.get_sensitivity()
 
     sw_1.get_swarm_body_distances(["Jupiter", "Saturn", "Uranus", "Neptune"])
@@ -141,7 +141,7 @@ def ex_9():
     sw_1.square_swarm('edge')
     # sw_1.manifolds = manifolds_2
     # sw_1.square_swarm("center")
-    sw_1.integrate_swarm(rtol=1e-9, parproc=True, cores=11)
+    sw_1.create_and_integrate_swarm(rtol=1e-9, parproc=True, cores=11)
 
     list_of_spacecraft = sw_1.list_of_spacecraft
     # Do the condition checking
@@ -212,7 +212,7 @@ def ex_11():
     sw_1.manifolds = manifolds_2
     # sw_1.square_swarm('edge')
     sw_1.square_swarm("center")
-    sw_1.integrate_swarm(rtol=1e-6, parproc=True, cores=11)
+    sw_1.create_and_integrate_swarm(rtol=1e-6, parproc=True, cores=11)
     list_of_spacecraft = sw_1.list_of_spacecraft
 
     fs = valid_set.feasibility_setup(list_of_sc=list_of_spacecraft, force_model=force_model_1, manifolds=manifolds)
@@ -360,7 +360,7 @@ def Voyager_2():
     sw_1.integration_points = sim_time
     sw_1.sensitivity_swarm(
         center=[1.301321370230550E+11, -7.657362855080509E+10, 0, 1.7204E+04 + 0.61, 3.4738504E+04 + 0.49, 0])
-    sw_1.integrate_swarm(rtol=1e-6)
+    sw_1.create_and_integrate_swarm(rtol=1e-6)
     sw_1.get_sensitivity()
 
     list_of_spacecraft = pickle.load(open('sv.p', 'rb'))
@@ -419,7 +419,7 @@ def ex_9():
     sw_1.square_swarm('edge')
     sw_1.manifolds = manifolds_2
     sw_1.square_swarm("center")
-    sw_1.integrate_swarm(rtol=1e-12, parproc=True, cores=11)
+    sw_1.create_and_integrate_swarm(rtol=1e-12, parproc=True, cores=11)
 
     list_of_spacecraft = sw_1.list_of_spacecraft
     # Do the condition checking
@@ -491,7 +491,7 @@ def set_intersection_counterexample():
     sw_1.square_swarm("center")
     sw_1.manifolds = manifolds_2
     sw_1.square_swarm("center")
-    sw_1.integrate_swarm(rtol=1e-3, parproc=True, cores=11)
+    sw_1.create_and_integrate_swarm(rtol=1e-3, parproc=True, cores=11)
     list_of_spacecraft = sw_1.list_of_spacecraft
 
     fs = valid_set.feasibility_setup(list_of_sc=list_of_spacecraft, force_model=force_model_1, manifolds=manifolds)
@@ -543,7 +543,7 @@ def ex_11():
     sw_1.integration_points = sim_time
     sw_1.square_swarm('edge')
     sw_1.square_swarm("center")
-    sw_1.integrate_swarm(rtol=1e-6, parproc=True, cores=11)
+    sw_1.create_and_integrate_swarm(rtol=1e-6, parproc=True, cores=11)
     list_of_spacecraft = sw_1.list_of_spacecraft
 
     fs = valid_set.feasibility_setup(list_of_sc=list_of_spacecraft, force_model=force_model_1, manifolds=manifolds)
@@ -602,7 +602,7 @@ def dynamics_example_2d():
     sw_1 = swarm_1.particle_swarm(manifolds_2, force_model_1)
     sw_1.integration_points = sim_time
     sw_1.square_swarm('generic')
-    sw_1.integrate_swarm(rtol=1e-3, parproc=True, cores=5)
+    sw_1.create_and_integrate_swarm(rtol=1e-3, parproc=True, cores=5)
     # sw_1.get_swarm_body_distances(body_list=["body_1", "body_2", "body_3", "body_4"])
     list_of_spacecraft = sw_1.list_of_spacecraft
     list_of_spacecraft[0].plot_color = [1, 1, 1]
@@ -659,7 +659,7 @@ def ex_13():
     sw_1.square_swarm('edge')
     sw_1.manifolds = manifolds_2
     sw_1.square_swarm("center")
-    sw_1.integrate_swarm(rtol=1e-12, parproc=True, cores=11)
+    sw_1.create_and_integrate_swarm(rtol=1e-12, parproc=True, cores=11)
 
     list_of_spacecraft = sw_1.list_of_spacecraft
     # Do the condition checking
@@ -732,7 +732,7 @@ def boundary_feasibility_base():
     sw_1.square_swarm('edge')
     sw_1.manifolds = manifolds_2
     # sw_1.square_swarm("center")
-    sw_1.integrate_swarm(rtol=1e-9, parproc=True, cores=5)
+    sw_1.create_and_integrate_swarm(rtol=1e-9, parproc=True, cores=5)
 
     list_of_spacecraft = sw_1.list_of_spacecraft
     # Do the condition checking

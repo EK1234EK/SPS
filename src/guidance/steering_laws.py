@@ -94,7 +94,7 @@ class LocalOptimal:
         self.prev_acc = np.array([0, 0, 0])
         self.scaling_acc = 0
 
-        self.terminate_integration = -1  # Set to zero to terminate!
+        self.terminator = None
 
         self.guidance_function = None
 
