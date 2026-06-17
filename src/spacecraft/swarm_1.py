@@ -175,6 +175,8 @@ class particle_swarm:
             Pool.close()
 
         else:
+            temp_lst = []
+
             print()
             print("=================================================")
             print()
@@ -184,7 +186,7 @@ class particle_swarm:
             print()
             t_1 = time.time()
             for i, state_vector in enumerate(self.list_of_state_vectors):
-                self.list_of_spacecraft.append(self._integrate_generic_states(i))
+                temp_lst.append(self._integrate_generic_states(i))
             t_2 = time.time()
             print("Integrating generic states: " + str(t_2 - t_1) + " s")
 
@@ -197,7 +199,7 @@ class particle_swarm:
             print("=================================================")
             print()
             for i, state_vector in enumerate(self.list_of_edge_state_vectors):
-                self.list_of_spacecraft.append(self._integrate_edge_states(i))
+                temp_lst.append(self._integrate_edge_states(i))
             t_2 = time.time()
             print("Integrating edge states: " + str(t_2 - t_1) + " s")
 
@@ -210,9 +212,10 @@ class particle_swarm:
             print("=================================================")
             print()
             for i, state_vector in enumerate(self.list_of_center_state_vectors):
-                self.list_of_spacecraft.append(self._integrate_center_states(i))
+                temp_lst.append(self._integrate_center_states(i))
             t_2 = time.time()
             print("Integrating center states: " + str(t_2 - t_1) + " s")
+            self.list_of_spacecraft = temp_lst
 
     def _integrate_generic_states(self, i):
         if not self.do_integration:
@@ -224,7 +227,7 @@ class particle_swarm:
             spacecraft.plot_color = 'map'
         if self.do_integration:
             pause(0.05)
-            print(str(i + 1) + " / " + str(len(self.list_of_state_vectors)), end="")
+            print(str(i + 1) + " / " + str(len(self.list_of_state_vectors)), ": ", end="")
             spacecraft = self.list_of_spacecraft[i]
             spacecraft.integrate_states_sivp(method=self.method, rtol=self.rtol, atol=self.atol)
 
@@ -245,7 +248,7 @@ class particle_swarm:
         spacecraft.plot_color = [0, 1, 0]
         if self.do_integration:
             pause(0.05)
-            print(str(i + 1) + " / " + str(len(self.list_of_edge_state_vectors)), end="")
+            print(str(i + 1) + " / " + str(len(self.list_of_edge_state_vectors)), ": ", end="")
             spacecraft.integrate_states_sivp(method=self.method, rtol=self.rtol, atol=self.atol)
 
             # self.list_of_spacecraft.append(spacecraft)
@@ -268,7 +271,7 @@ class particle_swarm:
         if self.do_integration:
             spacecraft = self.list_of_center_spacecraft[i]
             pause(0.05)
-            print(str(i + 1) + " / " + str(len(self.list_of_center_state_vectors)), end="")
+            print(str(i + 1) + " / " + str(len(self.list_of_center_state_vectors)), ": ", end="")
             spacecraft.integrate_states_sivp(method=self.method, rtol=self.rtol, atol=self.atol)
 
             # self.list_of_spacecraft.append(spacecraft)

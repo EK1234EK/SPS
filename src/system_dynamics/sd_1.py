@@ -46,6 +46,13 @@ class inertial_force_model:
         self.tilt_angle = []
         self.clock_angle = []
 
+        # Atmospheric drag
+        self.drag_model = None
+        self.drag_acc_x = []
+        self.drag_acc_y = []
+        self.drag_acc_z = []
+        self.drag_mag_track = []
+
         self.control_input = dict()
 
     def get_dataset(self):
@@ -157,6 +164,15 @@ class inertial_force_model:
             self.steer_acc_z.append(command[2])
 
             self.true_time.append(system_time)
+
+            if self.drag_model:
+                command = self.drag_model.get_aero_acc(state=np.concatenate((position, velocity)), n=self.guidance.current_n, sigma=self.solar_pressure.sail_parameters["sigma"])
+                self.drag_acc_x.append(command[0])
+                self.drag_acc_y.append(command[1])
+                self.drag_acc_z.append(command[2])
+                self.drag_mag_track.append(np.linalg.norm(command))
+
+                acc_vector = [acc_vector[0] + command[0], acc_vector[1] + command[1], acc_vector[2] + command[2]]
 
         # return [acc_vector[0], acc_vector[1], acc_vector[2]]
         return acc_vector

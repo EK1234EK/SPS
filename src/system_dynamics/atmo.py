@@ -5,55 +5,101 @@ G, MY, KS_TOLERANCE, GRAV_CONST, EARTH_RADIUS = get_globals()
 
 
 def get_coeff():
-    coeff = {0: [7.249, 1.225E+00],
-    25000: [6.349, 3.899E-02],
-    30000: [6.682, 1.774E-02],
-    40000: [7.554, 3.972E-03],
-    50000: [8.382, 1.057E-03],
-    60000: [7.714, 3.206E-03],
-    70000: [6.549, 8.770E-05],
-    80000: [5.799, 1.905E-05],
-    90000: [5.382, 3.396E-06],
-    100000: [5.877, 5.297E-07],
-    110000: [7.263, 9.661E-08],
-    120000: [9.473, 2.438E-08],
-    130000: [12.636, 8.484E-09],
-    140000: [16.149 ,3.845E-09],
-    150000: [22.523, 2.070E-09],
-    180000: [29.74, 5.464E-10],
-    200000: [37.105, 2.789E-10],
-    250000: [45.546, 7.248E-11],
-    300000: [53.628, 2.418E-11],
-    350000: [53.298, 9.518E-12],
-    400000: [58.515, 3.725E-12],
-    450000: [60.828, 1.585E-12],
-    500000: [63.822, 6.967E-13],
-    600000: [71.835, 1.454E-13],
-    700000: [88.667, 3.614E-14],
-    800000: [124.64, 1.170E-14],
-    900000: [81.05, 5.245E-15],
-    1000000: [100, 0]}
+    coeff = {   25000: 	 [7249, 1.225E+00],
+    30000: 	 [6349, 3.899E-02],
+    40000: 	 [6682, 1.774E-02],
+    50000: 	 [7554, 3.972E-03],
+    60000: 	 [8382, 1.057E-03],
+    70000: 	 [7714, 3.206E-03],
+    80000: 	 [6549, 8.770E-05],
+    90000: 	 [5799, 1.905E-05],
+    100000:  [5382, 3.396E-06],
+    110000:  [5877, 5.297E-07],
+    120000:  [7263, 9.661E-08],
+    130000:  [9473, 2.438E-08],
+    140000:  [12636, 8.484E-09],
+    150000:  [16149 ,3.845E-09],
+    180000:  [22523, 2.070E-09],
+    200000:  [29740, 5.464E-10],
+    250000:  [37105, 2.789E-10],
+    300000:  [45546, 7.248E-11],
+    350000:  [53628, 2.418E-11],
+    400000:  [53298, 9.518E-12],
+    450000:  [58515, 3.725E-12],
+    500000:  [60828, 1.585E-12],
+    600000:  [63822, 6.967E-13],
+    700000:  [71835, 1.454E-13],
+    800000:  [88667, 3.614E-14],
+    900000:  [124640, 1.170E-14],
+    1000000: [181050, 5.245E-15],
+	}
     return coeff
+
+def get_aero_parameters():
+    params = {
+        "sigma_n": 0.8,
+        "sigma_t": 0.8,
+        "V_R": 0.05
+    }
+    return params
 
 class Atmopshere:
     def __init__(self):
-        self.coeff = get_coeff()  # On the form {init_altitude: [scale_height, density]}
+        self.atmo_coeff = get_coeff()  # On the form {init_altitude: [scale_height, density]}
+        self.aero_params = get_aero_parameters()
         self.H = None
         self.scale_rho = None
         self.lower_altitude = None
         self.rho = None
-        self.keys = list(self.coeff.keys())
+        self.keys = list(self.atmo_coeff.keys())
+        self.Cd = None
 
     def get_params(self, height):
-        key = self.keys[-1]
+        # key = self.keys[-1]
         for i, key in enumerate(self.keys):
-            if height > key:
-                self.lower_altitude = self.keys[i-1]
+            if height < key:
+                if i == 0:
+                    self.lower_altitude = 0
+                else:
+                    self.lower_altitude = self.keys[i-1]
                 break
-        params = self.coeff[key]
+        params = self.atmo_coeff[key]
         self.H = params[0]
-        self.rho = params[1]
+        self.scale_rho = params[1]
 
-    def get_density(self, state):
-        h = np.linalg.norm(np.array(state[0:3])) - EARTH_RADIUS
+    def get_density(self, state: np.array):
+        h = np.linalg.norm(state[0:3]) - EARTH_RADIUS
+        self.get_params(height=h)
         self.rho = self.scale_rho * math.exp(-(h - self.lower_altitude) / self.H)
+
+    def get_Cd(self, vel: np.array, n: np.array):
+        cos_aoa = np.dot(vel, n) / (np.linalg.norm(vel) * np.linalg.norm(n))
+        # Armando, page 40
+        self.Cd = 2 * (self.aero_params["sigma_t"] + self.aero_params["sigma_n"] * self.aero_params["V_R"] * abs(cos_aoa) + (2 - self.aero_params["sigma_n"] - self.aero_params["sigma_t"] * cos_aoa ** 2)) * abs(cos_aoa)
+
+    def get_aero_acc(self, state: np.array, n: np.array, sigma: float):
+        # Calling preparatory routines:
+        self.get_density(state=state)
+        self.get_Cd(vel=state[3:6], n=n)
+        # Armando, page 40
+        acc = -0.5 * (self.rho / sigma) * np.linalg.norm(state[3:6]) * self.Cd * state[3:6]
+        return acc
+
+if __name__ == "__main__":
+    import matplotlib.pyplot as plt
+
+    atmo = Atmopshere()
+    state_list = [[x, 0, 0] for x in np.linspace(EARTH_RADIUS, EARTH_RADIUS + 1000000, 100)]
+    state_list = [np.array(state) for state in state_list]
+
+    state_mag = [np.linalg.norm(state) - EARTH_RADIUS for state in state_list]
+    dens_list = np.zeros(len(state_mag))
+    for k, state in enumerate(state_list):
+        atmo.get_density(state=state)
+        dens_list[k] = atmo.rho
+
+    plt.figure()
+    plt.plot(state_mag, dens_list)
+    plt.show()
+
+

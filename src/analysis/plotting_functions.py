@@ -1221,6 +1221,143 @@ class graph_output:
 
         fig.subplots_adjust(hspace=0.5)
 
+    def plot_drag_acceleration(self):
+        # ATTENTION: Acceleration as a result of all steering contributions is listed right here
+
+        if not self.lst_spec_sc[0].steer_x:
+            return None
+
+        fig = plt.figure(self.figure_counter + 1, figsize=(7.5, 2.5 * 1.5))
+        fig.set_facecolor(color_data["background"])
+        self.figure_counter += 1
+
+        ax_1 = fig.add_subplot(411)
+        ax_1.set_title("Drag inertial x")
+
+        ax_2 = fig.add_subplot(412)
+        ax_2.set_title("Drag inertial y")
+
+        ax_3 = fig.add_subplot(413)
+        ax_3.set_title("Drag inertial z")
+
+        ax_4 = fig.add_subplot(414)
+        ax_4.set_title("Drag inertial magnitude")
+
+        n_samp = len(self.lst_spec_sc)
+        cmap = plt.colormaps[color_data["map"]]
+        colors = cmap(np.linspace(0, 1, n_samp))
+
+        for sci, sc_special in enumerate(self.lst_spec_sc):
+            if not sc_special.drag_acc_x:
+                pass
+            elif isinstance(sc_special.plot_color, str):
+                ax_1.scatter(self.integration_points,
+                             sc_special.drag_acc_x,
+                             color=colors[sci],
+                             s=1,
+                             label=sc_special.display_name)
+                ax_1.plot(self.integration_points,
+                          sc_special.drag_acc_x,
+                          color=colors[sci],
+                          linewidth=size_data["dia_linewidth"],
+                          alpha=size_data["plot_alpha"])
+
+                ax_2.scatter(self.integration_points,
+                             sc_special.drag_acc_y,
+                             color=colors[sci],
+                             s=1,
+                             label=sc_special.display_name)
+                ax_2.plot(self.integration_points,
+                          sc_special.drag_acc_y,
+                          color=colors[sci],
+                          linewidth=size_data["dia_linewidth"],
+                          alpha=size_data["plot_alpha"])
+
+                ax_3.scatter(self.integration_points,
+                             sc_special.drag_acc_z,
+                             color=colors[sci],
+                             s=1,
+                             label=sc_special.display_name)
+                ax_3.plot(self.integration_points,
+                          sc_special.drag_acc_y,
+                          color=colors[sci],
+                          linewidth=size_data["dia_linewidth"],
+                          alpha=size_data["plot_alpha"])
+
+                ax_4.scatter(self.integration_points,
+                             sc_special.drag_mag_track,
+                             color=colors[sci],
+                             s=1,
+                             label=sc_special.display_name)
+                ax_4.plot(self.integration_points,
+                          sc_special.drag_mag_track,
+                          color=colors[sci],
+                          linewidth=size_data["dia_linewidth"],
+                          alpha=size_data["plot_alpha"])
+            else:
+                ax_1.scatter(self.integration_points,
+                             sc_special.drag_acc_x,
+                             color=sc_special.plot_color,
+                             s=1,
+                             label=sc_special.display_name)
+                ax_1.plot(self.integration_points,
+                          sc_special.drag_acc_x,
+                          color=sc_special.plot_color,
+                          linewidth=size_data["dia_linewidth"],
+                          alpha=size_data["plot_alpha"])
+
+                ax_2.scatter(self.integration_points,
+                             sc_special.drag_acc_y,
+                             color=sc_special.plot_color,
+                             s=1,
+                             label=sc_special.display_name)
+                ax_2.plot(self.integration_points,
+                          sc_special.drag_acc_y,
+                          color=sc_special.plot_color,
+                          linewidth=size_data["dia_linewidth"],
+                          alpha=size_data["plot_alpha"])
+
+                ax_3.scatter(self.integration_points,
+                             sc_special.drag_acc_z,
+                             color=sc_special.plot_color,
+                             s=1,
+                             label=sc_special.display_name)
+                ax_3.plot(self.integration_points,
+                          sc_special.drag_acc_z,
+                          color=sc_special.plot_color,
+                          linewidth=size_data["dia_linewidth"],
+                          alpha=size_data["plot_alpha"])
+
+                ax_4.scatter(self.integration_points,
+                             sc_special.drag_mag_track,
+                             color=sc_special.plot_color,
+                             s=1,
+                             label=sc_special.display_name)
+                ax_4.plot(self.integration_points,
+                          sc_special.drag_mag_track,
+                          color=sc_special.plot_color,
+                          linewidth=size_data["dia_linewidth"],
+                          alpha=size_data["plot_alpha"])
+
+        axes = [ax_1, ax_2, ax_3, ax_4]
+        for axis in axes:
+            axis.set_xlabel("Time [s]")
+            axis.set_ylabel("Aceleration [m/s^2]")
+            axis.grid(visible=True, color=[0.5, 0.5, 1])
+
+            axis.grid(visible=True, color=[0.5, 0.5, 1])
+            axis.set_facecolor(color_data["background"])
+
+            ylim = axis.get_ylim()
+            axis.set_ylim(ylim[0] - 0.00000001, ylim[1] + 0.00000001)
+
+        lgnd = ax_3.legend()
+        lgnd.set_draggable(True)
+        for handle in lgnd.legend_handles:
+            handle.set_sizes([50])
+
+        fig.subplots_adjust(hspace=0.5)
+
     def plot_control(self):
         if not self.lst_spec_sc[0].control_input_track:
             return None

@@ -5,7 +5,7 @@ import matplotlib.pyplot as plt
 from numpy.f2py.crackfortran import analyzeargs
 
 import src.spacecraft.sc
-from src.system_dynamics import sd_1, SRP
+from src.system_dynamics import sd_1, SRP, atmo
 from src.analysis import plotting_functions
 from src.spacecraft import swarm_1
 from src.astrodynamic_functions import kepler_dynamics
@@ -14,6 +14,8 @@ from src.guidance import steering_laws
 from src.computation import parallel
 import math
 import pickle
+
+from src.system_dynamics.atmo import EARTH_RADIUS
 
 
 def all_plots():
@@ -626,7 +628,7 @@ def solar_pressure():
             guidance_law.terminator = src.guidance.steering_laws.kill_integrator_C3
             force_model.guidance = guidance_law
 
-            orbit_state_1 = kepler_dynamics.oe_to_sv((6378+700)*1000, 0, 23.44*math.pi / 180, 3, 3, 3, 0, earth_mass)
+            orbit_state_1 = kepler_dynamics.oe_to_sv((6378+400)*1000, 0, 23.44*math.pi / 180, 3, 3, 3, 0, earth_mass)
 
             sc_2 = src.spacecraft.sc.Spacecraft(init_state_vector=orbit_state_1, force_model=force_model)
             sc_2.display_name = str(sigma)
@@ -681,8 +683,8 @@ def solar_pressure():
 
 def solar_swarm():
     t_start = 0
-    t_end = 10**9
-    integration_points = list(np.linspace(t_start, t_end, 10000))
+    t_end = 10000000
+    integration_points = list(np.linspace(t_start, t_end, 3000))
     earth_mass = 5.97e24
     solar_mass = 1.989 * 10 ** 30
 
@@ -700,7 +702,7 @@ def solar_swarm():
 
     force_model = sd_1.inertial_force_model(path="./data/empty_dataset.xlsx")
     force_model.define_central_attractor(mass=earth_mass, position=[0, 0, 0])
-    force_model.central_attractor_gravity_law = src.astrodynamic_functions.kepler_dynamics.J_X_acceleration_ecliptic_reference
+    # force_model.central_attractor_gravity_law = src.astrodynamic_functions.kepler_dynamics.J_X_acceleration_ecliptic_reference
     srp_model = SRP.Solar_pressure(sail_model="ACS3", central_attractor_mass=solar_mass, sigma=sigma)
     srp_model.radiation_location = [149000000000, 0, 0]
     srp_model.sail_control = [0, 0]
@@ -709,15 +711,18 @@ def solar_swarm():
     guidance_law = steering_laws.LocalOptimal()
     guidance_law.conversion_mass = earth_mass
     guidance_law.guidance_function = guidance_law.guidance_2
-    guidance_law.terminator = src.guidance.steering_laws.kill_integrator_C3
+    guidance_law.terminator = src.guidance.steering_laws.kill_integrator_altitude
     force_model.guidance = guidance_law
 
-    manifolds = [[-6472011.6676383335, -6472011.6676383335, 1],
-                 [2755402.046278103, 2755402.046278103, 1],
-                 [-786707.4026089477, -786707.4026089477, 1],
-                 [-3008.2264873386243, -3008.2264873386243, 1],
-                 [-6247.649438051772, -6247.649438051772, len(tof_ref)],
-                 [2865.7298398891703, 2865.7298398891703, 1],
+    drag_model = atmo.Atmopshere()
+    force_model.drag_model = drag_model
+
+    manifolds = [[-6197696.3949212525, -6197696.3949212525, 1],
+                 [2638614.7315163864, 2638614.7315163864, 1],
+                 [-753362.9238320779, -753362.9238320779, 1],
+                 [-3074.0790258669726, -3074.0790258669726, 1],
+                 [-6384.415594809771, -6384.415594809771, 5],
+                 [2928.463010243008, 2928.463010243008, 1],
                  [0, 0, 1]]
 
     sw_1 = swarm_1.particle_swarm(manifolds, force_model)
@@ -727,23 +732,29 @@ def solar_swarm():
     sw_1.create_and_integrate_swarm(rtol=1e-6, parproc=True, cores=11)
     # sw_1.get_swarm_body_distances(["Moon"])
 
+    init_altitude = np.linspace(600000, 670000, len(sw_1.list_of_spacecraft))
+
     for i, sc in enumerate(sw_1.list_of_spacecraft):
-        sc.force_model.solar_pressure.sail_parameters["sigma"] = sigma_ref[i]
+        sc.force_model.solar_pressure.sail_parameters["sigma"] = 0.04
+        sc.display_name = str(sc.force_model.solar_pressure.sail_parameters["sigma"]) + "   " + str(init_altitude[i]*0.001) + " km"
+        sc.init_state_vector = kepler_dynamics.oe_to_sv(EARTH_RADIUS + init_altitude[i], 0, 23.44*math.pi / 180, 3, 3, 3, 0, earth_mass)
 
     sw_1.do_integration = True
 
-    sw_1.create_and_integrate_swarm(rtol=1e-7, parproc=True, cores=11)
+    sw_1.create_and_integrate_swarm(rtol=1e-8, parproc=True, cores=11)
 
     for i, sc in enumerate(sw_1.list_of_spacecraft):
-        print("Sigma: ", sigma_ref[i], ", ", round(sc.event_time[0][0] / (24 * 3600), 10))
-        tof_lst.append(sc.event_time[0][0] / (24 * 3600))
+        try:
+            print((np.linalg.norm(np.array(sc.init_state_vector[0:3])) - EARTH_RADIUS) * 0.001, "km  ", round(sc.event_time[0][0] / (24 * 3600), 10))
+        except:
+            pass
 
-    plt.figure()
+    """plt.figure()
     plt.scatter(np.array(sigma_ref) * 1000, tof_lst, color=[1, 0, 1], label="Calculated")
     plt.scatter(np.array(sigma_ref) * 1000, tof_ref, color=[0, 1, 1], label="Armando")
     plt.legend()
     plt.grid()
-    plt.show()
+    plt.show()"""
 
     inp = input("Save= (y / n)")
     if inp == "y":
@@ -762,11 +773,11 @@ def solar_swarm():
 
     plots.trajectory_xyz()
     plots.parameters_plot()
-    plots.parameters_plot()
     plots.plot_steering_acceleration()
     plots.plot_control()
     plots.plot_target_velocity_angles()
     plots.magnitude_plot()
+    plots.plot_drag_acceleration()
     plots.C3_plot()
     plots.moving_map_plot(k_modulo=10, match_tail_color=True)
     # plots.moving_map_plot(match_tail_color=False)

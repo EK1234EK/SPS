@@ -7,7 +7,7 @@ import numpy as np
 import math
 from src.system_dynamics import SRP
 
-from src.astrodynamic_functions.kepler_dynamics import GRAV_CONST
+from src.astrodynamic_functions.kepler_dynamics import GRAV_CONST, EARTH_RADIUS
 
 
 def kill_integrator_eccentricity(time, state):
@@ -22,6 +22,10 @@ def kill_integrator_C3(time, state):
     SMA = kepler_dynamics.sv_to_oe(state_vector=state, mass=5.97e24)[0]
     C3 = -5.97e24 * GRAV_CONST / SMA
     return C3
+
+def kill_integrator_altitude(time, state):
+    radius = np.linalg.norm(np.array(state[0:3]))
+    return radius - EARTH_RADIUS - 100000
 
 
 def vector_from_angle(alpha, gamma, d_1, d_2, d_3):
@@ -53,13 +57,13 @@ def direct_control_inversion(vel_change, state, force_model):
     if np.dot(n, vel_change) < 0:
         alpha = 0.5 * math.pi
         gamma = gamma_v
-        return [alpha, gamma], [alpha_v, gamma_v]
+        return [alpha, gamma], [alpha_v, gamma_v], n
     gamma = gamma_v
     alpha = math.atan((-3 + (9 + 8 * math.tan(alpha_v) ** 2) ** 0.5) / (4 * math.tan(alpha_v)))
     if alpha < 0:
         alpha *= -1
 
-    return [alpha, gamma], [alpha_v, gamma_v]
+    return [alpha, gamma], [alpha_v, gamma_v], n
 
 
 def get_jacobian(oe_mat, dv):
@@ -97,6 +101,8 @@ class LocalOptimal:
         self.terminator = None
 
         self.guidance_function = None
+
+        self.current_n = None
 
     def target_orbit_pinv_jacobian(self, state):
 
@@ -231,8 +237,9 @@ class LocalOptimal:
         target_vel_change = target_vel_change / np.linalg.norm(target_vel_change)
         target_vel_change_aux = target_vel_change_aux / np.linalg.norm(target_vel_change_aux)
 
-        sail_control, vel_angle = direct_control_inversion(vel_change=target_vel_change, state=state,
+        sail_control, vel_angle, n = direct_control_inversion(vel_change=target_vel_change, state=state,
                                                            force_model=force_model)
+        self.current_n = n
 
         force_model.solar_pressure.sail_control = sail_control
         self.current_control = force_model.solar_pressure.solar_acceleration(state=state[0:3])
@@ -259,8 +266,9 @@ class LocalOptimal:
 
         target_vel_change_aux = target_vel_change_aux / np.linalg.norm(target_vel_change_aux)
 
-        sail_control, vel_angle = direct_control_inversion(vel_change=target_vel_change_aux, state=state,
+        sail_control, vel_angle, n = direct_control_inversion(vel_change=target_vel_change_aux, state=state,
                                                            force_model=force_model)
+        self.current_n = n
 
         force_model.solar_pressure.sail_control = sail_control
         self.current_control = force_model.solar_pressure.solar_acceleration(state=state[0:3])
@@ -274,6 +282,13 @@ class LocalOptimal:
         self.vel_angle_track["Target velocity tilt"].append(vel_angle[0])
         self.vel_angle_track["Target velocity clock"].append(vel_angle[1])
         return self.current_control
+
+
+    def guidance_test(self, state, time, force_model):
+        force_model.solar_pressure.radiation_location = [0, 0, 0]
+        self.current_n = np.array(state[3:6]) / np.linalg.norm(np.array(state[3:6]))
+        force_model.solar_pressure.sail_control = [0, 0]
+        return np.array([0, 0, 0])
 
     def guidance(self, state, time, force_model):
         return self.guidance_function(state, time, force_model)
