@@ -133,6 +133,12 @@ class Spacecraft:
             self.force_model.guidance.control_command_track = dict()
             self.force_model.guidance.vel_angle_track = dict()
 
+        if self.force_model.drag_model:
+            self.force_model.drag_acc_x = []
+            self.force_model.drag_acc_y = []
+            self.force_model.drag_acc_z = []
+            self.force_model.drag_mag_track = []
+
         def get_acc_wrapper(t, state_vector):
             return self.get_acc(state_vector, t)
 

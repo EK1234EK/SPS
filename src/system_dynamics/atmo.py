@@ -1,6 +1,12 @@
 import math
 import numpy as np
+import ssl
+from pyatmos import coesa76
+ssl._create_default_https_context = ssl._create_unverified_context
+
+
 from src.globals.Constants import get_globals
+
 G, MY, KS_TOLERANCE, GRAV_CONST, EARTH_RADIUS = get_globals()
 
 
@@ -72,6 +78,14 @@ class Atmopshere:
         self.get_params(height=h)
         self.rho = self.scale_rho * math.exp(-(h - self.lower_altitude) / self.H)
 
+    def get_density_coesa76(self, state: np.array):
+        h_km = (np.linalg.norm(state[0:3]) - EARTH_RADIUS) * 0.001
+        if h_km > 1000:
+            self.rho = 0
+        else:
+            coesa76_geom = coesa76([h_km])
+            self.rho = coesa76_geom.rho[0]
+
     def get_Cd(self, vel: np.array, n: np.array):
         cos_aoa = np.dot(vel, n) / (np.linalg.norm(vel) * np.linalg.norm(n))
         # Armando, page 40
@@ -79,7 +93,7 @@ class Atmopshere:
 
     def get_aero_acc(self, state: np.array, n: np.array, sigma: float):
         # Calling preparatory routines:
-        self.get_density(state=state)
+        self.get_density_coesa76(state=state)
         self.get_Cd(vel=state[3:6], n=n)
         # Armando, page 40
         acc = -0.5 * (self.rho / sigma) * np.linalg.norm(state[3:6]) * self.Cd * state[3:6]
@@ -89,7 +103,7 @@ if __name__ == "__main__":
     import matplotlib.pyplot as plt
 
     atmo = Atmopshere()
-    state_list = [[x, 0, 0] for x in np.linspace(EARTH_RADIUS, EARTH_RADIUS + 1000000, 100)]
+    state_list = [[x, 0, 0] for x in np.linspace(EARTH_RADIUS, EARTH_RADIUS + 10000000, 100)]
     state_list = [np.array(state) for state in state_list]
 
     state_mag = [np.linalg.norm(state) - EARTH_RADIUS for state in state_list]
@@ -98,8 +112,33 @@ if __name__ == "__main__":
         atmo.get_density(state=state)
         dens_list[k] = atmo.rho
 
-    plt.figure()
-    plt.plot(state_mag, dens_list)
+    # The pyatmos option
+    # import ssl
+
+    ssl._create_default_https_context = ssl._create_unverified_context
+    # from pyatmos import coesa76
+
+    dens_list_acc = np.zeros(len(state_mag))
+    for k, state in enumerate(state_list):
+        coesa76_geom = coesa76([(np.linalg.norm(state) - EARTH_RADIUS)*0.001])
+        rho = coesa76_geom.rho[0]
+        print(rho)
+        if rho == 0:
+            dens_list_acc[k] = None
+        else:
+            dens_list_acc[k] = rho
+
+
+
+    fig = plt.figure()
+    ax = fig.add_subplot(211)
+    ax.plot(state_mag, dens_list, label="Exponential Armando")
+    ax.plot(state_mag, dens_list_acc, label="coesa76")
+    ax.legend()
+
+    ax_2 = fig.add_subplot(212)
+    ax_2.plot(state_mag, dens_list - dens_list_acc, label="Error")
+    ax_2.legend()
     plt.show()
 
 

@@ -2,6 +2,7 @@ import copy
 
 import numpy as np
 import matplotlib.pyplot as plt
+import pandas
 from numpy.f2py.crackfortran import analyzeargs
 
 import src.spacecraft.sc
@@ -683,8 +684,8 @@ def solar_pressure():
 
 def solar_swarm():
     t_start = 0
-    t_end = 10000000
-    integration_points = list(np.linspace(t_start, t_end, 3000))
+    t_end = 5000000
+    integration_points = list(np.linspace(t_start, t_end, 10000))
     earth_mass = 5.97e24
     solar_mass = 1.989 * 10 ** 30
 
@@ -721,7 +722,7 @@ def solar_swarm():
                  [2638614.7315163864, 2638614.7315163864, 1],
                  [-753362.9238320779, -753362.9238320779, 1],
                  [-3074.0790258669726, -3074.0790258669726, 1],
-                 [-6384.415594809771, -6384.415594809771, 5],
+                 [-6384.415594809771, -6384.415594809771, 11],
                  [2928.463010243008, 2928.463010243008, 1],
                  [0, 0, 1]]
 
@@ -732,7 +733,8 @@ def solar_swarm():
     sw_1.create_and_integrate_swarm(rtol=1e-6, parproc=True, cores=11)
     # sw_1.get_swarm_body_distances(["Moon"])
 
-    init_altitude = np.linspace(600000, 670000, len(sw_1.list_of_spacecraft))
+    init_altitude = np.linspace(650000, 700000, len(sw_1.list_of_spacecraft))
+
 
     for i, sc in enumerate(sw_1.list_of_spacecraft):
         sc.force_model.solar_pressure.sail_parameters["sigma"] = 0.04
@@ -741,7 +743,7 @@ def solar_swarm():
 
     sw_1.do_integration = True
 
-    sw_1.create_and_integrate_swarm(rtol=1e-8, parproc=True, cores=11)
+    sw_1.create_and_integrate_swarm(rtol=1e-6, parproc=True, cores=11)
 
     for i, sc in enumerate(sw_1.list_of_spacecraft):
         try:
@@ -784,6 +786,129 @@ def solar_swarm():
     plt.show()
     plt.waitforbuttonpress(10000000000)
 
+def atmpshere_min_altitude():
+    t_start = 0
+    t_end = 1000000
+    integration_points = list(np.linspace(t_start, t_end, 10000))
+    earth_mass = 5.97e24
+    solar_mass = 1.989 * 10 ** 30
+
+    inp = input("Load pickle? (y)")
+    if inp == "y":
+        force_model = pickle.load(open('.p', 'rb'))
+        sc_list = pickle.load(open('sv.p', 'rb'))
+    else:
+        print("Integrating all initial conditions")
+    sigma = 0.02
+
+    force_model = sd_1.inertial_force_model(path="./data/empty_dataset.xlsx")
+    force_model.define_central_attractor(mass=earth_mass, position=[0, 0, 0])
+    # force_model.central_attractor_gravity_law = src.astrodynamic_functions.kepler_dynamics.J_X_acceleration_ecliptic_reference
+    srp_model = SRP.Solar_pressure(sail_model="ACS3", central_attractor_mass=solar_mass, sigma=sigma)
+    srp_model.radiation_location = [149000000000, 0, 0]
+    srp_model.sail_control = [0, 0]
+    force_model.solar_pressure = srp_model
+
+    guidance_law = steering_laws.LocalOptimal()
+    guidance_law.conversion_mass = earth_mass
+    guidance_law.guidance_function = guidance_law.guidance_2
+    guidance_law.terminator = src.guidance.steering_laws.kill_integrator_altitude
+    force_model.guidance = guidance_law
+
+    drag_model = atmo.Atmopshere()
+    force_model.drag_model = drag_model
+
+    init_ang = np.linspace(0, 2*math.pi, 20)
+    sail_loading = np.linspace(0.02, 0.2, 20)
+
+    min_alt = []
+
+    for i in range(len(init_ang)):
+        for j in range(len(sail_loading)):
+
+            manifolds = [[-6197696.3949212525, -6197696.3949212525, 1],
+                         [2638614.7315163864, 2638614.7315163864, 1],
+                         [-753362.9238320779, -753362.9238320779, 1],
+                         [-3074.0790258669726, -3074.0790258669726, 1],
+                         [-6384.415594809771, -6384.415594809771, 11],
+                         [2928.463010243008, 2928.463010243008, 1],
+                         [0, 0, 1]]
+
+            sw_1 = swarm_1.particle_swarm(manifolds, force_model)
+            sw_1.do_integration = False
+            sw_1.integration_points = integration_points
+            sw_1.square_swarm('generic')
+            sw_1.create_and_integrate_swarm(rtol=1e-6, parproc=True, cores=11)
+
+            sample_altitude = np.linspace(600000, 770000, manifolds[4][2])
+
+            for k, sc in enumerate(sw_1.list_of_spacecraft):
+                sc.force_model.solar_pressure.sail_parameters["sigma"] = sail_loading[j]
+                sc.init_state_vector = kepler_dynamics.oe_to_sv(EARTH_RADIUS + sample_altitude[k], 0, 23.44*math.pi / 180, 3, 3, init_ang[i], 0, earth_mass)
+
+            sw_1.do_integration = True
+
+            sw_1.create_and_integrate_swarm(rtol=1e-6, parproc=True, cores=11)
+
+            altitude_list = [(np.linalg.norm(np.array(sc.init_state_vector[0:3])) - EARTH_RADIUS) * 0.001 for sc in sw_1.list_of_spacecraft]
+            altitude_list = sorted(altitude_list)
+
+            event_list = []
+            for sc in sw_1.list_of_spacecraft:
+                if sc.event_time:
+                    event_list.append(sc.event_time)
+            event_list = sorted(event_list)
+            l = len(event_list)
+
+            try:
+                if l == 0:
+                    min_alt.append({"TAEPO": round(float(init_ang[i]) * 180 / math.pi, 3), "Sigma": round(float(sail_loading[j]), 3), "Cutoff": round(altitude_list[l], 3)})
+                else:
+                    cutoff_alt_1 = altitude_list[l]
+                    cutoff_alt_2 = altitude_list[l-1]
+                    min_alt.append({"TAEPO": round(float(init_ang[i]) * 180 / math.pi, 3), "Sigma": round(float(sail_loading[j]), 3), "Cutoff": round((cutoff_alt_1 + cutoff_alt_2) / 2, 3)})
+            except:
+                min_alt.append({"TAEPO": round(float(init_ang[i]) * 180 / math.pi, 3), "Sigma": round(float(sail_loading[j]), 3), "Cutoff": None})
+
+            print(min_alt[-1])
+
+    sigma_lst = []
+    ang_lst = []
+    cutoff_lst = []
+
+    for alt in min_alt:
+        sigma_lst.append(alt["Sigma"])
+        ang_lst.append(alt["TAEPO"])
+        cutoff_lst.append(alt["Cutoff"])
+
+    out_df = pandas.DataFrame()
+    out_df["Sigma"] = sigma_lst
+    out_df["TAEPO"] = ang_lst
+    out_df["Cutoff"] = cutoff_lst
+    out_df.to_excel("Altitude_cutoff_data.xlsx")
+
+    """input("Start plotting?")
+
+    plots = plotting_functions.graph_output(list_of_spacecraft=[],
+                                            list_of_resampled_spacecraft=[],
+                                            list_of_special_spacecraft=sw_1.list_of_spacecraft,
+                                            force_model=force_model,
+                                            axis_visibility=True,
+                                            animated=False)
+
+    plots.trajectory_xyz()
+    plots.parameters_plot()
+    plots.plot_steering_acceleration()
+    plots.plot_control()
+    plots.plot_target_velocity_angles()
+    plots.magnitude_plot()
+    plots.plot_drag_acceleration()
+    plots.C3_plot()
+    plots.moving_map_plot(k_modulo=10, match_tail_color=True)
+    # plots.moving_map_plot(match_tail_color=False)
+    plt.show()
+    plt.waitforbuttonpress(10000000000)"""
+
 
 # ex_7_SSO()
 if __name__ == "__main__":
@@ -793,4 +918,4 @@ if __name__ == "__main__":
     # steering_testing()
     # orbiting_planet()
     # Lagrange_targeting()
-    solar_swarm()
+    atmpshere_min_altitude()
