@@ -132,12 +132,18 @@ if __name__ == "__main__":
 
     fig = plt.figure()
     ax = fig.add_subplot(211)
-    ax.plot(state_mag, dens_list, label="Exponential Armando")
-    ax.plot(state_mag, dens_list_acc, label="coesa76")
+    ax.plot(state_mag, [math.log(d, 10) for d in dens_list], label="Exponential Armando")
+    ax.plot(state_mag, [math.log(d_c, 10) for d_c in dens_list_acc], label="coesa76")
+    ax.set_title("Decadic logarithm of density")
+    ax.set_xlabel("Altitude [m]")
+    ax.set_ylabel("Dec. log. of density")
     ax.legend()
 
     ax_2 = fig.add_subplot(212)
     ax_2.plot(state_mag, dens_list - dens_list_acc, label="Error")
+    ax_2.set_title("Density error")
+    ax_2.set_xlabel("Altitude [m]")
+    ax_2.set_ylabel("Density error [kg / m^3]")
     ax_2.legend()
     plt.show()
 

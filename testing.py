@@ -830,7 +830,7 @@ def atmpshere_min_altitude():
                          [2638614.7315163864, 2638614.7315163864, 1],
                          [-753362.9238320779, -753362.9238320779, 1],
                          [-3074.0790258669726, -3074.0790258669726, 1],
-                         [-6384.415594809771, -6384.415594809771, 11],
+                         [-6384.415594809771, -6384.415594809771, 33],
                          [2928.463010243008, 2928.463010243008, 1],
                          [0, 0, 1]]
 
@@ -840,7 +840,7 @@ def atmpshere_min_altitude():
             sw_1.square_swarm('generic')
             sw_1.create_and_integrate_swarm(rtol=1e-6, parproc=True, cores=11)
 
-            sample_altitude = np.linspace(600000, 770000, manifolds[4][2])
+            sample_altitude = np.linspace(550000, 670000, manifolds[4][2])
 
             for k, sc in enumerate(sw_1.list_of_spacecraft):
                 sc.force_model.solar_pressure.sail_parameters["sigma"] = sail_loading[j]
