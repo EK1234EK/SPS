@@ -20,8 +20,9 @@ def kill_integrator_SMA(time, state):
 
 def kill_integrator_C3(time, state):
     SMA = kepler_dynamics.sv_to_oe(state_vector=state, mass=5.97e24)[0]
-    C3 = -5.97e24 * GRAV_CONST / SMA
+    C3 = -5.97e24 * GRAV_CONST / SMA + 100000
     return C3
+
 
 def kill_integrator_altitude(time, state):
     radius = np.linalg.norm(np.array(state[0:3]))
@@ -89,20 +90,15 @@ class LocalOptimal:
         self.oe_direction = []
         self.target_oe = {"True time": []}
 
-        self.track_time = 0
+        # Both need to be initialized before first integration step!
+        self.control_command_track = dict()  # Write whatever you want into this at every interation
+        self.vel_angle_track = dict()  # Same here
 
-        self.control_command_track = dict()
-        self.vel_angle_track = dict()
+        self.terminator = None  # What function to use for termination of integration
 
-        self.prev_time = 0
-        self.prev_acc = np.array([0, 0, 0])
-        self.scaling_acc = 0
+        self.guidance_function = None  # What function is read by the force model to actually return the acceleration
 
-        self.terminator = None
-
-        self.guidance_function = None
-
-        self.current_n = None
+        self.current_n = None  # Sail normal at the current time step
 
     def target_orbit_pinv_jacobian(self, state):
 
@@ -155,8 +151,54 @@ class LocalOptimal:
 
         direction = dr / mag
         direction = list(direction * acc_mag)
-        # self.current_control = direction
         return direction
+
+    def target_orbit_gradient(self, state):
+
+        if self.target_oe == {}:
+            raise ValueError("No target orbital parameter set defined!")
+
+        oe_name_list = ["SMA", "ECC", "INC", "RAAN", "APERI", "TAEPO"]
+
+        dv = 0.1  # Incement, by which to estimate the derivativs in the Jacobian
+
+        # The Jacobian has six lines with three columns, corresponding to six orbital parameters
+        # and the three velocity state
+
+        state_mat = dict()
+        oe_mat = dict()
+        state_mat["center"] = state
+        oe_mat["center"] = kepler_dynamics.sv_to_oe(state_vector=state_mat["center"], mass=self.conversion_mass)
+
+        dvx = [0, 0, 0, dv, 0, 0]
+        state_mat["+vx"] = [state[i] + dvx[i] for i in range(6)]
+        oe_mat["+vx"] = kepler_dynamics.sv_to_oe(state_vector=state_mat["+vx"], mass=self.conversion_mass)
+
+        dvy = [0, 0, 0, 0, dv, 0]
+        state_mat["+vy"] = [state[i] + dvy[i] for i in range(6)]
+        oe_mat["+vy"] = kepler_dynamics.sv_to_oe(state_vector=state_mat["+vy"], mass=self.conversion_mass)
+
+        dvz = [0, 0, 0, 0, 0, dv]
+        state_mat["+vz"] = [state[i] + dvz[i] for i in range(6)]
+        oe_mat["+vz"] = kepler_dynamics.sv_to_oe(state_vector=state_mat["+vz"], mass=self.conversion_mass)
+
+        J = get_jacobian(oe_mat=oe_mat, dv=dv)
+        J_T = J.transpose()
+
+        # Weights matrix:
+        weights = np.zeros((6, 1))
+        for i, oe in enumerate(oe_name_list):
+            if oe in self.target_oe.keys():
+                weights[i] = (self.target_oe[oe] - oe_mat["center"][i]) / oe_mat["center"][i]
+            else:
+                weights[i] = 0
+
+        grad = np.transpose(np.dot(J_T, weights))[0]
+        m = np.linalg.norm(grad)
+        if m == 0:
+            return np.zeros((1, 3))
+
+        return grad / m
 
     def target_inline_lagrange(self, state):
 
@@ -232,13 +274,11 @@ class LocalOptimal:
         self.target_oe = {"SMA": 100000000000}
 
         target_vel_change = np.array(self.target_orbit_pinv_jacobian(state=state))
-        target_vel_change_aux = np.array(state[3:6])
 
         target_vel_change = target_vel_change / np.linalg.norm(target_vel_change)
-        target_vel_change_aux = target_vel_change_aux / np.linalg.norm(target_vel_change_aux)
 
         sail_control, vel_angle, n = direct_control_inversion(vel_change=target_vel_change, state=state,
-                                                           force_model=force_model)
+                                                              force_model=force_model)
         self.current_n = n
 
         force_model.solar_pressure.sail_control = sail_control
@@ -267,7 +307,7 @@ class LocalOptimal:
         target_vel_change_aux = target_vel_change_aux / np.linalg.norm(target_vel_change_aux)
 
         sail_control, vel_angle, n = direct_control_inversion(vel_change=target_vel_change_aux, state=state,
-                                                           force_model=force_model)
+                                                              force_model=force_model)
         self.current_n = n
 
         force_model.solar_pressure.sail_control = sail_control
@@ -283,6 +323,31 @@ class LocalOptimal:
         self.vel_angle_track["Target velocity clock"].append(vel_angle[1])
         return self.current_control
 
+    def guidance_3(self, state, time, force_model):
+
+        arc_sun = (time / (24 * 3600 * 365)) * 2 * math.pi
+        pos_sun = np.array([math.cos(arc_sun), math.sin(arc_sun), 0]) * 149000000000
+        force_model.solar_pressure.radiation_location = pos_sun
+
+        self.target_oe = {"SMA": 100000000000}
+
+        target_vel_change = self.target_orbit_gradient(state=state)
+        sail_control, vel_angle, n = direct_control_inversion(vel_change=target_vel_change, state=state,
+                                                              force_model=force_model)
+        self.current_n = n
+
+        force_model.solar_pressure.sail_control = sail_control
+        self.current_control = force_model.solar_pressure.solar_acceleration(state=state[0:3])
+        if not self.control_command_track:
+            self.control_command_track = {"Tilt": [], "Clock": []}
+        if not self.vel_angle_track:
+            self.vel_angle_track = {"Target velocity tilt": [], "Target velocity clock": []}
+        self.control_command_track["Tilt"].append(sail_control[0])
+        self.control_command_track["Clock"].append(sail_control[1])
+
+        self.vel_angle_track["Target velocity tilt"].append(vel_angle[0])
+        self.vel_angle_track["Target velocity clock"].append(vel_angle[1])
+        return self.current_control
 
     def guidance_test(self, state, time, force_model):
         force_model.solar_pressure.radiation_location = [0, 0, 0]

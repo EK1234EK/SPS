@@ -603,8 +603,9 @@ def solar_pressure():
     earth_mass = 5.97e24
     solar_mass = 1.989 * 10 ** 30
 
-    tof_ref = [230, 460, 690, 920, 1150, 1380, 1610, 1840, 2070, 2300, 2530, 2760, 2990, 3220, 3450, 3680, 3910, 4140, 4370, 4600]
-    sigma_ref = list(np.linspace(0.01, 0.20, len(tof_ref)))
+    # tof_ref = [230, 460, 690, 920, 1150, 1380, 1610, 1840, 2070, 2300, 2530, 2760, 2990, 3220, 3450, 3680, 3910, 4140, 4370, 4600]
+    tof_ref = [230, 230, 230]
+    sigma_ref = list(np.linspace(0.01, 0.01, len(tof_ref)))
     tof_lst = []
     sc_list = []
     inp = input("Load pickle? (y)")
@@ -613,6 +614,7 @@ def solar_pressure():
         sc_list = pickle.load(open('sv.p', 'rb'))
     else:
         print("Integrating all initial conditions")
+        idx = 0
         for sigma in sigma_ref:
 
             force_model = sd_1.inertial_force_model(path="./data/empty_dataset.xlsx")
@@ -625,23 +627,37 @@ def solar_pressure():
 
             guidance_law = steering_laws.LocalOptimal()
             guidance_law.conversion_mass = earth_mass
-            guidance_law.guidance_function = guidance_law.guidance_2
+            if idx == 0:
+                guidance_law.guidance_function = guidance_law.guidance_1
+            elif idx == 1:
+                guidance_law.guidance_function = guidance_law.guidance_2
+            else:
+                guidance_law.guidance_function = guidance_law.guidance_3
             guidance_law.terminator = src.guidance.steering_laws.kill_integrator_C3
             force_model.guidance = guidance_law
 
             orbit_state_1 = kepler_dynamics.oe_to_sv((6378+400)*1000, 0, 23.44*math.pi / 180, 3, 3, 3, 0, earth_mass)
 
             sc_2 = src.spacecraft.sc.Spacecraft(init_state_vector=orbit_state_1, force_model=force_model)
-            sc_2.display_name = str(sigma)
+            if idx == 0:
+                sc_2.display_name = "Pseudo-inverse"
+            elif idx == 1:
+                sc_2.display_name = "Velocity tangent"
+            else:
+                sc_2.display_name = "Gradient"
             sc_2.integration_points = integration_points
             sc_2.time_interval = [t_start, t_end]
             sc_2.integrate_states_sivp(rtol=10 ** - 6)
             sc_2.trajectory_conversion(mass=5.97e24)
             sc_list.append(sc_2)
+            idx += 1
 
     for i, sc in enumerate(sc_list):
-        print("Sigma: ", sigma_ref[i], ", ", round(sc.event_time[0][0] / (24 * 3600), 10))
-        tof_lst.append(sc.event_time[0][0] / (24 * 3600))
+        try:
+            print("Sigma: ", sigma_ref[i], ", ", round(sc.event_time[0][0] / (24 * 3600), 10))
+            tof_lst.append(sc.event_time[0][0] / (24 * 3600))
+        except:
+            tof_lst.append(None)
 
     plt.figure()
     plt.scatter(np.array(sigma_ref) * 1000, tof_lst, color=[1, 0, 1], label="Calculated")
@@ -918,4 +934,4 @@ if __name__ == "__main__":
     # steering_testing()
     # orbiting_planet()
     # Lagrange_targeting()
-    atmpshere_min_altitude()
+    solar_pressure()
