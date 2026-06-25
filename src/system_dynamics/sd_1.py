@@ -172,7 +172,7 @@ class inertial_force_model:
                 self.drag_acc_z.append(command[2])
                 self.drag_mag_track.append(np.linalg.norm(command))
 
-                acc_vector = [acc_vector[0] + command[0], acc_vector[1] + command[1], acc_vector[2] + command[2]]
+                acc_vector = [acc_vector[i] + command[i]for i in range(3)]
 
         # return [acc_vector[0], acc_vector[1], acc_vector[2]]
         return acc_vector
