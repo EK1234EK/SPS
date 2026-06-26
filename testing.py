@@ -4,6 +4,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import pandas
 from numpy.f2py.crackfortran import analyzeargs
+from scipy.constants import atmosphere
 
 import src.spacecraft.sc
 from src.system_dynamics import sd_1, SRP, atmo
@@ -827,15 +828,15 @@ def atmpshere_min_altitude():
 
     guidance_law = steering_laws.LocalOptimal()
     guidance_law.conversion_mass = earth_mass
-    guidance_law.guidance_function = guidance_law.guidance_2
+    guidance_law.guidance_function = guidance_law.guidance_3
     guidance_law.terminator = src.guidance.steering_laws.kill_integrator_altitude
     force_model.guidance = guidance_law
 
     drag_model = atmo.Atmopshere()
-    force_model.drag_model = drag_model
+    # force_model.drag_model = drag_model
 
-    init_ang = np.linspace(0, 2*math.pi, 20)
-    sail_loading = np.linspace(0.02, 0.2, 20)
+    init_ang = np.linspace(0, 2*math.pi, 2)
+    sail_loading = np.linspace(0.02, 0.2, 2)
 
     min_alt = []
 
@@ -846,7 +847,7 @@ def atmpshere_min_altitude():
                          [2638614.7315163864, 2638614.7315163864, 1],
                          [-753362.9238320779, -753362.9238320779, 1],
                          [-3074.0790258669726, -3074.0790258669726, 1],
-                         [-6384.415594809771, -6384.415594809771, 33],
+                         [-6384.415594809771, -6384.415594809771, 11],
                          [2928.463010243008, 2928.463010243008, 1],
                          [0, 0, 1]]
 
@@ -854,7 +855,7 @@ def atmpshere_min_altitude():
             sw_1.do_integration = False
             sw_1.integration_points = integration_points
             sw_1.square_swarm('generic')
-            sw_1.create_and_integrate_swarm(rtol=1e-6, parproc=True, cores=11)
+            sw_1.create_and_integrate_swarm(rtol=1e-6, parproc=False, cores=11)
 
             sample_altitude = np.linspace(550000, 670000, manifolds[4][2])
 
@@ -864,7 +865,7 @@ def atmpshere_min_altitude():
 
             sw_1.do_integration = True
 
-            sw_1.create_and_integrate_swarm(rtol=1e-6, parproc=True, cores=11)
+            sw_1.create_and_integrate_swarm(rtol=1e-6, parproc=False, cores=11)
 
             altitude_list = [(np.linalg.norm(np.array(sc.init_state_vector[0:3])) - EARTH_RADIUS) * 0.001 for sc in sw_1.list_of_spacecraft]
             altitude_list = sorted(altitude_list)
@@ -934,4 +935,4 @@ if __name__ == "__main__":
     # steering_testing()
     # orbiting_planet()
     # Lagrange_targeting()
-    solar_pressure()
+    atmpshere_min_altitude()

@@ -349,6 +349,52 @@ class LocalOptimal:
         self.vel_angle_track["Target velocity clock"].append(vel_angle[1])
         return self.current_control
 
+    def guidance_atmo(self, state, time, force_model):
+        print(time)
+        if time == 0.6016825881931906:
+            pass
+        arc_sun = (time / (24 * 3600 * 365)) * 2 * math.pi
+        pos_sun = np.array([math.cos(arc_sun), math.sin(arc_sun), 0]) * 149000000000
+        force_model.solar_pressure.radiation_location = pos_sun
+
+        self.target_oe = {"SMA": 100000000000}
+
+        target_vel_change = self.target_orbit_gradient(state=state)
+        sail_control, vel_angle, n = direct_control_inversion(vel_change=target_vel_change, state=state,
+                                                              force_model=force_model)
+        self.current_n = n
+
+        force_model.solar_pressure.sail_control = sail_control
+        self.current_control = force_model.solar_pressure.solar_acceleration(state=state[0:3])
+
+        # Checking against the atmospheric acceleration
+        atmo_acc = force_model.drag_model.get_aero_acc(state=np.array(state), n=self.current_n, sigma=force_model.solar_pressure.sail_parameters["sigma"])
+        if np.dot(self.current_control + atmo_acc,  target_vel_change) < 0:
+            # In case the atmosphere makes everything worse, orient the sail in such a way that the sail normal
+            # is orthogonal to both the sun direction as well as the incident atmosphere
+            self.current_n = np.cross (atmo_acc, force_model.solar_pressure.radiation_location - state[0:3])
+            self.current_n = self.current_n / ( np.linalg.norm(self.current_n))
+
+            d_1_mod, d_2_mod, d_3_mod, _ = src.system_dynamics.SRP.sail_attitude([0, 0],
+                                                  radiation_location=force_model.solar_pressure.radiation_location,
+                                                  state=state[0:3])
+
+            # Determine the sail control such that the sail normal actually has the correct orientation
+            force_model.solar_pressure.sail_control = angle_from_vector(v=self.current_n, d_1=d_1_mod, d_2=d_2_mod, d_3=d_3_mod)
+            self.current_control = force_model.solar_pressure.solar_acceleration(state=state[0:3])
+
+
+        if not self.control_command_track:
+            self.control_command_track = {"Tilt": [], "Clock": []}
+        if not self.vel_angle_track:
+            self.vel_angle_track = {"Target velocity tilt": [], "Target velocity clock": []}
+        self.control_command_track["Tilt"].append(sail_control[0])
+        self.control_command_track["Clock"].append(sail_control[1])
+
+        self.vel_angle_track["Target velocity tilt"].append(vel_angle[0])
+        self.vel_angle_track["Target velocity clock"].append(vel_angle[1])
+        return self.current_control
+
     def guidance_test(self, state, time, force_model):
         force_model.solar_pressure.radiation_location = [0, 0, 0]
         self.current_n = np.array(state[3:6]) / np.linalg.norm(np.array(state[3:6]))
