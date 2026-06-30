@@ -235,6 +235,10 @@ class CR3BP:
 
         self.is_CR3BP = True
 
+        # Guidance
+        self.guidance = None
+        self.drag_model = None
+
         # Steering
         self.steering_law = None
         self.steer_acc_x = []
@@ -253,7 +257,7 @@ class CR3BP:
         self.APERIs = [None, None]
         self.TAEPOs = [None, None]
 
-    def propagate_body_states(self, times: list):
+    def propagate_body_states(self, times: list, mass, body_list=None, position_only=False):
 
         states = dict()
         for k in range(len(self.names)):
@@ -286,7 +290,7 @@ class CR3BP:
         vx = velocity[0]
         vy = velocity[1]
 
-        body_states = self.propagate_body_states([system_time])
+        body_states = self.propagate_body_states([system_time], None)
         x_acc, y_acc, z_acc = kds.CR3BP_acceleration(x, y, z, vx, vy, self.mass_parameter)
 
         acc_vector = [x_acc, y_acc, z_acc]
@@ -305,7 +309,7 @@ class CR3BP:
 
         return [acc_vector[0], acc_vector[1], acc_vector[2]]
 
-    def get_plotting_track(self):
+    def get_plotting_track(self, mass=None):
 
         states = dict()
         for k in range(len(self.names)):

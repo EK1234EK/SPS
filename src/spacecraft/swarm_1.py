@@ -289,7 +289,8 @@ class particle_swarm:
 
     def get_swarm_body_distances(self, body_list):
         print("Calculating body distances")
-        body_trajectories = self.force_model_1.propagate_body_states(self.integration_points)
+        # body_trajectories = self.force_model_1.propagate_body_states(self.integration_points)
+        body_trajectories = self.force_model_1.propagate_body_states(times=self.integration_points, mass=self.force_model_1.central_mass, body_list=body_list, position_only=True)
         t_1 = time.time()
         for sc in self.list_of_spacecraft:
             sc.get_body_distances(body_list=body_list, body_trajectories=body_trajectories)

@@ -40,8 +40,8 @@ class graph_output:
         self.get_reference_data()
 
         # plt.style.use(matplotx.styles.aura["dark-soft"]) dark_background
-        plt.style.use('dark_background')
-        plt.rc('axes', edgecolor=(1, 1, 1))
+        """plt.style.use('dark_background')
+        plt.rc('axes', edgecolor=(1, 1, 1))"""
 
     def get_reference_data(self):
         if self.list_of_spacecraft:

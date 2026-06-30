@@ -254,7 +254,10 @@ def CR3BP():
     sw_1.square_swarm('generic')
     sw_1.manifolds = manifolds_3
     sw_1.square_swarm('generic')
-    sw_1.create_and_integrate_swarm(rtol=1e-10, parproc=True, cores=11)
+    sw_1.do_integration = False
+    sw_1.create_and_integrate_swarm(rtol=1e-10, parproc=False, cores=11)
+    sw_1.do_integration = True
+    sw_1.create_and_integrate_swarm(rtol=1e-10, parproc=False, cores=11)
     sw_1.get_swarm_body_distances(body_list=["body_1", "body_2"])
 
     list_of_spacecraft = sw_1.list_of_spacecraft
@@ -272,7 +275,7 @@ def CR3BP():
     input("Start plotting?")
     plots = plotting_functions.graph_output(list_of_spacecraft=[], list_of_resampled_spacecraft=[],
                                             list_of_special_spacecraft=list_of_spacecraft,
-                                            force_model=force_model_1, animated=False, axis_visibility=True, fps=None)
+                                            force_model=force_model_1, animated=True, axis_visibility=True, fps=None)
 
     plots.state_space_slice(index=0, slices=[["vx", "vy"]])
     plots.state_space_slice(index=499, slices=[["vx", "vy"]])
@@ -701,7 +704,7 @@ def solar_pressure():
 
 def solar_swarm():
     t_start = 0
-    t_end = 5000000
+    t_end = 5e5
     integration_points = list(np.linspace(t_start, t_end, 10000))
     earth_mass = 5.97e24
     solar_mass = 1.989 * 10 ** 30
@@ -718,7 +721,7 @@ def solar_swarm():
         print("Integrating all initial conditions")
     sigma = 0.02
 
-    force_model = sd_1.inertial_force_model(path="./data/empty_dataset.xlsx")
+    force_model = sd_1.inertial_force_model(path="./data/Moon.xlsx")
     force_model.define_central_attractor(mass=earth_mass, position=[0, 0, 0])
     # force_model.central_attractor_gravity_law = src.astrodynamic_functions.kepler_dynamics.J_X_acceleration_ecliptic_reference
     srp_model = SRP.Solar_pressure(sail_model="ACS3", central_attractor_mass=solar_mass, sigma=sigma)
@@ -728,8 +731,8 @@ def solar_swarm():
 
     guidance_law = steering_laws.LocalOptimal()
     guidance_law.conversion_mass = earth_mass
-    guidance_law.guidance_function = guidance_law.guidance_2
-    guidance_law.terminator = src.guidance.steering_laws.kill_integrator_altitude
+    guidance_law.guidance_function = guidance_law.guidance_atmo
+    guidance_law.terminator = src.guidance.steering_laws.kill_integrator_C3
     force_model.guidance = guidance_law
 
     drag_model = atmo.Atmopshere()
@@ -739,7 +742,7 @@ def solar_swarm():
                  [2638614.7315163864, 2638614.7315163864, 1],
                  [-753362.9238320779, -753362.9238320779, 1],
                  [-3074.0790258669726, -3074.0790258669726, 1],
-                 [-6384.415594809771, -6384.415594809771, 11],
+                 [-6384.415594809771, -6384.415594809771, 1],
                  [2928.463010243008, 2928.463010243008, 1],
                  [0, 0, 1]]
 
@@ -747,20 +750,23 @@ def solar_swarm():
     sw_1.do_integration = False
     sw_1.integration_points = integration_points
     sw_1.square_swarm('generic')
-    sw_1.create_and_integrate_swarm(rtol=1e-6, parproc=True, cores=11)
+    sw_1.create_and_integrate_swarm(rtol=1e-6, parproc=False, cores=11)
     # sw_1.get_swarm_body_distances(["Moon"])
 
-    init_altitude = np.linspace(650000, 700000, len(sw_1.list_of_spacecraft))
+    init_altitude = 700000
+    sigma_lst = np.linspace(0.02, 0.2, manifolds[4][2])
 
 
     for i, sc in enumerate(sw_1.list_of_spacecraft):
-        sc.force_model.solar_pressure.sail_parameters["sigma"] = 0.04
-        sc.display_name = str(sc.force_model.solar_pressure.sail_parameters["sigma"]) + "   " + str(init_altitude[i]*0.001) + " km"
-        sc.init_state_vector = kepler_dynamics.oe_to_sv(EARTH_RADIUS + init_altitude[i], 0, 23.44*math.pi / 180, 3, 3, 3, 0, earth_mass)
+        sc.force_model.solar_pressure.sail_parameters["sigma"] = sigma_lst[i]
+        sc.display_name = str(round(sc.force_model.solar_pressure.sail_parameters["sigma"], 2))
+        sc.init_state_vector = kepler_dynamics.oe_to_sv(EARTH_RADIUS + init_altitude, 0, 23.44*math.pi / 180, 3, 3, 3, 0, earth_mass)
 
     sw_1.do_integration = True
 
-    sw_1.create_and_integrate_swarm(rtol=1e-6, parproc=True, cores=11)
+    sw_1.create_and_integrate_swarm(rtol=1e-5, parproc=False, cores=11)
+    sw_1.get_swarm_body_distances(body_list=["Moon"])
+
 
     for i, sc in enumerate(sw_1.list_of_spacecraft):
         try:
@@ -788,7 +794,7 @@ def solar_swarm():
                                             list_of_special_spacecraft=sw_1.list_of_spacecraft,
                                             force_model=force_model,
                                             axis_visibility=True,
-                                            animated=False)
+                                            animated=True)
 
     plots.trajectory_xyz()
     plots.parameters_plot()
@@ -798,14 +804,15 @@ def solar_swarm():
     plots.magnitude_plot()
     plots.plot_drag_acceleration()
     plots.C3_plot()
-    plots.moving_map_plot(k_modulo=10, match_tail_color=True)
+    plots.body_distances_plot(body_list= ["Moon"])
+    plots.moving_map_plot(k_modulo=100, match_tail_color=True)
     # plots.moving_map_plot(match_tail_color=False)
     plt.show()
     plt.waitforbuttonpress(10000000000)
 
 def atmpshere_min_altitude():
     t_start = 0
-    t_end = 1000000
+    t_end = 1e6
     integration_points = list(np.linspace(t_start, t_end, 10000))
     earth_mass = 5.97e24
     solar_mass = 1.989 * 10 ** 30
@@ -828,15 +835,15 @@ def atmpshere_min_altitude():
 
     guidance_law = steering_laws.LocalOptimal()
     guidance_law.conversion_mass = earth_mass
-    guidance_law.guidance_function = guidance_law.guidance_3
+    guidance_law.guidance_function = guidance_law.guidance_atmo
     guidance_law.terminator = src.guidance.steering_laws.kill_integrator_altitude
     force_model.guidance = guidance_law
 
     drag_model = atmo.Atmopshere()
-    # force_model.drag_model = drag_model
+    force_model.drag_model = drag_model
 
-    init_ang = np.linspace(0, 2*math.pi, 2)
-    sail_loading = np.linspace(0.02, 0.2, 2)
+    init_ang = np.linspace(0, math.pi, 1)
+    sail_loading = np.linspace(0.02, 0.2, 1)
 
     min_alt = []
 
@@ -857,15 +864,16 @@ def atmpshere_min_altitude():
             sw_1.square_swarm('generic')
             sw_1.create_and_integrate_swarm(rtol=1e-6, parproc=False, cores=11)
 
-            sample_altitude = np.linspace(550000, 670000, manifolds[4][2])
+            sample_altitude = np.linspace(500000, 750000, manifolds[4][2])
 
             for k, sc in enumerate(sw_1.list_of_spacecraft):
                 sc.force_model.solar_pressure.sail_parameters["sigma"] = sail_loading[j]
                 sc.init_state_vector = kepler_dynamics.oe_to_sv(EARTH_RADIUS + sample_altitude[k], 0, 23.44*math.pi / 180, 3, 3, init_ang[i], 0, earth_mass)
-
+                sc.display_name = str(round(sample_altitude[k], 3) * 0.001)
+                pass
             sw_1.do_integration = True
 
-            sw_1.create_and_integrate_swarm(rtol=1e-6, parproc=False, cores=11)
+            sw_1.create_and_integrate_swarm(rtol=1e-5, parproc=True, cores=11)
 
             altitude_list = [(np.linalg.norm(np.array(sc.init_state_vector[0:3])) - EARTH_RADIUS) * 0.001 for sc in sw_1.list_of_spacecraft]
             altitude_list = sorted(altitude_list)
@@ -894,6 +902,7 @@ def atmpshere_min_altitude():
     cutoff_lst = []
 
     for alt in min_alt:
+        print(alt)
         sigma_lst.append(alt["Sigma"])
         ang_lst.append(alt["TAEPO"])
         cutoff_lst.append(alt["Cutoff"])
@@ -904,7 +913,7 @@ def atmpshere_min_altitude():
     out_df["Cutoff"] = cutoff_lst
     out_df.to_excel("Altitude_cutoff_data.xlsx")
 
-    """input("Start plotting?")
+    input("Start plotting?")
 
     plots = plotting_functions.graph_output(list_of_spacecraft=[],
                                             list_of_resampled_spacecraft=[],
@@ -924,15 +933,16 @@ def atmpshere_min_altitude():
     plots.moving_map_plot(k_modulo=10, match_tail_color=True)
     # plots.moving_map_plot(match_tail_color=False)
     plt.show()
-    plt.waitforbuttonpress(10000000000)"""
+    plt.waitforbuttonpress(10000000000)
 
 
 # ex_7_SSO()
 if __name__ == "__main__":
-    # CR3BP()
+    CR3BP()
     # CR3BP_ex_2()
     # SSO()
     # steering_testing()
     # orbiting_planet()
     # Lagrange_targeting()
-    atmpshere_min_altitude()
+    # atmpshere_min_altitude()
+    # solar_swarm()

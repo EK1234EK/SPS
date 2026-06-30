@@ -15,6 +15,8 @@ class generate_excel_output:
         self.state_vectors = self.spacecraft.trajectory_track
         self.C3 = self.spacecraft.C3_track
 
+        self.control = self.spacecraft.control_input_track
+
         self.output_name = "trajectory"
 
         self.get_avaliable_data()
@@ -54,6 +56,9 @@ class generate_excel_output:
         self.trajectory["TAEPO"] = self.orbital_parameters[5]
 
         self.trajectory["C3"] = self.C3
+
+        for key in self.control.keys():
+            self.trajectory[key] = self.control[key]
         self.trajectory.to_excel(excel_writer="output/" + self.output_name + ".xlsx", sheet_name="trajectory")
 
     def write_body_trajectories(self):
