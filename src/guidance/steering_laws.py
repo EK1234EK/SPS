@@ -402,7 +402,7 @@ class LocalOptimal:
             if np.dot(self.current_control + atmo_acc,  target_vel_change) < -1e-15:  # For reasons of numeric stability
                 # In case the atmosphere makes everything worse, orient the sail in such a way that the sail normal
                 # is orthogonal to both the sun direction as well as the incident atmosphere
-                self.current_n = np.cross(atmo_acc, force_model.solar_pressure.radiation_location - state[0:3])
+                self.current_n = np.cross(np.array(state[3:6]), force_model.solar_pressure.radiation_location - state[0:3])
                 self.current_n = self.current_n / ( np.linalg.norm(self.current_n))
 
                 d_1_mod, d_2_mod, d_3_mod, _ = src.system_dynamics.SRP.sail_attitude([0, 0],

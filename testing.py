@@ -196,7 +196,7 @@ def orbiting_planet():
 
 
 def CR3BP():
-    t_end = 30
+    t_end = 12
     sim_time = list(np.linspace(0, t_end, 1000))
 
     force_model_1 = sd_1.CR3BP(mass_parameter=1.215058560962404E-2)
@@ -284,7 +284,8 @@ def CR3BP():
     plots.magnitude_plot()
     plots.body_distances_plot(["body_1", "body_2"])
     plots.trajectory_xyz()
-    plots.moving_map_plot(k_modulo=2, plot_central_attractor=False, match_tail_color=False, init_azim=0, init_elevation=35, azim_rate=0.5)
+    plots.moving_map_plot(k_modulo=3, plot_central_attractor=False, match_tail_color=False, init_azim=0, init_elevation=35, azim_rate=0.5,
+                          override_limits={"x": [0.8, 1.2], "y": [-0.2, 0.2], "z": [-0.3, 0.3]})
 
 
 def CR3BP_ex_2():
@@ -704,7 +705,7 @@ def solar_pressure():
 
 def solar_swarm():
     t_start = 0
-    t_end = 5e5
+    t_end = 1e5
     integration_points = list(np.linspace(t_start, t_end, 10000))
     earth_mass = 5.97e24
     solar_mass = 1.989 * 10 ** 30
@@ -805,7 +806,7 @@ def solar_swarm():
     plots.plot_drag_acceleration()
     plots.C3_plot()
     plots.body_distances_plot(body_list= ["Moon"])
-    plots.moving_map_plot(k_modulo=100, match_tail_color=True)
+    plots.moving_map_plot(k_modulo=10, match_tail_color=True)
     # plots.moving_map_plot(match_tail_color=False)
     plt.show()
     plt.waitforbuttonpress(10000000000)
