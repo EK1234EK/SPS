@@ -82,14 +82,22 @@ class Atmopshere:
         h_km = (np.linalg.norm(state[0:3]) - EARTH_RADIUS) * 0.001
         if h_km > 1000:
             self.rho = 0
+        elif h_km < 0:
+            self.rho = 1.225
         else:
-            coesa76_geom = coesa76([h_km])
-            self.rho = coesa76_geom.rho[0]
+            try:
+                coesa76_geom = coesa76([h_km])
+                self.rho = coesa76_geom.rho[0]
+            except:
+                pass
 
     def get_Cd(self, vel: np.array, n: np.array):
         cos_aoa = np.dot(vel, n) / (np.linalg.norm(vel) * np.linalg.norm(n))
         # Armando, page 40
-        self.Cd = 2 * (self.aero_params["sigma_t"] + self.aero_params["sigma_n"] * self.aero_params["V_R"] * abs(cos_aoa) + (2 - self.aero_params["sigma_n"] - self.aero_params["sigma_t"] * cos_aoa ** 2)) * abs(cos_aoa)
+        var_Cd = 2 * (self.aero_params["sigma_t"] + self.aero_params["sigma_n"] * self.aero_params["V_R"] * abs(cos_aoa) + (2 - self.aero_params["sigma_n"] - self.aero_params["sigma_t"] * cos_aoa ** 2)) * abs(cos_aoa)
+        base_Cd = 2 * (self.aero_params["sigma_t"] + self.aero_params["sigma_n"] * self.aero_params["V_R"] + (2 - self.aero_params["sigma_n"] - self.aero_params["sigma_t"]))
+        self.Cd = 0.9 * var_Cd + 0.1 * base_Cd
+
 
     def get_aero_acc(self, state: np.array, n: np.array, sigma: float):
         # Calling preparatory routines:
@@ -97,6 +105,8 @@ class Atmopshere:
         self.get_Cd(vel=state[3:6], n=n)
         # Armando, page 40
         acc = -0.5 * (self.rho / sigma) * np.linalg.norm(state[3:6]) * self.Cd * state[3:6]
+        if np.linalg.norm(acc) < 1e-15:
+            return np.array([0, 0, 0])
         return acc
 
 if __name__ == "__main__":
@@ -116,7 +126,7 @@ if __name__ == "__main__":
     # import ssl
 
     ssl._create_default_https_context = ssl._create_unverified_context
-    # from pyatmos import coesa76
+    from pyatmos import coesa76
 
     dens_list_acc = np.zeros(len(state_mag))
     for k, state in enumerate(state_list):

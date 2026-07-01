@@ -7,14 +7,14 @@ def get_color_data():
     colors["feasible"] = [0.2, 1, 1]
     colors["resampled"] = [1, 0, 0]
 
-    colors["planet_traj"] = [1, 1, 1]
+    colors["planet_traj"] = [0, 0, 0]# [1, 1, 1]
     colors["special_tail_color"] = [0.5, 0.5, 0.5]
     colors["tail_line_width"] = 0.5
 
-    colors["background"] = (0, 0, 0)  # (21/265, 20/265, 27/265)
-    colors["ticks"] = (1, 1, 1)
+    colors["background"] = (1, 1, 1)# (0, 0, 0)  # (21/265, 20/265, 27/265)
+    colors["ticks"] = (0, 0, 0) # (1, 1, 1)
     colors["grid"] = (0.7, 0.6, 1)
-    colors["map"] = "jet"
+    colors["map"] = "hsv" # "jet"
 
     colors["lagrange_marker_symbol"] = "D"
     colors["lagrange_marker_color"] = [1, 0.5, 0.5]

@@ -50,8 +50,6 @@ class Spacecraft:
         self.true_time = []
 
         # Sail control
-        self.tilt = []
-        self.clock = []
         self.control_input_track = dict()
         self.vel_angle_track = dict()
 
@@ -151,8 +149,11 @@ class Spacecraft:
                                       len(self.integration_points)).tolist()
         init_time = time.time()
 
-        if self.force_model.guidance.terminator:
-            self.force_model.guidance.terminator.terminal = True
+        terminator_condition_fun = None
+        if self.force_model.guidance:
+            if self.force_model.guidance.terminator:
+                self.force_model.guidance.terminator.terminal = True
+                terminator_condition_fun = self.force_model.guidance.terminator
 
         sol = solve_ivp(get_acc_wrapper,
                         t_span=[self.time_interval[0], self.time_interval[1]],
@@ -161,7 +162,7 @@ class Spacecraft:
                         t_eval=eval_points,
                         atol=atol,
                         rtol=rtol,
-                        events=self.force_model.guidance.terminator,
+                        events=terminator_condition_fun,
                         dense_output=True
                         )
         terminal_time = time.time()
@@ -182,10 +183,11 @@ class Spacecraft:
             for state in range(6):
                 self.trajectory_track[state] += sol[state].tolist()
         elif status is not True:
+            print(" ", terminal_message, " ", end="")
             self.display_name += " - Integration error"
             for state in range(6):
-                sol[state] = interp(self.integration_points, integrated_time, sol[state], left=None,
-                                    right=None).tolist()
+                sol[state] = interp(self.integration_points, integrated_time, sol[state], left=np.nan, right=np.nan).tolist()
+                sol[state] = [None if x == np.nan else x for x in sol[state]]
                 self.trajectory_track[state] += sol[state]
         elif terminal_message == 'A termination event occurred.':
             for state in range(6):
