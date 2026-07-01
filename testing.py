@@ -245,15 +245,15 @@ def CR3BP():
     sw_1 = swarm_1.particle_swarm(manifolds_1, force_model_1)
     sw_1.integration_points = sim_time
     sw_1.direct_transformation = ("State_magnitude")
-    sw_1.square_swarm('generic')
+    """sw_1.square_swarm('generic')
     sw_1.manifolds = manifolds_4
     sw_1.square_swarm('generic')
     sw_1.manifolds = manifolds_5
+    sw_1.square_swarm('generic')"""
+    sw_1.manifolds = manifolds_1
     sw_1.square_swarm('generic')
-    sw_1.manifolds = manifolds_2
-    sw_1.square_swarm('generic')
-    sw_1.manifolds = manifolds_3
-    sw_1.square_swarm('generic')
+    """sw_1.manifolds = manifolds_3
+    sw_1.square_swarm('generic')"""
     sw_1.do_integration = False
     sw_1.create_and_integrate_swarm(rtol=1e-10, parproc=False, cores=11)
     sw_1.do_integration = True
@@ -262,11 +262,11 @@ def CR3BP():
 
     list_of_spacecraft = sw_1.list_of_spacecraft
 
-    list_of_spacecraft[0].plot_color = [1, 0.3, 0.3]
-    list_of_spacecraft[1].plot_color = [0.3, 1, 0.5]
+    list_of_spacecraft[0].plot_color = [0, 1, 0.3]
+    """list_of_spacecraft[1].plot_color = [0.3, 1, 0.5]
     list_of_spacecraft[2].plot_color = [0.3, 0.3, 1]
     list_of_spacecraft[3].plot_color = [1, 1, 0.3]
-    list_of_spacecraft[4].plot_color = [1, 0.3, 1]
+    list_of_spacecraft[4].plot_color = [1, 0.3, 1]"""
 
     """fs = valid_set.feasibility_setup(manifolds=[], list_of_sc=list_of_spacecraft, force_model=force_model_1)
     fs.check_conditions()
@@ -275,7 +275,7 @@ def CR3BP():
     input("Start plotting?")
     plots = plotting_functions.graph_output(list_of_spacecraft=[], list_of_resampled_spacecraft=[],
                                             list_of_special_spacecraft=list_of_spacecraft,
-                                            force_model=force_model_1, animated=True, axis_visibility=True, fps=None)
+                                            force_model=force_model_1, animated=True, axis_visibility=True, fps=20)
 
     plots.state_space_slice(index=0, slices=[["vx", "vy"]])
     plots.state_space_slice(index=499, slices=[["vx", "vy"]])
@@ -284,7 +284,7 @@ def CR3BP():
     plots.magnitude_plot()
     plots.body_distances_plot(["body_1", "body_2"])
     plots.trajectory_xyz()
-    plots.moving_map_plot(plot_central_attractor=False, match_tail_color=False)
+    plots.moving_map_plot(k_modulo=2, plot_central_attractor=False, match_tail_color=False, init_azim=0, init_elevation=35, azim_rate=0.5)
 
 
 def CR3BP_ex_2():
