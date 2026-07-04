@@ -160,7 +160,7 @@ class LocalOptimal:
         direction = direction * acc_mag
         return direction
 
-    def target_orbit_gradient(self, state, time):
+    def target_orbit_gradient(self, state):
 
         if self.target_oe == {}:
             raise ValueError("No target orbital parameter set defined!")
@@ -204,8 +204,6 @@ class LocalOptimal:
                 weights[i] = 0
 
         grad = np.transpose(np.dot(J_T, weights))[0]
-        if time == 429345.29784990783:
-            pass
 
 
         m = np.linalg.norm(grad)
@@ -371,7 +369,7 @@ class LocalOptimal:
 
         self.target_oe = {"SMA": 100000000000}
 
-        target_vel_change = self.target_orbit_gradient(state=state, time=time)
+        target_vel_change = self.target_orbit_gradient(state=state)
         if target_vel_change is None or np.nan in target_vel_change:
             # Some error during the control algorithm. It returns None
             vel_angle = [0, 0, 0]

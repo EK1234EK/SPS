@@ -196,7 +196,7 @@ def orbiting_planet():
 
 
 def CR3BP():
-    t_end = 12
+    t_end = 30
     sim_time = list(np.linspace(0, t_end, 1000))
 
     force_model_1 = sd_1.CR3BP(mass_parameter=1.215058560962404E-2)
@@ -218,7 +218,7 @@ def CR3BP():
                    [-6.4806934253088289E-1, -6.4806934253088289E-1, 1],
                    [0, 0, 1]]
 
-    manifolds_1 = [[8.6221899389004331E-1, 8.6221899389004331E-1, 1],
+    manifolds_1 = [[8.5221899389004331E-1, 8.7221899389004331E-1, 10],
                    [-6.1589472580081878E-28, -6.1589472580081878E-28, 1],
                    [-9.0996038678959414E-14, -9.0996038678959414E-14, 1],
                    [1.1168790093094281E-13, 1.1168790093094281E-13, 1],
@@ -255,9 +255,9 @@ def CR3BP():
     """sw_1.manifolds = manifolds_3
     sw_1.square_swarm('generic')"""
     sw_1.do_integration = False
-    sw_1.create_and_integrate_swarm(rtol=1e-10, parproc=False, cores=11)
+    sw_1.create_and_integrate_swarm(rtol=1e-10, parproc=True, cores=11)
     sw_1.do_integration = True
-    sw_1.create_and_integrate_swarm(rtol=1e-10, parproc=False, cores=11)
+    sw_1.create_and_integrate_swarm(rtol=1e-10, parproc=True, cores=11)
     sw_1.get_swarm_body_distances(body_list=["body_1", "body_2"])
 
     list_of_spacecraft = sw_1.list_of_spacecraft
@@ -275,7 +275,7 @@ def CR3BP():
     input("Start plotting?")
     plots = plotting_functions.graph_output(list_of_spacecraft=[], list_of_resampled_spacecraft=[],
                                             list_of_special_spacecraft=list_of_spacecraft,
-                                            force_model=force_model_1, animated=True, axis_visibility=True, fps=20)
+                                            force_model=force_model_1, animated=True, axis_visibility=True, fps=None)
 
     plots.state_space_slice(index=0, slices=[["vx", "vy"]])
     plots.state_space_slice(index=499, slices=[["vx", "vy"]])
@@ -284,8 +284,7 @@ def CR3BP():
     plots.magnitude_plot()
     plots.body_distances_plot(["body_1", "body_2"])
     plots.trajectory_xyz()
-    plots.moving_map_plot(k_modulo=3, plot_central_attractor=False, match_tail_color=False, init_azim=0, init_elevation=35, azim_rate=0.5,
-                          override_limits={"x": [0.8, 1.2], "y": [-0.2, 0.2], "z": [-0.3, 0.3]})
+    plots.moving_map_plot(k_modulo=4, plot_central_attractor=False, match_tail_color=False, init_azim=0, init_elevation=35, azim_rate=0.5)
 
 
 def CR3BP_ex_2():
@@ -813,7 +812,7 @@ def solar_swarm():
 
 def atmpshere_min_altitude():
     t_start = 0
-    t_end = 1e6
+    t_end = 1e8
     integration_points = list(np.linspace(t_start, t_end, 10000))
     earth_mass = 5.97e24
     solar_mass = 1.989 * 10 ** 30
@@ -843,7 +842,7 @@ def atmpshere_min_altitude():
     drag_model = atmo.Atmopshere()
     force_model.drag_model = drag_model
 
-    init_ang = np.linspace(0, math.pi, 1)
+    init_ang = np.linspace(0, 0, 1)
     sail_loading = np.linspace(0.02, 0.2, 1)
 
     min_alt = []
@@ -863,14 +862,15 @@ def atmpshere_min_altitude():
             sw_1.do_integration = False
             sw_1.integration_points = integration_points
             sw_1.square_swarm('generic')
-            sw_1.create_and_integrate_swarm(rtol=1e-6, parproc=False, cores=11)
+            sw_1.create_and_integrate_swarm(rtol=1e-6, parproc=True, cores=11)
 
             sample_altitude = np.linspace(500000, 750000, manifolds[4][2])
+            sail_loading = np.linspace(0.02, 0.2, 11)
 
             for k, sc in enumerate(sw_1.list_of_spacecraft):
-                sc.force_model.solar_pressure.sail_parameters["sigma"] = sail_loading[j]
-                sc.init_state_vector = kepler_dynamics.oe_to_sv(EARTH_RADIUS + sample_altitude[k], 0, 23.44*math.pi / 180, 3, 3, init_ang[i], 0, earth_mass)
-                sc.display_name = str(round(sample_altitude[k], 3) * 0.001)
+                sc.force_model.solar_pressure.sail_parameters["sigma"] = sail_loading[k]
+                sc.init_state_vector = kepler_dynamics.oe_to_sv(EARTH_RADIUS + sample_altitude[2], 0, 23.44*math.pi / 180, 3, 3, init_ang[i], 0, earth_mass)
+                sc.display_name = str(round(sample_altitude[2], 3) * 0.001)
                 pass
             sw_1.do_integration = True
 
@@ -939,11 +939,11 @@ def atmpshere_min_altitude():
 
 # ex_7_SSO()
 if __name__ == "__main__":
-    CR3BP()
+    # CR3BP()
     # CR3BP_ex_2()
     # SSO()
     # steering_testing()
     # orbiting_planet()
     # Lagrange_targeting()
-    # atmpshere_min_altitude()
+    atmpshere_min_altitude()
     # solar_swarm()
