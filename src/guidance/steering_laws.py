@@ -10,25 +10,6 @@ from src.system_dynamics import SRP
 from src.astrodynamic_functions.kepler_dynamics import GRAV_CONST, EARTH_RADIUS
 
 
-def kill_integrator_eccentricity(time, state):
-    return kepler_dynamics.sv_to_oe(state_vector=state, mass=5.97e24)[1] - 0.99
-
-
-def kill_integrator_SMA(time, state):
-    return kepler_dynamics.sv_to_oe(state_vector=state, mass=5.97e24)[0] - 10 ** 10
-
-
-def kill_integrator_C3(time, state):
-    SMA = kepler_dynamics.sv_to_oe(state_vector=state, mass=5.97e24)[0]
-    C3 = -5.97e24 * GRAV_CONST / SMA + 100000
-    return C3
-
-
-def kill_integrator_altitude(time, state):
-    radius = np.linalg.norm(np.array(state[0:3]))
-    return radius - EARTH_RADIUS - 100000
-
-
 def vector_from_angle(alpha, gamma, d_1, d_2, d_3):
     return math.cos(alpha) * d_1 + math.sin(alpha) * math.sin(gamma) * d_2 + math.sin(alpha) * math.cos(gamma) * d_3
 
@@ -48,7 +29,7 @@ def angle_from_vector(v, d_1, d_2, d_3):
     return alpha, gamma
 
 
-def direct_control_inversion(vel_change, state, force_model):
+def control_inversion_ideal(vel_change, state, force_model):
     # Attention only use with ideal sail!
     d_1, d_2, d_3, n = src.system_dynamics.SRP.sail_attitude([0, 0],
                                                              radiation_location=force_model.solar_pressure.radiation_location,
@@ -63,6 +44,23 @@ def direct_control_inversion(vel_change, state, force_model):
     alpha = math.atan((-3 + (9 + 8 * math.tan(alpha_v) ** 2) ** 0.5) / (4 * math.tan(alpha_v)))
     if alpha < 0:
         alpha *= -1
+
+    return [alpha, gamma], [alpha_v, gamma_v], n
+
+def control_inversion_real_sail(vel_change, state, force_model):
+    # To be used with real sail models. Also considers drag, as developed by Armando
+    d_1, d_2, d_3, n = src.system_dynamics.SRP.sail_attitude([0, 0],
+                                                             radiation_location=force_model.solar_pressure.radiation_location,
+                                                             state=state[0:3])
+    alpha_v, gamma_v = angle_from_vector(vel_change, d_1, d_2, d_3)
+
+    gamma = gamma_v
+
+    if np.dot(n, vel_change) < 0:
+        alpha = 0.5 * math.pi
+        return [alpha, gamma], [alpha_v, gamma_v], n
+
+    alpha = 0
 
     return [alpha, gamma], [alpha_v, gamma_v], n
 
@@ -102,6 +100,9 @@ class LocalOptimal:
         self.guidance_function = None  # What function is read by the force model to actually return the acceleration
 
         self.current_n = None  # Sail normal at the current time step
+
+        # Awitching guiance functions
+        self.guidance_trigger = 0
 
     def target_orbit_pinv_jacobian(self, state):
 
@@ -172,8 +173,6 @@ class LocalOptimal:
         # The Jacobian has six lines with three columns, corresponding to six orbital parameters
         # and the three velocity state
 
-
-
         state_mat = dict()
         oe_mat = dict()
         state_mat["center"] = state
@@ -204,7 +203,6 @@ class LocalOptimal:
                 weights[i] = 0
 
         grad = np.transpose(np.dot(J_T, weights))[0]
-
 
         m = np.linalg.norm(grad)
         if m == 0:
@@ -289,8 +287,8 @@ class LocalOptimal:
 
         target_vel_change = target_vel_change / np.linalg.norm(target_vel_change)
 
-        sail_control, vel_angle, n = direct_control_inversion(vel_change=target_vel_change, state=state,
-                                                              force_model=force_model)
+        sail_control, vel_angle, n = control_inversion_ideal(vel_change=target_vel_change, state=state,
+                                                             force_model=force_model)
         self.current_n = n
 
         force_model.solar_pressure.sail_control = sail_control
@@ -318,8 +316,8 @@ class LocalOptimal:
 
         target_vel_change_aux = target_vel_change_aux / np.linalg.norm(target_vel_change_aux)
 
-        sail_control, vel_angle, n = direct_control_inversion(vel_change=target_vel_change_aux, state=state,
-                                                              force_model=force_model)
+        sail_control, vel_angle, n = control_inversion_ideal(vel_change=target_vel_change_aux, state=state,
+                                                             force_model=force_model)
         self.current_n = n
 
         force_model.solar_pressure.sail_control = sail_control
@@ -343,8 +341,8 @@ class LocalOptimal:
         self.target_oe = {"SMA": 100000000000}
 
         target_vel_change = self.target_orbit_gradient(state=state)
-        sail_control, vel_angle, n = direct_control_inversion(vel_change=target_vel_change, state=state,
-                                                              force_model=force_model)
+        sail_control, vel_angle, n = control_inversion_ideal(vel_change=target_vel_change, state=state,
+                                                             force_model=force_model)
         self.current_n = n
 
         force_model.solar_pressure.sail_control = sail_control
@@ -368,12 +366,19 @@ class LocalOptimal:
         force_model.solar_pressure.radiation_location = pos_sun
 
         self.target_oe = {"SMA": 100000000000}
+        if kepler_dynamics.sv_to_oe(state_vector=state, mass=self.conversion_mass)[
+            0] > 950000000000 and self.guidance_trigger == 0:
+            self.guidance_trigger = 1
 
-        target_vel_change = self.target_orbit_gradient(state=state)
+        if self.guidance_trigger == 0:
+            target_vel_change = self.target_orbit_gradient(state=state)
+        else:
+            target_vel_change = None
         if target_vel_change is None or np.nan in target_vel_change:
             # Some error during the control algorithm. It returns None
             vel_angle = [0, 0, 0]
-            atmo_acc = force_model.drag_model.get_aero_acc(state=np.array(state), n=self.current_n, sigma=force_model.solar_pressure.sail_parameters["sigma"])
+            atmo_acc = force_model.drag_model.get_aero_acc(state=np.array(state), n=self.current_n,
+                                                           sigma=force_model.solar_pressure.sail_parameters["sigma"])
             self.current_n = np.cross(atmo_acc, force_model.solar_pressure.radiation_location - state[0:3])
             self.current_n = self.current_n / (np.linalg.norm(self.current_n))
 
@@ -384,40 +389,45 @@ class LocalOptimal:
             # Determine the sail control such that the sail normal actually has the correct orientation
             sail_control = angle_from_vector(v=self.current_n, d_1=d_1_mod, d_2=d_2_mod, d_3=d_3_mod)
             force_model.solar_pressure.sail_control = sail_control
-            self.current_control = np.array([0, 0, 0])  # force_model.solar_pressure.solar_acceleration(state=state[0:3])
+            self.current_control = np.array(
+                [0, 0, 0])  # force_model.solar_pressure.solar_acceleration(state=state[0:3])
 
         else:
             # The happy path, target_vel_change is not None
-            sail_control, vel_angle, n = direct_control_inversion(vel_change=target_vel_change, state=state,
-                                                                  force_model=force_model)
+            sail_control, vel_angle, n = control_inversion_ideal(vel_change=target_vel_change, state=state,
+                                                                 force_model=force_model)
             self.current_n = n
 
             force_model.solar_pressure.sail_control = sail_control
             self.current_control = force_model.solar_pressure.solar_acceleration(state=state[0:3])
 
             # Checking against the atmospheric acceleration
-            atmo_acc = force_model.drag_model.get_aero_acc(state=np.array(state), n=self.current_n, sigma=force_model.solar_pressure.sail_parameters["sigma"])
-            if np.dot(self.current_control + atmo_acc,  target_vel_change) < -1e-15:  # For reasons of numeric stability
+            atmo_acc = force_model.drag_model.get_aero_acc(state=np.array(state), n=self.current_n,
+                                                           sigma=force_model.solar_pressure.sail_parameters["sigma"])
+            if np.dot(self.current_control + atmo_acc, target_vel_change) < -1e-15:  # For reasons of numeric stability
                 # In case the atmosphere makes everything worse, orient the sail in such a way that the sail normal
                 # is orthogonal to both the sun direction as well as the incident atmosphere
-                self.current_n = np.cross(np.array(state[3:6]), force_model.solar_pressure.radiation_location - state[0:3])
-                self.current_n = self.current_n / ( np.linalg.norm(self.current_n))
+                self.current_n = np.cross(np.array(state[3:6]),
+                                          force_model.solar_pressure.radiation_location - state[0:3])
+                self.current_n = self.current_n / (np.linalg.norm(self.current_n))
 
                 d_1_mod, d_2_mod, d_3_mod, _ = src.system_dynamics.SRP.sail_attitude([0, 0],
-                                                      radiation_location=force_model.solar_pressure.radiation_location,
-                                                      state=state[0:3])
+                                                                                     radiation_location=force_model.solar_pressure.radiation_location,
+                                                                                     state=state[0:3])
 
                 # Determine the sail control such that the sail normal actually has the correct orientation
-                force_model.solar_pressure.sail_control = angle_from_vector(v=self.current_n, d_1=d_1_mod, d_2=d_2_mod, d_3=d_3_mod)
-                self.current_control = np.array([0, 0, 0])  # force_model.solar_pressure.solar_acceleration(state=state[0:3])
+                force_model.solar_pressure.sail_control = angle_from_vector(v=self.current_n, d_1=d_1_mod, d_2=d_2_mod,
+                                                                            d_3=d_3_mod)
 
+                self.current_control = np.array(
+                    [0, 0, 0])  # force_model.solar_pressure.solar_acceleration(state=state[0:3])
 
         if not self.control_command_track:
             self.control_command_track = {"Tilt": [], "Clock": []}
         if not self.vel_angle_track:
             self.vel_angle_track = {"Target velocity tilt": [], "Target velocity clock": []}
-        self.control_command_track["Tilt"].append(sail_control[0])
-        self.control_command_track["Clock"].append(sail_control[1])
+        self.control_command_track["Tilt"].append(force_model.solar_pressure.sail_control[0])
+        self.control_command_track["Clock"].append(force_model.solar_pressure.sail_control[1])
 
         self.vel_angle_track["Target velocity tilt"].append(vel_angle[0])
         self.vel_angle_track["Target velocity clock"].append(vel_angle[1])

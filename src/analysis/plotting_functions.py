@@ -46,10 +46,12 @@ class graph_output:
     def get_reference_data(self):
         if self.list_of_spacecraft:
             self.integration_points = self.list_of_spacecraft[0].integration_points
-            self.bodies_traj = self.force_model.propagate_body_states(self.list_of_spacecraft[0].integration_points, self.force_model.central_mass, position_only=True)
+            self.bodies_traj = self.force_model.propagate_body_states(self.list_of_spacecraft[0].integration_points,
+                                                                      self.force_model.central_mass, position_only=True)
         elif self.lst_spec_sc:
             self.integration_points = self.lst_spec_sc[0].integration_points
-            self.bodies_traj = self.force_model.propagate_body_states(self.lst_spec_sc[0].integration_points, self.force_model.central_mass, position_only=True)
+            self.bodies_traj = self.force_model.propagate_body_states(self.lst_spec_sc[0].integration_points,
+                                                                      self.force_model.central_mass, position_only=True)
         else:
             raise ValueError("No integration points found!")
 
@@ -160,7 +162,10 @@ class graph_output:
 
         # Get the body reference trajectory, in case of moving_window. dict()
         if moving_window:
-            ref_trajectory = self.force_model.propagate_body_states(times=self.integration_points, mass=self.force_model.central_mass, body_list=[moving_window["Body"]])[moving_window["Body"]]
+            ref_trajectory = \
+                self.force_model.propagate_body_states(times=self.integration_points,
+                                                       mass=self.force_model.central_mass,
+                                                       body_list=[moving_window["Body"]])[moving_window["Body"]]
 
         # Begin of init()
         def init():
@@ -326,9 +331,12 @@ class graph_output:
 
             # Apply moving window:
             if moving_window:
-                ax.set_xlim(ref_trajectory[0][k] - moving_window["x"] * 0.5, ref_trajectory[0][k] + moving_window["x"] * 0.5)
-                ax.set_ylim(ref_trajectory[1][k] - moving_window["y"] * 0.5, ref_trajectory[1][k] + moving_window["y"] * 0.5)
-                ax.set_zlim(ref_trajectory[2][k] - moving_window["z"] * 0.5, ref_trajectory[2][k] + moving_window["z"] * 0.5)
+                ax.set_xlim(ref_trajectory[0][k] - moving_window["x"] * 0.5,
+                            ref_trajectory[0][k] + moving_window["x"] * 0.5)
+                ax.set_ylim(ref_trajectory[1][k] - moving_window["y"] * 0.5,
+                            ref_trajectory[1][k] + moving_window["y"] * 0.5)
+                ax.set_zlim(ref_trajectory[2][k] - moving_window["z"] * 0.5,
+                            ref_trajectory[2][k] + moving_window["z"] * 0.5)
 
             return artists
 
@@ -1279,7 +1287,7 @@ class graph_output:
                              s=1,
                              label=sc_special.display_name)
                 ax_3.plot(self.integration_points,
-                          sc_special.drag_acc_y,
+                          sc_special.drag_acc_z,
                           color=colors[sci],
                           linewidth=size_data["dia_linewidth"],
                           alpha=size_data["plot_alpha"])
@@ -1369,7 +1377,7 @@ class graph_output:
         axes = []
         n_key = len(list(self.lst_spec_sc[0].control_input_track.keys()))
         for i, key in enumerate(self.lst_spec_sc[0].control_input_track.keys()):
-            axis = fig.add_subplot(n_key, 1, i+1)
+            axis = fig.add_subplot(n_key, 1, i + 1)
             axis.set_title(key)
 
             axis.set_xlabel("Time [s]")
@@ -1411,10 +1419,125 @@ class graph_output:
                               linewidth=size_data["dia_linewidth"],
                               alpha=size_data["plot_alpha"])
 
-
         for axis in axes:
             ylim = axis.get_ylim()
             axis.set_ylim(ylim[0] - 0.1, ylim[1] + 0.1)
+
+        lgnd = axes[0].legend()
+        lgnd.set_draggable(True)
+        for handle in lgnd.legend_handles:
+            handle.set_sizes([50])
+
+        fig.subplots_adjust(hspace=0.5)
+
+    def plot_control_phase_space(self, time_dimension=False):
+        if not self.lst_spec_sc[0].control_input_track:
+            return None
+
+        fig = plt.figure(self.figure_counter + 1, figsize=(7.5, 2.5 * 1.5))
+        fig.set_facecolor(color_data["background"])
+        self.figure_counter += 1
+
+        axes = []
+        keys = list(self.lst_spec_sc[0].control_input_track.keys())
+        n_key = len(keys)
+
+        if n_key != 2:
+            return None
+
+        if not time_dimension:
+            axis = fig.add_subplot(111)
+            axis.set_title("Control phase space - " + keys[0] + " - " + keys[1])
+
+            axis.set_xlabel(keys[0])
+            axis.set_ylabel(keys[1])
+            axis.grid(visible=True, color=[0.5, 0.5, 1])
+
+            axis.grid(visible=True, color=[0.5, 0.5, 1])
+            axis.set_facecolor(color_data["background"])
+
+            axes.append(axis)
+
+            n_samp = len(self.lst_spec_sc)
+            cmap = plt.colormaps[color_data["map"]]
+            colors = cmap(np.linspace(0, 1, n_samp))
+
+            for sci, sc_special in enumerate(self.lst_spec_sc):
+                if isinstance(sc_special.plot_color, str):
+                    axis.scatter(sc_special.control_input_track[keys[0]],
+                                 sc_special.control_input_track[keys[1]],
+                                 color=colors[sci],
+                                 s=1,
+                                 label=sc_special.display_name)
+                    axis.plot(sc_special.control_input_track[keys[0]],
+                              sc_special.control_input_track[keys[1]],
+                              color=colors[sci],
+                              linewidth=size_data["dia_linewidth"],
+                              alpha=size_data["plot_alpha"])
+                else:
+                    axis.scatter(sc_special.control_input_track[keys[0]],
+                                 sc_special.control_input_track[keys[1]],
+                                 color=sc_special.plot_color,
+                                 s=1,
+                                 label=sc_special.display_name)
+                    axis.plot(sc_special.control_input_track[keys[0]],
+                              sc_special.control_input_track[keys[1]],
+                              color=sc_special.plot_color,
+                              linewidth=size_data["dia_linewidth"],
+                              alpha=size_data["plot_alpha"])
+
+            for axis in axes:
+                ylim = axis.get_ylim()
+                axis.set_ylim(ylim[0] - 0.1, ylim[1] + 0.1)
+        else:
+            axis = fig.add_subplot(111, projection="3d")
+            axis.set_title("Control phase space - " + keys[0] + " - " + keys[1] + " - time")
+
+            axis.set_xlabel(keys[0])
+            axis.set_ylabel("Time")
+            axis.set_zlabel(keys[1])
+            axis.grid(visible=True, color=[0.5, 0.5, 1])
+
+            axis.grid(visible=True, color=[0.5, 0.5, 1])
+            axis.set_facecolor(color_data["background"])
+
+            axes.append(axis)
+
+            n_samp = len(self.lst_spec_sc)
+            cmap = plt.colormaps[color_data["map"]]
+            colors = cmap(np.linspace(0, 1, n_samp))
+
+            for sci, sc_special in enumerate(self.lst_spec_sc):
+                if isinstance(sc_special.plot_color, str):
+                    axis.scatter(sc_special.control_input_track[keys[0]],
+                                 self.integration_points,
+                                 sc_special.control_input_track[keys[1]],
+                                 color=colors[sci],
+                                 s=1,
+                                 label=sc_special.display_name)
+                    axis.plot(sc_special.control_input_track[keys[0]],
+                              self.integration_points,
+                              sc_special.control_input_track[keys[1]],
+                              color=colors[sci],
+                              linewidth=size_data["dia_linewidth"],
+                              alpha=size_data["plot_alpha"])
+                else:
+                    axis.scatter(sc_special.control_input_track[keys[0]],
+                                 self.integration_points,
+                                 sc_special.control_input_track[keys[1]],
+                                 color=sc_special.plot_color,
+                                 s=1,
+                                 label=sc_special.display_name)
+                    axis.plot(sc_special.control_input_track[keys[0]],
+                              self.integration_points,
+                              sc_special.control_input_track[keys[1]],
+                              color=sc_special.plot_color,
+                              linewidth=size_data["dia_linewidth"],
+                              alpha=size_data["plot_alpha"])
+
+            axis.xaxis.pane.fill = False
+            axis.yaxis.pane.fill = False
+            axis.zaxis.pane.fill = False
 
         lgnd = axes[0].legend()
         lgnd.set_draggable(True)
@@ -1434,7 +1557,7 @@ class graph_output:
         axes = []
         n_key = len(list(self.lst_spec_sc[0].vel_angle_track.keys()))
         for i, key in enumerate(self.lst_spec_sc[0].vel_angle_track.keys()):
-            axis = fig.add_subplot(n_key, 1, i+1)
+            axis = fig.add_subplot(n_key, 1, i + 1)
             axis.set_title(key)
 
             axis.set_xlabel("Time [s]")
@@ -1475,7 +1598,6 @@ class graph_output:
                               color=sc_special.plot_color,
                               linewidth=size_data["dia_linewidth"],
                               alpha=size_data["plot_alpha"])
-
 
         for axis in axes:
             ylim = axis.get_ylim()

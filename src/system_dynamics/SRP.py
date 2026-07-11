@@ -77,6 +77,12 @@ class Solar_pressure:
         self.sail_control = [0, 0]
         self.central_attractor_mass = central_attractor_mass
 
+        # Select either the ideal or a real sail model, depending on the parameter set load
+        if sail_model == "ideal":
+            self.base_sail_model = self.ideal_sail
+        else:
+            self.base_sail_model = self.real_sail
+
     def ideal_sail(self, state):
 
         d_1, d_2, d_3, n = sail_attitude(sail_control=self.sail_control, radiation_location=self.radiation_location,
@@ -100,6 +106,7 @@ class Solar_pressure:
         clock = self.sail_control[1]
 
         # Parameter defintions:
+        # Acceleration
         P = modified_inverse_square_SRP(radiation_location=self.radiation_location, sail_loading=self.sail_parameters["sigma"],
                                         state=state) * self.sail_parameters["sigma"]
 
@@ -142,7 +149,7 @@ class Solar_pressure:
         return acc, f_n, f_t
 
     def solar_acceleration(self, state):
-        acc, _, _ = self.ideal_sail(state=state)
+        acc, _, _ = self.base_sail_model(state=state)
         return acc
 
 

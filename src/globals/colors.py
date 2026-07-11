@@ -14,7 +14,7 @@ def get_color_data():
     colors["background"] = (1, 1, 1)# (0, 0, 0)  # (21/265, 20/265, 27/265)
     colors["ticks"] = (0, 0, 0) # (1, 1, 1)
     colors["grid"] = (0.7, 0.6, 1)
-    colors["map"] = "hsv" # "jet"
+    colors["map"] = "jet" # "jet"
 
     colors["lagrange_marker_symbol"] = "D"
     colors["lagrange_marker_color"] = [1, 0.5, 0.5]

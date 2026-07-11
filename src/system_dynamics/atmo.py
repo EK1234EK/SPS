@@ -2,8 +2,8 @@ import math
 import numpy as np
 import ssl
 from pyatmos import coesa76
-ssl._create_default_https_context = ssl._create_unverified_context
 
+ssl._create_default_https_context = ssl._create_unverified_context
 
 from src.globals.Constants import get_globals
 
@@ -11,35 +11,36 @@ G, MY, KS_TOLERANCE, GRAV_CONST, EARTH_RADIUS = get_globals()
 
 
 def get_coeff():
-    coeff = {   25000: 	 [7249, 1.225E+00],
-    30000: 	 [6349, 3.899E-02],
-    40000: 	 [6682, 1.774E-02],
-    50000: 	 [7554, 3.972E-03],
-    60000: 	 [8382, 1.057E-03],
-    70000: 	 [7714, 3.206E-03],
-    80000: 	 [6549, 8.770E-05],
-    90000: 	 [5799, 1.905E-05],
-    100000:  [5382, 3.396E-06],
-    110000:  [5877, 5.297E-07],
-    120000:  [7263, 9.661E-08],
-    130000:  [9473, 2.438E-08],
-    140000:  [12636, 8.484E-09],
-    150000:  [16149 ,3.845E-09],
-    180000:  [22523, 2.070E-09],
-    200000:  [29740, 5.464E-10],
-    250000:  [37105, 2.789E-10],
-    300000:  [45546, 7.248E-11],
-    350000:  [53628, 2.418E-11],
-    400000:  [53298, 9.518E-12],
-    450000:  [58515, 3.725E-12],
-    500000:  [60828, 1.585E-12],
-    600000:  [63822, 6.967E-13],
-    700000:  [71835, 1.454E-13],
-    800000:  [88667, 3.614E-14],
-    900000:  [124640, 1.170E-14],
-    1000000: [181050, 5.245E-15],
-	}
+    coeff = {25000: [7249, 1.225E+00],
+             30000: [6349, 3.899E-02],
+             40000: [6682, 1.774E-02],
+             50000: [7554, 3.972E-03],
+             60000: [8382, 1.057E-03],
+             70000: [7714, 3.206E-03],
+             80000: [6549, 8.770E-05],
+             90000: [5799, 1.905E-05],
+             100000: [5382, 3.396E-06],
+             110000: [5877, 5.297E-07],
+             120000: [7263, 9.661E-08],
+             130000: [9473, 2.438E-08],
+             140000: [12636, 8.484E-09],
+             150000: [16149, 3.845E-09],
+             180000: [22523, 2.070E-09],
+             200000: [29740, 5.464E-10],
+             250000: [37105, 2.789E-10],
+             300000: [45546, 7.248E-11],
+             350000: [53628, 2.418E-11],
+             400000: [53298, 9.518E-12],
+             450000: [58515, 3.725E-12],
+             500000: [60828, 1.585E-12],
+             600000: [63822, 6.967E-13],
+             700000: [71835, 1.454E-13],
+             800000: [88667, 3.614E-14],
+             900000: [124640, 1.170E-14],
+             1000000: [181050, 5.245E-15],
+             }
     return coeff
+
 
 def get_aero_parameters():
     params = {
@@ -48,6 +49,7 @@ def get_aero_parameters():
         "V_R": 0.05
     }
     return params
+
 
 class Atmopshere:
     def __init__(self):
@@ -60,6 +62,8 @@ class Atmopshere:
         self.keys = list(self.atmo_coeff.keys())
         self.Cd = None
 
+        self.static_drag = 0.1
+
     def get_params(self, height):
         # key = self.keys[-1]
         for i, key in enumerate(self.keys):
@@ -67,7 +71,7 @@ class Atmopshere:
                 if i == 0:
                     self.lower_altitude = 0
                 else:
-                    self.lower_altitude = self.keys[i-1]
+                    self.lower_altitude = self.keys[i - 1]
                 break
         params = self.atmo_coeff[key]
         self.H = params[0]
@@ -94,10 +98,11 @@ class Atmopshere:
     def get_Cd(self, vel: np.array, n: np.array):
         cos_aoa = np.dot(vel, n) / (np.linalg.norm(vel) * np.linalg.norm(n))
         # Armando, page 40
-        var_Cd = 2 * (self.aero_params["sigma_t"] + self.aero_params["sigma_n"] * self.aero_params["V_R"] * abs(cos_aoa) + (2 - self.aero_params["sigma_n"] - self.aero_params["sigma_t"] * cos_aoa ** 2)) * abs(cos_aoa)
-        base_Cd = 2 * (self.aero_params["sigma_t"] + self.aero_params["sigma_n"] * self.aero_params["V_R"] + (2 - self.aero_params["sigma_n"] - self.aero_params["sigma_t"]))
-        self.Cd = 0.9 * var_Cd + 0.1 * base_Cd
-
+        var_Cd = 2 * (self.aero_params["sigma_t"] + self.aero_params["sigma_n"] * self.aero_params["V_R"] * abs(
+            cos_aoa) + (2 - self.aero_params["sigma_n"] - self.aero_params["sigma_t"] * cos_aoa ** 2)) * abs(cos_aoa)
+        base_Cd = 2 * (self.aero_params["sigma_t"] + self.aero_params["sigma_n"] * self.aero_params["V_R"] + (
+                    2 - self.aero_params["sigma_n"] - self.aero_params["sigma_t"]))
+        self.Cd = (1 - self.static_drag) * var_Cd + self.static_drag * base_Cd
 
     def get_aero_acc(self, state: np.array, n: np.array, sigma: float):
         # Calling preparatory routines:
@@ -108,6 +113,7 @@ class Atmopshere:
         if np.linalg.norm(acc) < 1e-15:
             return np.array([0, 0, 0])
         return acc
+
 
 if __name__ == "__main__":
     import matplotlib.pyplot as plt
@@ -130,15 +136,13 @@ if __name__ == "__main__":
 
     dens_list_acc = np.zeros(len(state_mag))
     for k, state in enumerate(state_list):
-        coesa76_geom = coesa76([(np.linalg.norm(state) - EARTH_RADIUS)*0.001])
+        coesa76_geom = coesa76([(np.linalg.norm(state) - EARTH_RADIUS) * 0.001])
         rho = coesa76_geom.rho[0]
         print(rho)
         if rho == 0:
             dens_list_acc[k] = None
         else:
             dens_list_acc[k] = rho
-
-
 
     fig = plt.figure()
     ax = fig.add_subplot(211)
@@ -156,5 +160,3 @@ if __name__ == "__main__":
     ax_2.set_ylabel("Density error [kg / m^3]")
     ax_2.legend()
     plt.show()
-
-
