@@ -106,10 +106,12 @@ class Solar_pressure:
         clock = self.sail_control[1]
 
         # Parameter defintions:
-        # Acceleration
-        P = modified_inverse_square_SRP(radiation_location=self.radiation_location, sail_loading=self.sail_parameters["sigma"],
-                                        state=state) * self.sail_parameters["sigma"]
-
+        # Actually a pressure if multiplied by sigma
+        """P = modified_inverse_square_SRP(radiation_location=self.radiation_location, sail_loading=self.sail_parameters["sigma"],
+                                        state=state) * self.sail_parameters["sigma"]"""
+        # This is the NET PRESSURE as a result from force. The static solar pressure is only half this!
+        P = inverse_square_SRP(alpha, radiation_location=self.radiation_location, sail_loading=self.sail_parameters["sigma"], central_attractor_mass=self.central_attractor_mass, state=state) * self.sail_parameters["sigma"]
+        P /= 2  # This is important! We need static pressure for the rest of the calculation!
         d_1, d_2, d_3, n = sail_attitude(sail_control=[alpha, clock], radiation_location=self.radiation_location,
                                          state=state)
 
@@ -124,15 +126,20 @@ class Solar_pressure:
             t = n
         else:
             t = (d_1 - math.cos(alpha) * n) / math.sin(alpha)  # TODO Check if minus in numerator instead
+            t = t / np.linalg.norm(t)
+
 
         # Determining the two pre-factors:
-        # Normal force
-        f_n_mag = P * ((1 + r * s) * math.cos(alpha) ** 2 + B_f * (1 - s) * r * math.cos(alpha) + (1 - r) * math.cos(
-            alpha) * (
-                               epsilon_f * B_f - epsilon_B - B_b) / (epsilon_f + epsilon_B))
+        # Normal pressure
+        if epsilon_B == epsilon_f == 0:
+            f_n_mag = P * ((1 + r * s) * math.cos(alpha) ** 2 + B_f * (1 - s) * r * math.cos(alpha))
+        else:
+            f_n_mag = P * ((1 + r * s) * math.cos(alpha) ** 2 + B_f * (1 - s) * r * math.cos(alpha) + (1 - r) * math.cos(
+                alpha) * (
+                                   epsilon_f * B_f - epsilon_B - B_b) / (epsilon_f + epsilon_B))
         f_n = f_n_mag * n
 
-        # Transversal force
+        # Transversal pressure
         f_t_mag = P * (1 - r * s) * math.cos(alpha) * math.sin(alpha)
         f_t = f_t_mag * t
 
@@ -162,7 +169,7 @@ if __name__ == "__main__":
 
     def cartesian_surface_plots():
 
-        SRP = Solar_pressure(sail_model="ACS3", central_attractor_mass=1.989 * 10 ** 30)
+        SRP = Solar_pressure(sail_model="ACS3", central_attractor_mass=1.989 * 10 ** 30, sigma=0.044)
         state = [149*10**9, 0, 0]
 
         def get_acc(tilt, clock):

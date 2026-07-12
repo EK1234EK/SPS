@@ -603,8 +603,8 @@ def solar_pressure():
     solar_mass = 1.989 * 10 ** 30
 
     # tof_ref = [230, 460, 690, 920, 1150, 1380, 1610, 1840, 2070, 2300, 2530, 2760, 2990, 3220, 3450, 3680, 3910, 4140, 4370, 4600]
-    tof_ref = [230, 230]
-    sigma_ref = list(np.linspace(0.044, 0.044, len(tof_ref)))
+    tof_ref = [230, 230, 230, 230]
+    sigma_ref = list(np.linspace(1, 1, len(tof_ref)))
     tof_lst = []
     sc_list = []
     inp = input("Load pickle? (y)")
@@ -621,7 +621,12 @@ def solar_pressure():
             if idx == 0:
                 srp_model = SRP.Solar_pressure(sail_model="ideal", central_attractor_mass=solar_mass, sigma=sigma)
             elif idx == 1:
-                srp_model = SRP.Solar_pressure(sail_model="ACS3", central_attractor_mass=solar_mass, sigma=sigma)
+                srp_model = SRP.Solar_pressure(sail_model="ACS3", central_attractor_mass=solar_mass, sigma=None)
+            elif idx == 2:
+                srp_model = SRP.Solar_pressure(sail_model="Heligyro", central_attractor_mass=solar_mass, sigma=sigma)
+            elif idx == 3:
+                srp_model = SRP.Solar_pressure(sail_model="ideal_real", central_attractor_mass=solar_mass, sigma=sigma)
+
             srp_model.radiation_location = [149000000000, 0, 0]
             srp_model.sail_control = [0, 0]
             force_model.solar_pressure = srp_model
@@ -642,6 +647,10 @@ def solar_pressure():
                 sc_2.display_name = "Ideal"
             elif idx == 1:
                 sc_2.display_name = "ACS3"
+            elif idx == 2:
+                sc_2.display_name = "Heligyro"
+            elif idx == 3:
+                sc_2.display_name = "Ideal real ACS"
             else:
                 sc_2.display_name = "Gradient"
             sc_2.integration_points = integration_points
