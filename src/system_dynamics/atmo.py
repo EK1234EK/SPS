@@ -7,7 +7,7 @@ ssl._create_default_https_context = ssl._create_unverified_context
 
 from src.globals.Constants import get_globals
 
-G, MY, KS_TOLERANCE, GRAV_CONST, EARTH_RADIUS = get_globals()
+G, MY, KS_TOLERANCE, GRAV_CONST, EARTH_RADIUS, _ = get_globals()
 
 
 def get_coeff():

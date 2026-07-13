@@ -1,3 +1,5 @@
+import math
+
 def get_globals():
 
     G = 9.81
@@ -6,8 +8,9 @@ def get_globals():
     KS_TOLERANCE = 0.0000001
     GRAV_CONST = 6.67430*10**(-11)
     EARTH_RADIUS = 6378000
+    OBLIQUITY = 23.44 * math.pi / 180
 
-    return G, MY, KS_TOLERANCE, GRAV_CONST, EARTH_RADIUS
+    return G, MY, KS_TOLERANCE, GRAV_CONST, EARTH_RADIUS, OBLIQUITY
 
 def get_SRP_globals():
     sigma_star = 1.53 * 10**(-3)  # kg / m^2

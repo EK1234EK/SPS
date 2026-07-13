@@ -9,7 +9,7 @@ from matplotlib.projections import projection_registry
 import src.globals.Constants
 
 sigma_star, L_s, R_s, c = src.globals.Constants.get_SRP_globals()
-G, MY, KS_TOLERANCE, GRAV_CONST, EARTH_RADIUS = src.globals.Constants.get_globals()
+G, MY, KS_TOLERANCE, GRAV_CONST, EARTH_RADIUS, _ = src.globals.Constants.get_globals()
 
 
 def inverse_square_SRP(tilt_angle, radiation_location, sail_loading, central_attractor_mass, state):
