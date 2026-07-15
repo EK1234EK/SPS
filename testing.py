@@ -973,7 +973,7 @@ def inclination_checking():
     guidance_law = steering_laws.LocalOptimal()
     guidance_law.conversion_mass = earth_mass
     guidance_law.guidance_function = guidance_law.guidance_3
-    terminator = src.guidance.events.kill_integrator_altitude
+    terminator = src.guidance.events.kill_integrator_SMA
     guidance_law.terminator = terminator
     force_model.guidance = guidance_law
 
@@ -985,7 +985,7 @@ def inclination_checking():
                  [2638614.7315163864, 2638614.7315163864, 1],
                  [-753362.9238320779, -753362.9238320779, 1],
                  [-3074.0790258669726, -3074.0790258669726, 1],
-                 [-6384.415594809771, -6384.415594809771, 10],
+                 [-6384.415594809771, -6384.415594809771, 2],
                  [2928.463010243008, 2928.463010243008, 1],
                  [0, 0, 1]]
 
@@ -993,19 +993,19 @@ def inclination_checking():
     sw_1.do_integration = False
     sw_1.integration_points = integration_points
     sw_1.square_swarm('generic')
-    sw_1.create_and_integrate_swarm(rtol=1e-6, parproc=True, cores=11)
+    sw_1.create_and_integrate_swarm(rtol=1e-6, parproc=True, cores=5)
     # sw_1.get_swarm_body_distances(["Moon"])
 
-    inc_list = np.linspace(1*math.pi/180, 28.5*math.pi/180, manifolds[4][2])
-
+    inc_list = np.linspace(1*math.pi/180, 1*math.pi/180, manifolds[4][2])
 
     for i, sc in enumerate(sw_1.list_of_spacecraft):
         sc.init_state_vector = kepler_dynamics.oe_to_sv(EARTH_RADIUS + 1000000, 0.001, inc_list[i], 3, 3, 3, 0, earth_mass)
         sc.display_name = str(round(float(inc_list[i]) * 180 / math.pi, 3))
+        sc.force_model.guidance.bias = np.array([0.3 + 0.7 * i, 1 - 0.7 * i, 1, 1, 1, 1])
 
     sw_1.do_integration = True
 
-    sw_1.create_and_integrate_swarm(rtol=1e-6, parproc=True, cores=11)
+    sw_1.create_and_integrate_swarm(rtol=1e-6, parproc=True, cores=5)
 
     for i, sc in enumerate(sw_1.list_of_spacecraft):
         print("Inclination: ", round(float(inc_list[i]), 3), " Terminal distance: ", sc.slant_range_track[-1], end="")

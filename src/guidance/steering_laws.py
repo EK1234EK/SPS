@@ -90,6 +90,7 @@ class LocalOptimal:
 
         self.oe_direction = []
         self.target_oe = {"True time": []}
+        self.bias = np.ones(6)
 
         # Both need to be initialized before first integration step!
         self.control_command_track = dict()  # Write whatever you want into this at every interation
@@ -202,6 +203,10 @@ class LocalOptimal:
                 # weights[i] = (self.target_oe[oe] - oe_mat["center"][i])
             else:
                 weights[i] = 0
+
+        for i, weight in enumerate(weights):
+            # Additional scaling weights, that extend the approach of using orbital parameter differences
+            weight += self.bias[i]
 
         grad = np.transpose(np.dot(J_T, weights))[0]
 
@@ -339,14 +344,8 @@ class LocalOptimal:
         pos_sun = np.array([math.cos(arc_sun), math.sin(arc_sun), 0]) * 149000000000
         force_model.solar_pressure.radiation_location = pos_sun
 
-        self.target_oe = {"SMA": 100000000}
-        target_vel_change_SMA = self.target_orbit_gradient(state=state)
-
-        self.target_oe = {"INC": 28.5 * math.pi / 180}
-        target_vel_change_INC = self.target_orbit_gradient(state=state)
-
-        target_vel_change = target_vel_change_SMA + target_vel_change_INC
-        target_vel_change = target_vel_change / np.linalg.norm(target_vel_change)
+        self.target_oe = {"SMA": 10000000, "INC": 2.85*math.pi/180}
+        target_vel_change = self.target_orbit_gradient(state=state)
 
         sail_control, vel_angle, n = control_inversion_ideal(vel_change=target_vel_change, state=state,
                                                              force_model=force_model)
