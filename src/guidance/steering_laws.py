@@ -70,7 +70,7 @@ def get_jacobian(oe_mat, dv):
 
     for i in range(6):
         for j, delta_state in enumerate(["+vx", "+vy", "+vz"]):
-            # We are now using the difference between target and current orbital elements for the Jacobian
+            # We are now using the difference between target and current orbital elements for the Jacobian and normalize around the center parameter
             if oe_mat["center"][i] == 0:
                 jacobian[i][j] = (oe_mat[delta_state][i] - oe_mat["center"][i]) / dv
             else:
@@ -199,6 +199,7 @@ class LocalOptimal:
         for i, oe in enumerate(oe_name_list):
             if oe in self.target_oe.keys():
                 weights[i] = (self.target_oe[oe] - oe_mat["center"][i]) / oe_mat["center"][i]
+                # weights[i] = (self.target_oe[oe] - oe_mat["center"][i])
             else:
                 weights[i] = 0
 
@@ -338,9 +339,15 @@ class LocalOptimal:
         pos_sun = np.array([math.cos(arc_sun), math.sin(arc_sun), 0]) * 149000000000
         force_model.solar_pressure.radiation_location = pos_sun
 
-        self.target_oe = {"SMA": 100000000000}
+        self.target_oe = {"SMA": 100000000}
+        target_vel_change_SMA = self.target_orbit_gradient(state=state)
 
-        target_vel_change = self.target_orbit_gradient(state=state)
+        self.target_oe = {"INC": 28.5 * math.pi / 180}
+        target_vel_change_INC = self.target_orbit_gradient(state=state)
+
+        target_vel_change = target_vel_change_SMA + target_vel_change_INC
+        target_vel_change = target_vel_change / np.linalg.norm(target_vel_change)
+
         sail_control, vel_angle, n = control_inversion_ideal(vel_change=target_vel_change, state=state,
                                                              force_model=force_model)
         self.current_n = n
@@ -365,7 +372,7 @@ class LocalOptimal:
         pos_sun = np.array([math.cos(arc_sun), math.sin(arc_sun), 0]) * 149000000000
         force_model.solar_pressure.radiation_location = pos_sun
 
-        self.target_oe = {"SMA": 100000000000}
+        self.target_oe = {"INC": 0.3}
         if kepler_dynamics.sv_to_oe(state_vector=state, mass=self.conversion_mass)[
             0] > 950000000000 and self.guidance_trigger == 0:
             self.guidance_trigger = 1

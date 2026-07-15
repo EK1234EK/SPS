@@ -117,7 +117,7 @@ def gravitational_law(mass, x, y, z):
     return x_acc, y_acc, z_acc
 
 
-def J_X_acceleration_equator_reference(mass, x, y, z):
+"""def J_X_acceleration_equator_reference(mass, x, y, z):
     # Gets rotated by 23.44° out of the ecliptic
     # Define the J-X constants:
     J_2 = 1082.63e-6
@@ -149,7 +149,7 @@ def J_X_acceleration_equator_reference(mass, x, y, z):
     tilt_acc = np.dot(rot_mat, np.array([x_acc_add, y_acc_add, z_acc_add]))
     acc= tilt_acc + np.array([x_acc_base, y_acc_base, z_acc_base])
 
-    return acc[0], acc[1], acc[2]
+    return acc[0], acc[1], acc[2]"""
 
 """def J_X_acceleration_ecliptic_reference(mass, x, y, z):
     # Is aligned with the fundamental plane, the ecliptic
@@ -180,6 +180,40 @@ def J_X_acceleration_equator_reference(mass, x, y, z):
 
 
     return x_acc_base, y_acc_base, z_acc_base"""
+
+def J_X_acceleration_equator_reference(mass, x, y, z):
+    # The rotated one
+    # Define the J-X constants:
+    J_2 = 1082.63e-6
+    J_3 = -2.53e-6
+    J_4 = -1.61e-6
+
+    r_mag = math.sqrt(x ** 2 + y ** 2 + z ** 2)
+    my = GRAV_CONST * mass
+
+    rot_mat = np.array([[1, 0, 0], [0, math.cos(OBLIQUITY), math.sin(-OBLIQUITY)], [0, -math.sin(-OBLIQUITY), math.cos(OBLIQUITY)]])
+    r_ECI = np.dot(rot_mat, np.array([x, y, z]))
+
+    x_acc = (-my * r_ECI[0] / (r_mag ** 3)) * (1 -
+                                        (1.5 * J_2 * (EARTH_RADIUS / r_mag) ** 2) * (5 * ((r_ECI[2] ** 2) / (r_mag ** 2)) - 1) +
+                                        (2.5 * J_3 * (EARTH_RADIUS / r_mag) ** 3) * (3 * (r_ECI[2] / r_mag) - 7 * ((r_ECI[2] ** 3) / (r_mag ** 3))) -
+                                        (5 / 8) * J_4 * (EARTH_RADIUS / r_mag) ** 4 * (
+                                                3 - 42 * ((r_ECI[2] ** 2) / (r_mag ** 2)) + 63 * ((r_ECI[2] ** 4) / (r_mag ** 4)))
+                                        )
+    y_acc = (r_ECI[1] / r_ECI[0]) * x_acc
+
+    z_acc = (-my * r_ECI[2] / (r_mag ** 3)) * (1 +
+                                        (1.5 * J_2 * (EARTH_RADIUS / r_mag) ** 2) * (3 - 5 * ((r_ECI[2] ** 2) / (r_mag ** 2))) +
+                                        (1.5 * J_3 * (EARTH_RADIUS / r_mag) ** 3) * (
+                                                10 * (r_ECI[2] / r_mag) - (35 / 3) * ((r_ECI[2] ** 3) / (r_mag ** 3)) - r_mag / r_ECI[2]) -
+                                        (5 / 8) * J_4 * (EARTH_RADIUS / r_mag) ** 4 * (
+                                                15 - 70 * ((r_ECI[2] ** 2) / (r_mag ** 2)) + 63 * ((r_ECI[2] ** 4) / (r_mag ** 4)))
+                                        )
+    acc_ECI = np.array([x_acc, y_acc ,z_acc])
+    # Rotating the acceleration vector back
+    acc_I = np.dot(np.transpose(rot_mat), acc_ECI)
+
+    return acc_I[0], acc_I[1], acc_I[2]
 
 def J_X_acceleration_ecliptic_reference(mass, x, y, z):
     # Define the J-X constants:

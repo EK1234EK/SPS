@@ -838,7 +838,7 @@ def atmpshere_min_altitude():
 
     force_model = sd_1.inertial_force_model(path="./data/empty_dataset.xlsx")
     force_model.define_central_attractor(mass=earth_mass, position=[0, 0, 0])
-    # force_model.central_attractor_gravity_law = src.astrodynamic_functions.kepler_dynamics.J_X_acceleration_ecliptic_reference
+    force_model.central_attractor_gravity_law = src.astrodynamic_functions.kepler_dynamics.J_X_acceleration_ecliptic_reference
     srp_model = SRP.Solar_pressure(sail_model="ACS3", central_attractor_mass=solar_mass, sigma=sigma)
     srp_model.radiation_location = [149000000000, 0, 0]
     srp_model.sail_control = [0, 0]
@@ -950,8 +950,8 @@ def atmpshere_min_altitude():
 
 def inclination_checking():
     t_start = 0
-    t_end = 10*24*3600
-    integration_points = list(np.linspace(t_start, t_end, 1000))
+    t_end = 500*24*3600
+    integration_points = list(np.linspace(t_start, t_end, 10000))
     earth_mass = 5.9722e24
     solar_mass = 1.989 * 10 ** 30
 
@@ -964,13 +964,28 @@ def inclination_checking():
 
     force_model = sd_1.inertial_force_model(path="./data/empty_dataset.xlsx")
     force_model.define_central_attractor(mass=earth_mass, position=[0, 0, 0])
-    force_model.central_attractor_gravity_law = src.astrodynamic_functions.kepler_dynamics.J_X_acceleration_equator_reference
+    # force_model.central_attractor_gravity_law = src.astrodynamic_functions.kepler_dynamics.J_X_acceleration_equator_reference
+    srp_model = SRP.Solar_pressure(sail_model="ideal", central_attractor_mass=solar_mass, sigma=0.01)
+    srp_model.radiation_location = [149000000000, 0, 0]
+    srp_model.sail_control = [0, 0]
+    force_model.solar_pressure = srp_model
+
+    guidance_law = steering_laws.LocalOptimal()
+    guidance_law.conversion_mass = earth_mass
+    guidance_law.guidance_function = guidance_law.guidance_3
+    terminator = src.guidance.events.kill_integrator_altitude
+    guidance_law.terminator = terminator
+    force_model.guidance = guidance_law
+
+    drag_model = atmo.Atmopshere()
+    drag_model.static_drag = 0
+    # force_model.drag_model = drag_model
 
     manifolds = [[-6197696.3949212525, -6197696.3949212525, 1],
                  [2638614.7315163864, 2638614.7315163864, 1],
                  [-753362.9238320779, -753362.9238320779, 1],
                  [-3074.0790258669726, -3074.0790258669726, 1],
-                 [-6384.415594809771, -6384.415594809771, 30],
+                 [-6384.415594809771, -6384.415594809771, 10],
                  [2928.463010243008, 2928.463010243008, 1],
                  [0, 0, 1]]
 
@@ -981,17 +996,24 @@ def inclination_checking():
     sw_1.create_and_integrate_swarm(rtol=1e-6, parproc=True, cores=11)
     # sw_1.get_swarm_body_distances(["Moon"])
 
-    inc_list = np.linspace(0.1*math.pi/180, 40*math.pi/180, manifolds[4][2])
+    inc_list = np.linspace(1*math.pi/180, 28.5*math.pi/180, manifolds[4][2])
 
 
     for i, sc in enumerate(sw_1.list_of_spacecraft):
-        sc.init_state_vector = kepler_dynamics.oe_to_sv(EARTH_RADIUS + 800000, 0.001, inc_list[i], 3, 3, 3, 0, earth_mass)
+        sc.init_state_vector = kepler_dynamics.oe_to_sv(EARTH_RADIUS + 1000000, 0.001, inc_list[i], 3, 3, 3, 0, earth_mass)
         sc.display_name = str(round(float(inc_list[i]) * 180 / math.pi, 3))
 
     sw_1.do_integration = True
 
-    sw_1.create_and_integrate_swarm(rtol=1e-12, parproc=True, cores=11)
+    sw_1.create_and_integrate_swarm(rtol=1e-6, parproc=True, cores=11)
 
+    for i, sc in enumerate(sw_1.list_of_spacecraft):
+        print("Inclination: ", round(float(inc_list[i]), 3), " Terminal distance: ", sc.slant_range_track[-1], end="")
+        try:
+            print(sc.event_time[0][0])
+        except:
+            print("No event trigger")
+            pass
 
     inp = input("Save= (y / n)")
     if inp == "y":
