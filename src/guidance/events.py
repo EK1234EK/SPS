@@ -19,7 +19,7 @@ def kill_integrator_SMA(time, state):
     OP = kepler_dynamics.sv_to_oe(state_vector=state, mass=5.97e24)
     SMA = OP[0]
     INC = OP[2]
-    if 9000000 < SMA < 11000000 and 9 * math.pi / 180 < INC < 11 * math.pi / 180:
+    if 19000000 < SMA < 21000000 and 23*math.pi/180 < INC < 25*math.pi/180:
         return 1
     else:
         return -1

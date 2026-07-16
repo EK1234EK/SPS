@@ -950,7 +950,7 @@ def atmpshere_min_altitude():
 
 def inclination_checking():
     t_start = 0
-    t_end = 500*24*3600
+    t_end = 100*24*3600
     integration_points = list(np.linspace(t_start, t_end, 10000))
     earth_mass = 5.9722e24
     solar_mass = 1.989 * 10 ** 30
@@ -985,7 +985,7 @@ def inclination_checking():
                  [2638614.7315163864, 2638614.7315163864, 1],
                  [-753362.9238320779, -753362.9238320779, 1],
                  [-3074.0790258669726, -3074.0790258669726, 1],
-                 [-6384.415594809771, -6384.415594809771, 2],
+                 [-6384.415594809771, -6384.415594809771, 3],
                  [2928.463010243008, 2928.463010243008, 1],
                  [0, 0, 1]]
 
@@ -996,21 +996,24 @@ def inclination_checking():
     sw_1.create_and_integrate_swarm(rtol=1e-6, parproc=True, cores=5)
     # sw_1.get_swarm_body_distances(["Moon"])
 
-    inc_list = np.linspace(1*math.pi/180, 1*math.pi/180, manifolds[4][2])
+    inc_list = np.linspace(19*math.pi/180, 19*math.pi/180, manifolds[4][2])
 
     for i, sc in enumerate(sw_1.list_of_spacecraft):
-        sc.init_state_vector = kepler_dynamics.oe_to_sv(EARTH_RADIUS + 1000000, 0.001, inc_list[i], 3, 3, 3, 0, earth_mass)
+        sc.init_state_vector = kepler_dynamics.oe_to_sv(EARTH_RADIUS + 7000000, 0.001, inc_list[i], 3, 3, 3, 0, earth_mass)
         # sc.display_name = str(round(float(inc_list[i]) * 180 /
         if i == 0:
-            sc.display_name = "SMA focus"
+            sc.display_name = "Baseline"
             sc.force_model.guidance.bias = np.array([1, 1, 1, 1, 1, 1])
+        elif i == 1:
+            sc.display_name = "SMA bias"
+            sc.force_model.guidance.bias = np.array([2, 1, 1, 1, 1, 1])
         else:
-            sc.display_name = "INC focus"
-            sc.force_model.guidance.bias = np.array([1, 1, 100, 1, 1, 1])
+            sc.display_name = "INC bias"
+            sc.force_model.guidance.bias = np.array([1, 1, 2, 1, 1, 1])
 
     sw_1.do_integration = True
 
-    sw_1.create_and_integrate_swarm(rtol=1e-6, parproc=True, cores=5)
+    sw_1.create_and_integrate_swarm(rtol=1e-5, parproc=True, cores=5)
 
     for i, sc in enumerate(sw_1.list_of_spacecraft):
         print("Inclination: ", round(float(inc_list[i]), 3), " Terminal distance: ", sc.slant_range_track[-1], end="")
