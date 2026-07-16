@@ -344,7 +344,7 @@ class LocalOptimal:
         pos_sun = np.array([math.cos(arc_sun), math.sin(arc_sun), 0]) * 149000000000
         force_model.solar_pressure.radiation_location = pos_sun
 
-        self.target_oe = {"SMA": 10000000, "INC": 2.85*math.pi/180}
+        self.target_oe = {"SMA": 10000000, "INC": 10*math.pi/180}
         target_vel_change = self.target_orbit_gradient(state=state)
 
         sail_control, vel_angle, n = control_inversion_ideal(vel_change=target_vel_change, state=state,

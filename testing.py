@@ -1000,8 +1000,13 @@ def inclination_checking():
 
     for i, sc in enumerate(sw_1.list_of_spacecraft):
         sc.init_state_vector = kepler_dynamics.oe_to_sv(EARTH_RADIUS + 1000000, 0.001, inc_list[i], 3, 3, 3, 0, earth_mass)
-        sc.display_name = str(round(float(inc_list[i]) * 180 / math.pi, 3))
-        sc.force_model.guidance.bias = np.array([0.3 + 0.7 * i, 1 - 0.7 * i, 1, 1, 1, 1])
+        # sc.display_name = str(round(float(inc_list[i]) * 180 /
+        if i == 0:
+            sc.display_name = "SMA focus"
+            sc.force_model.guidance.bias = np.array([1, 1, 1, 1, 1, 1])
+        else:
+            sc.display_name = "INC focus"
+            sc.force_model.guidance.bias = np.array([1, 1, 100, 1, 1, 1])
 
     sw_1.do_integration = True
 
