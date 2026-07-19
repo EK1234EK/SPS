@@ -41,6 +41,7 @@ class Spacecraft:
         self.condition_value = [0]
 
         self.event_time = None
+        self.event_cutoff_val = None
 
         # Steering track
         self.steer_x = []
@@ -137,7 +138,9 @@ class Spacecraft:
             self.force_model.drag_acc_z = []
             self.force_model.drag_mag_track = []
 
-        def get_acc_wrapper(t, state_vector):
+        def get_acc_wrapper(t, state_vector, _):
+            # The underscore is added to the function arguments because the integration cutoff event trigger function parameter
+            # is passed as an args argument and is therefore also written to f_dot=f(t, x) --> f(t, x, _)
             return self.get_acc(state_vector, t)
 
         print(self.display_name + ": ", end="")
@@ -155,6 +158,7 @@ class Spacecraft:
                 self.force_model.guidance.terminator.terminal = True
                 terminator_condition_fun = self.force_model.guidance.terminator
 
+        c = self.event_cutoff_val
         sol = solve_ivp(get_acc_wrapper,
                         t_span=[self.time_interval[0], self.time_interval[1]],
                         y0=self.init_state_vector,
@@ -163,7 +167,8 @@ class Spacecraft:
                         atol=atol,
                         rtol=rtol,
                         events=terminator_condition_fun,
-                        dense_output=True
+                        dense_output=True,
+                        args=(self.event_cutoff_val,)
                         )
         terminal_time = time.time()
         steps = sol.nfev

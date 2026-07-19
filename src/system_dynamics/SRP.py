@@ -78,6 +78,7 @@ class Solar_pressure:
         self.central_attractor_mass = central_attractor_mass
 
         # Select either the ideal or a real sail model, depending on the parameter set load
+        self.sail_model = sail_model
         if sail_model == "ideal":
             self.base_sail_model = self.ideal_sail
         else:
@@ -124,6 +125,8 @@ class Solar_pressure:
         temp = np.cross(n, incidence)
         if np.linalg.norm(temp) == 0:
             t = n
+        elif alpha == 0:
+            t = np.array([0, 0, 0])
         else:
             t = (d_1 - math.cos(alpha) * n) / math.sin(alpha)  # TODO Check if minus in numerator instead
             t = t / np.linalg.norm(t)

@@ -5,6 +5,7 @@ import src.system_dynamics.SRP
 from src.astrodynamic_functions import kepler_dynamics
 import numpy as np
 import math
+from src.system_dynamics import sail_repository
 from src.system_dynamics import SRP
 
 from src.astrodynamic_functions.kepler_dynamics import GRAV_CONST, EARTH_RADIUS
@@ -28,6 +29,36 @@ def angle_from_vector(v, d_1, d_2, d_3):
 
     return alpha, gamma
 
+def nonlin_alpha(sail, sigma, vel_change, state, force_model, a):
+    sail_params = sail_repository.Sail_parameters(sigma=sigma)
+    params = sail_params.sets[sail]
+    # Function to solve for the attitude of a real sail. Needs a numeric solution scheme
+    b_1 = 1 - params["r_f"]*params["s_f"]
+    b_2 = 2 * params["r_f"]*params["s_f"]
+    b_3 = params["B_f"] * (1 + params["s_f"]) * params["r_f"] + (1 - params["r_f"]) * params["e_f"]
+
+    d_1, d_2, d_3, n = src.system_dynamics.SRP.sail_attitude([0, 0],
+                                                             radiation_location=force_model.solar_pressure.radiation_location,
+                                                             state=state[0:3])
+    alpha_v, gamma_v = angle_from_vector(vel_change, d_1, d_2, d_3)
+
+    # Building the function to minimize
+    num = math.sin(a) * (3 * b_2 * math.cos(a)**2 + 2 * b_3 * math.cos(a) + b_1)
+    denom = 3 * b_2 * math.cos(a)**3 + 2 * b_3 * math.cos(a)**2 - 2 * b_2 * math.cos(a) - b_3  # TODO Is this really an exponent of 3, or a typo?
+
+    res = math.tan(alpha_v) - num / denom
+    return res
+
+"""def nonlin_alpha_test(a, alpha_v):
+    b_1 = 0.262
+    b_2 = 1.476
+    b_3 = 1.2970199999999998
+
+    num = math.sin(a) * (3 * b_2 * math.cos(a)**2 + 2 * b_3 * math.cos(a) + b_1)
+    denom = 3 * b_2 * math.cos(a)**3 + 2 * b_3 * math.cos(a)**2 - 2 * b_2 * math.cos(a) - b_3  # TODO Is this really an exponent of 3, or a typo?
+
+    res = math.tan(alpha_v) - num / denom
+    return res"""
 
 def control_inversion_ideal(vel_change, state, force_model):
     # Attention only use with ideal sail!
@@ -44,10 +75,10 @@ def control_inversion_ideal(vel_change, state, force_model):
     alpha = math.atan((-3 + (9 + 8 * math.tan(alpha_v) ** 2) ** 0.5) / (4 * math.tan(alpha_v)))
     if alpha < 0:
         alpha *= -1
-
+    res = nonlin_alpha("ACS3", None, vel_change, state, force_model, 0.1)
     return [alpha, gamma], [alpha_v, gamma_v], n
 
-def control_inversion_real_sail(vel_change, state, force_model):
+def control_inversion_real_sail(sail, sigma, vel_change, state, force_model):
     # To be used with real sail models. Also considers drag, as developed by Armando
     d_1, d_2, d_3, n = src.system_dynamics.SRP.sail_attitude([0, 0],
                                                              radiation_location=force_model.solar_pressure.radiation_location,
@@ -60,9 +91,10 @@ def control_inversion_real_sail(vel_change, state, force_model):
         alpha = 0.5 * math.pi
         return [alpha, gamma], [alpha_v, gamma_v], n
 
-    alpha = 0
-
-    return [alpha, gamma], [alpha_v, gamma_v], n
+    alpha_sample = np.linspace(0, 0.5 * math.pi, 100)
+    res = np.array([abs(nonlin_alpha(sail=sail, sigma=sigma, vel_change=vel_change, state=state, force_model=force_model, a=alpha_test)) for alpha_test in alpha_sample])
+    idx = np.argmin(res)
+    return [alpha_sample[idx], gamma], [alpha_v, gamma_v], n
 
 
 def get_jacobian(oe_mat, dv):
@@ -101,6 +133,8 @@ class LocalOptimal:
         self.guidance_function = None  # What function is read by the force model to actually return the acceleration
 
         self.current_n = None  # Sail normal at the current time step
+
+        self.initial_solar_phasing = 0
 
         # Awitching guiance functions
         self.guidance_trigger = 0
@@ -339,16 +373,49 @@ class LocalOptimal:
         self.vel_angle_track["Target velocity clock"].append(vel_angle[1])
         return self.current_control
 
-    def guidance_3(self, state, time, force_model):
-        arc_sun = (time / (24 * 3600 * 365)) * 2 * math.pi
+    def guidance_3_ideal(self, state, time, force_model):
+        arc_sun = (time / (24 * 3600 * 365)) * 2 * math.pi + self.initial_solar_phasing  # To account for the rotation of the orbital plane w.r.t. inbound radiation
         pos_sun = np.array([math.cos(arc_sun), math.sin(arc_sun), 0]) * 149000000000
         force_model.solar_pressure.radiation_location = pos_sun
 
-        self.target_oe = {"SMA": 20000000, "INC": 24*math.pi/180}
+        self.target_oe = {"SMA": 100000000, "INC": 28.5*math.pi/180}
         target_vel_change = self.target_orbit_gradient(state=state)
 
         sail_control, vel_angle, n = control_inversion_ideal(vel_change=target_vel_change, state=state,
                                                              force_model=force_model)
+        self.current_n = n
+
+        force_model.solar_pressure.sail_control = sail_control
+        self.current_control = force_model.solar_pressure.solar_acceleration(state=state[0:3])
+        if np.nan in self.current_control:
+            pass
+        if not self.control_command_track:
+            self.control_command_track = {"Tilt": [], "Clock": []}
+        if not self.vel_angle_track:
+            self.vel_angle_track = {"Target velocity tilt": [], "Target velocity clock": []}
+        self.control_command_track["Tilt"].append(sail_control[0])
+        self.control_command_track["Clock"].append(sail_control[1])
+
+        self.vel_angle_track["Target velocity tilt"].append(vel_angle[0])
+        self.vel_angle_track["Target velocity clock"].append(vel_angle[1])
+        return self.current_control
+
+    def guidance_3_optic(self, state, time, force_model):
+        arc_sun = (time / (24 * 3600 * 365)) * 2 * math.pi + self.initial_solar_phasing  # To account for the rotation of the orbital plane w.r.t. inbound radiation
+        pos_sun = np.array([math.cos(arc_sun), math.sin(arc_sun), 0]) * 149000000000
+        force_model.solar_pressure.radiation_location = pos_sun
+
+        # self.target_oe = {"SMA": 100000000, "INC": 28.5*math.pi/180}
+        if time == 52040.61455688963:
+            pass
+        self.target_oe = {"SMA": 100000000}
+        target_vel_change = self.target_orbit_gradient(state=state)
+
+        sail_control, vel_angle, n = control_inversion_real_sail(sail=force_model.solar_pressure.sail_model,
+                                                                 sigma=force_model.solar_pressure.sail_parameters["sigma"],
+                                                                 vel_change=target_vel_change,
+                                                                 state=state,
+                                                                 force_model=force_model)
         self.current_n = n
 
         force_model.solar_pressure.sail_control = sail_control
@@ -450,19 +517,16 @@ class LocalOptimal:
 
 
 if __name__ == "__main__":
-    import random
+    """import random
     import matplotlib.pyplot as plt
 
-    d_1 = np.array([1, 0, 0])
-    d_2 = np.array([0, -1, 0])
-    d_3 = np.array([0, 0, 1])
+    alpha_range = list(np.linspace(0, 0.5*math.pi, 100000))
+    res_array = [nonlin_alpha_test(a=0.5, alpha_v=alpha_v) for alpha_v in alpha_range]
+    alpha_ideal = [math.atan((-3 + (9 + 8 * math.tan(alpha_v) ** 2) ** 0.5) / (4 * math.tan(alpha_v))) for alpha_v in alpha_range]
 
-    alpha_v_array = np.linspace(-2 * math.pi, 2 * math.pi, 1000)
-    alpha = [math.atan((-3 + (9 + 8 * math.tan(alpha_v) ** 2) ** 0.5) / (4 * math.tan(alpha_v))) for alpha_v in
-             alpha_v_array]
     fig = plt.figure()
     ax = fig.add_subplot(111)
-    ax.plot(alpha_v_array, np.array(alpha))
-    ax.set_ylabel("Alpha control")
-    ax.set_xlabel("Alpha target")
+    ax.scatter(alpha_range, res_array)
+    ax.scatter(alpha_range, alpha_ideal)
     plt.show()
+"""

@@ -1,6 +1,10 @@
+import random
+from ctypes.wintypes import SMALL_RECT
+
 import numpy as np
 import matplotlib.pyplot as plt
 import pandas
+import pandas as pd
 
 import src.spacecraft.sc
 from src.system_dynamics import sd_1, SRP, atmo
@@ -9,6 +13,7 @@ from src.spacecraft import swarm_1
 from src.astrodynamic_functions import kepler_dynamics
 from src.feasibility import valid_set
 from src.guidance import steering_laws, events
+from miscellaneous import writer_tools
 import math
 import pickle
 
@@ -738,7 +743,7 @@ def escape_time():
 
     guidance_law = steering_laws.LocalOptimal()
     guidance_law.conversion_mass = earth_mass
-    guidance_law.guidance_function = guidance_law.guidance_3
+    guidance_law.guidance_function = guidance_law.guidance_3_ideal
     guidance_law.terminator = src.guidance.events.kill_integrator_C3
     force_model.guidance = guidance_law
 
@@ -950,7 +955,7 @@ def atmpshere_min_altitude():
 
 def inclination_checking():
     t_start = 0
-    t_end = 100*24*3600
+    t_end = 50*24*3600
     integration_points = list(np.linspace(t_start, t_end, 10000))
     earth_mass = 5.9722e24
     solar_mass = 1.989 * 10 ** 30
@@ -962,17 +967,17 @@ def inclination_checking():
     else:
         print("Integrating all initial conditions")
 
-    force_model = sd_1.inertial_force_model(path="./data/empty_dataset.xlsx")
+    force_model = sd_1.inertial_force_model(path="./data/Moon.xlsx")
     force_model.define_central_attractor(mass=earth_mass, position=[0, 0, 0])
-    # force_model.central_attractor_gravity_law = src.astrodynamic_functions.kepler_dynamics.J_X_acceleration_equator_reference
-    srp_model = SRP.Solar_pressure(sail_model="ideal", central_attractor_mass=solar_mass, sigma=0.01)
+    force_model.central_attractor_gravity_law = src.astrodynamic_functions.kepler_dynamics.J_X_acceleration_equator_reference
+    srp_model = SRP.Solar_pressure(sail_model="ideal_real", central_attractor_mass=solar_mass, sigma=0.02)
     srp_model.radiation_location = [149000000000, 0, 0]
     srp_model.sail_control = [0, 0]
     force_model.solar_pressure = srp_model
 
     guidance_law = steering_laws.LocalOptimal()
     guidance_law.conversion_mass = earth_mass
-    guidance_law.guidance_function = guidance_law.guidance_3
+    guidance_law.guidance_function = guidance_law.guidance_3_optic
     terminator = src.guidance.events.kill_integrator_SMA
     guidance_law.terminator = terminator
     force_model.guidance = guidance_law
@@ -985,43 +990,132 @@ def inclination_checking():
                  [2638614.7315163864, 2638614.7315163864, 1],
                  [-753362.9238320779, -753362.9238320779, 1],
                  [-3074.0790258669726, -3074.0790258669726, 1],
-                 [-6384.415594809771, -6384.415594809771, 3],
+                 [-6384.415594809771, -6384.415594809771, 1],
                  [2928.463010243008, 2928.463010243008, 1],
                  [0, 0, 1]]
 
-    sw_1 = swarm_1.particle_swarm(manifolds, force_model)
-    sw_1.do_integration = False
-    sw_1.integration_points = integration_points
-    sw_1.square_swarm('generic')
-    sw_1.create_and_integrate_swarm(rtol=1e-6, parproc=True, cores=5)
-    # sw_1.get_swarm_body_distances(["Moon"])
 
-    inc_list = np.linspace(19*math.pi/180, 19*math.pi/180, manifolds[4][2])
+    inc_list_base = np.linspace(1 * math.pi / 180, 28.5 * math.pi / 180, manifolds[4][2])
+    init_dist_list_base = np.linspace(2000000, 10000000, 1)
+    solar_phasing_list_base = np.linspace(0, 1.5 * math.pi, 1)
+    integration_cutoff_base = np.linspace(50000000, 100000000, 1)
 
-    for i, sc in enumerate(sw_1.list_of_spacecraft):
-        sc.init_state_vector = kepler_dynamics.oe_to_sv(EARTH_RADIUS + 7000000, 0.001, inc_list[i], 3, 3, 3, 0, earth_mass)
-        # sc.display_name = str(round(float(inc_list[i]) * 180 /
-        if i == 0:
-            sc.display_name = "Baseline"
-            sc.force_model.guidance.bias = np.array([1, 1, 1, 1, 1, 1])
-        elif i == 1:
-            sc.display_name = "SMA bias"
-            sc.force_model.guidance.bias = np.array([2, 1, 1, 1, 1, 1])
-        else:
-            sc.display_name = "INC bias"
-            sc.force_model.guidance.bias = np.array([1, 1, 2, 1, 1, 1])
+    init_result_df = pd.DataFrame()
+    init_result_df["r_init"] = []
+    init_result_df["INC_init"] = []
+    init_result_df["solar_phasing"] = []
+    init_result_df["propagation_cutoff_SMA"] = []
+    init_result_df["SMA"] = []
+    init_result_df["ECC"] = []
+    init_result_df["INC"] = []
+    init_result_df["t_s"] = []
 
-    sw_1.do_integration = True
+    init_result_df.to_csv("interface.csv")
 
-    sw_1.create_and_integrate_swarm(rtol=1e-5, parproc=True, cores=5)
+    for j_1 in range(len(init_dist_list_base)):
+        for j_2 in range(len(solar_phasing_list_base)):
+            for j_3 in range(len(integration_cutoff_base)):
+                # New randomization in each run
+                rand_inc_list = np.array([0] + [random.uniform(-0.5 * float(inc_list_base[0] - inc_list_base[1]), 0.5 * float(inc_list_base[0] - inc_list_base[1])) for i in
+                                                range(len(inc_list_base) - 2)] + [0]) if len(inc_list_base) > 1 else np.array([0])
+                rand_init_dist_list = np.array(
+                    [0] + [random.uniform(-0.5 * float(init_dist_list_base[0] - init_dist_list_base[1]), 0.5 * float(init_dist_list_base[0] - init_dist_list_base[1])) for i in
+                           range(len(init_dist_list_base) - 2)] + [0]) if len(init_dist_list_base) > 1 else np.array([0])
+                rand_solar_phasing_list = np.array([0] + [
+                    random.uniform(-0.5 * float(solar_phasing_list_base[0] - solar_phasing_list_base[1]), 0.5 * float(solar_phasing_list_base[0] - solar_phasing_list_base[1])) for
+                    i in range(len(solar_phasing_list_base) - 2)] + [0]) if len(solar_phasing_list_base) > 1 else np.array([0])
+                rand_integration_cutoff = np.array([0] + [
+                    random.uniform(-0.5 * float(integration_cutoff_base[0] - integration_cutoff_base[1]), 0.5 * float(integration_cutoff_base[0] - integration_cutoff_base[1])) for
+                    i in range(len(integration_cutoff_base) - 2)] + [0]) if len(integration_cutoff_base) > 1 else np.array([0])
 
-    for i, sc in enumerate(sw_1.list_of_spacecraft):
-        print("Inclination: ", round(float(inc_list[i]), 3), " Terminal distance: ", sc.slant_range_track[-1], end="")
-        try:
-            print(sc.event_time[0][0])
-        except:
-            print("No event trigger")
-            pass
+                inc_list = inc_list_base + rand_inc_list
+                init_dist_list = init_dist_list_base + rand_init_dist_list
+                solar_phasing_list = solar_phasing_list_base + rand_solar_phasing_list
+                integration_cutoff = integration_cutoff_base + rand_integration_cutoff
+
+                force_model.guidance.initial_solar_phasing = solar_phasing_list[j_2]
+
+                # Output arrays
+                r_init = []
+                init_INC = []
+                solar_phasing = []
+                propagation_cutoff_SMA = []
+
+                SMA = []
+                ECC = []
+                INC = []
+                t_s = []
+
+                sw_1 = swarm_1.particle_swarm(manifolds, force_model)
+                sw_1.do_integration = False
+                sw_1.integration_points = integration_points
+                sw_1.square_swarm('generic')
+                sw_1.create_and_integrate_swarm(rtol=1e-6, parproc=False, cores=11)
+                # sw_1.get_swarm_body_distances(["Moon"])
+
+                for i, sc in enumerate(sw_1.list_of_spacecraft):
+                    sc.event_cutoff_val = integration_cutoff[j_3]
+                    sc.init_state_vector = kepler_dynamics.oe_to_sv(EARTH_RADIUS + init_dist_list[j_1], 0.001, inc_list[i], 3, 3, 3, 0, earth_mass)
+                    # sc.display_name = str(round(float(inc_list[i]) * 180 /
+
+                sw_1.do_integration = True
+
+                sw_1.create_and_integrate_swarm(rtol=1e-5, parproc=False, cores=11)
+                for i, sc in enumerate(sw_1.list_of_spacecraft):
+                    print(sc.display_name, " Inclination: ", round(float(inc_list[i]), 3), " Terminal distance: ", sc.slant_range_track[-1], end="")
+                    try:
+                        print(sc.event_time[0][0])
+                    except:
+                        print("No event trigger")
+                        pass
+
+                # Extracting the state data from the setup
+                for i, sc in enumerate(sw_1.list_of_spacecraft):
+                    # Determining the final time:
+                    terminal_index = None
+                    if sc.event_time:
+                        for k in range(1, len(integration_points)-1):
+                            if integration_points[k-1] <= sc.event_time[0][0] <= integration_points[k]:
+                                terminal_index = k-1
+
+                    r_init.append(float(sc.orbital_parameters_track[0][0]))
+                    init_INC.append(float(inc_list[i]))
+                    solar_phasing.append(float(solar_phasing_list[j_2]))
+                    propagation_cutoff_SMA.append(float(integration_cutoff[j_3]))
+
+                    if terminal_index is not None:
+                        SMA.append(float(sc.orbital_parameters_track[0][terminal_index]))
+                        ECC.append(float(sc.orbital_parameters_track[1][terminal_index]))
+                        INC.append(float(sc.orbital_parameters_track[2][terminal_index]))
+                        t_s.append(float(sc.event_time[0][0]))
+                    else:
+                        SMA.append(None)
+                        ECC.append(None)
+                        INC.append(None)
+                        t_s.append(None)
+
+                out_df = pd.DataFrame()
+                out_df["r_init"] = r_init
+                out_df["INC_init"] = init_INC
+                out_df["solar_phasing"] = solar_phasing
+                out_df["propagation_cutoff_SMA"] = propagation_cutoff_SMA
+                out_df["SMA"] = SMA
+                out_df["ECC"] = ECC
+                out_df["INC"] = INC
+                out_df["t_s"] = INC
+
+                excel_data = pd.read_csv("interface.csv")
+                excel_data = pd.concat([excel_data, out_df], ignore_index=True)
+                excel_data.to_csv("interface.csv", index=False)
+
+                print("Initial radius: ", r_init)
+                print("Initial inclination: ", init_INC)
+                print("Solar phasing: ", solar_phasing)
+                print("Propagation cutoff SMA: ", propagation_cutoff_SMA)
+                print("Temrinal SMA: ", SMA)
+                print("Terminal ECC: ", ECC)
+                print("Terminal INC: ", INC)
+                print("Propagation time: ", t_s)
 
     inp = input("Save= (y / n)")
     if inp == "y":
