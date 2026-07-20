@@ -284,7 +284,8 @@ def CR3BP():
     plots.magnitude_plot()
     plots.body_distances_plot(["body_1", "body_2"])
     plots.trajectory_xyz()
-    plots.moving_map_plot(k_modulo=4, plot_central_attractor=False, match_tail_color=False, init_azim=0, init_elevation=35, azim_rate=0.5)
+    plots.moving_map_plot(k_modulo=4, plot_central_attractor=False, match_tail_color=False, init_azim=0,
+                          init_elevation=35, azim_rate=0.5)
 
 
 def CR3BP_ex_2():
@@ -526,8 +527,8 @@ def tBP_dynamics_testing():
     force_model_2.define_central_attractor(mass=earth_mass, position=[0, 0, 0])
 
     srp_model = SRP.Solar_pressure(sail_model="ACS3", central_attractor_mass=solar_mass)
-    srp_model.radiation_location = [149*10**8, 0, 0]
-    srp_model.sail_control = [0.25*math.pi, 0.5*math.pi]
+    srp_model.radiation_location = [149 * 10 ** 8, 0, 0]
+    srp_model.sail_control = [0.25 * math.pi, 0.5 * math.pi]
     # force_model.solar_pressure = srp_model
 
     guidance_law = steering_laws.LocalOptimal()
@@ -562,7 +563,8 @@ def tBP_dynamics_testing():
     sc_2.trajectory_conversion(mass=earth_mass)
     sc_2.plot_color = [1, 0, 1]
 
-    earth_traj = force_model.propagate_body_states(times=integration_points, mass=solar_mass, body_list=["Earth"])["Earth"]
+    earth_traj = force_model.propagate_body_states(times=integration_points, mass=solar_mass, body_list=["Earth"])[
+        "Earth"]
     for i in range(6):
         sc_2.trajectory_track[i] = list(np.array(sc_2.trajectory_track[i]) + np.array(earth_traj[i]))
 
@@ -594,7 +596,9 @@ def tBP_dynamics_testing():
     plots.magnitude_plot()
     plots.body_distances_plot(body_list=["Earth"])
     # plots.C3_plot()
-    plots.moving_map_plot(k_modulo=10, match_tail_color=True, moving_window={"Body": "Earth", "x": 200000000, "y": 200000000, "z": 200000000}, init_azim=45, init_elevation=45)
+    plots.moving_map_plot(k_modulo=10, match_tail_color=True,
+                          moving_window={"Body": "Earth", "x": 200000000, "y": 200000000, "z": 200000000}, init_azim=45,
+                          init_elevation=45)
     # plots.moving_map_plot(match_tail_color=False)
     plt.show()
     plt.waitforbuttonpress(10000000000)
@@ -602,7 +606,7 @@ def tBP_dynamics_testing():
 
 def solar_pressure():
     t_start = 0
-    t_end = 10*90*60
+    t_end = 10 * 90 * 60
     integration_points = list(np.linspace(t_start, t_end, 10000))
     earth_mass = 5.97e24
     solar_mass = 1.989 * 10 ** 30
@@ -645,7 +649,8 @@ def solar_pressure():
             guidance_law.terminator = src.guidance.events.kill_integrator_altitude
             force_model.guidance = guidance_law
 
-            orbit_state_1 = kepler_dynamics.oe_to_sv((6378+1010)*1000, 0, 23.44*math.pi / 180, 3, 3, 3, 0, earth_mass)
+            orbit_state_1 = kepler_dynamics.oe_to_sv((6378 + 1010) * 1000, 0, 23.44 * math.pi / 180, 3, 3, 3, 0,
+                                                     earth_mass)
 
             sc_2 = src.spacecraft.sc.Spacecraft(init_state_vector=orbit_state_1, force_model=force_model)
             if idx == 0:
@@ -716,12 +721,13 @@ def solar_pressure():
 
 def escape_time():
     t_start = 0
-    t_end = 5000*24*3600
+    t_end = 5000 * 24 * 3600
     integration_points = list(np.linspace(t_start, t_end, 5000))
     earth_mass = 5.97e24
     solar_mass = 1.989 * 10 ** 30
 
-    tof_ref = [230, 460, 690, 920, 1150, 1380, 1610, 1840, 2070, 2300, 2530, 2760, 2990, 3220, 3450, 3680, 3910, 4140, 4370, 4600]
+    tof_ref = [230, 460, 690, 920, 1150, 1380, 1610, 1840, 2070, 2300, 2530, 2760, 2990, 3220, 3450, 3680, 3910, 4140,
+               4370, 4600]
     sigma_ref = list(np.linspace(0.01, 0.20, len(tof_ref)))
     tof_lst = []
 
@@ -768,25 +774,26 @@ def escape_time():
     init_altitude = 700000
     sigma_lst = np.linspace(0.01, 0.2, manifolds[4][2])
 
-
     for i, sc in enumerate(sw_1.list_of_spacecraft):
         sc.force_model.solar_pressure.sail_parameters["sigma"] = sigma_lst[i]
         sc.display_name = str(round(sc.force_model.solar_pressure.sail_parameters["sigma"], 2))
-        sc.init_state_vector = kepler_dynamics.oe_to_sv(EARTH_RADIUS + init_altitude, 0, 23.44*math.pi / 180, 3, 3, 3, 0, earth_mass)
+        sc.init_state_vector = kepler_dynamics.oe_to_sv(EARTH_RADIUS + init_altitude, 0, 23.44 * math.pi / 180, 3, 3, 3,
+                                                        0, earth_mass)
 
     sw_1.do_integration = True
 
     sw_1.create_and_integrate_swarm(rtol=1e-5, parproc=True, cores=11)
     sw_1.get_swarm_body_distances(body_list=["Moon"])
 
-
     for i, sc in enumerate(sw_1.list_of_spacecraft):
         try:
-            print((np.linalg.norm(np.array(sc.init_state_vector[0:3])) - EARTH_RADIUS) * 0.001, "km  ", sc.force_model.solar_pressure.sail_parameters["sigma"], "   ",
+            print((np.linalg.norm(np.array(sc.init_state_vector[0:3])) - EARTH_RADIUS) * 0.001, "km  ",
+                  sc.force_model.solar_pressure.sail_parameters["sigma"], "   ",
                   round(sc.event_time[0][0] / (24 * 3600), 10))
             tof_lst.append(round(sc.event_time[0][0] / (24 * 3600), 10))
         except:
-            print((np.linalg.norm(np.array(sc.init_state_vector[0:3])) - EARTH_RADIUS) * 0.001, "km  ", sc.force_model.solar_pressure.sail_parameters["sigma"])
+            print((np.linalg.norm(np.array(sc.init_state_vector[0:3])) - EARTH_RADIUS) * 0.001, "km  ",
+                  sc.force_model.solar_pressure.sail_parameters["sigma"])
             tof_lst.append(None)
             pass
 
@@ -826,6 +833,7 @@ def escape_time():
     plt.show()
     plt.waitforbuttonpress(10000000000)
 
+
 def atmpshere_min_altitude():
     t_start = 0
     t_end = 70000
@@ -859,7 +867,7 @@ def atmpshere_min_altitude():
     drag_model.static_drag = 0.1
     force_model.drag_model = drag_model
 
-    init_ang = np.linspace(0*math.pi, 2 * math.pi, 1)
+    init_ang = np.linspace(0 * math.pi, 2 * math.pi, 1)
     sail_loading = np.linspace(0.5, 0.02, 1)
 
     min_alt = []
@@ -886,14 +894,17 @@ def atmpshere_min_altitude():
 
             for k, sc in enumerate(sw_1.list_of_spacecraft):
                 sc.force_model.solar_pressure.sail_parameters["sigma"] = sail_loading[j]
-                sc.init_state_vector = kepler_dynamics.oe_to_sv(EARTH_RADIUS + sample_altitude[k], 0.0001, 23.44*math.pi / 180, 3, 3, init_ang[i], 0, earth_mass)
-                sc.display_name = str(round(float(sample_altitude[k] * 0.001))) + " - " + str(round(float(sail_loading[j]), 3)) + " - " + str(round(float(init_ang[i] * 180 / math.pi), 3))
+                sc.init_state_vector = kepler_dynamics.oe_to_sv(EARTH_RADIUS + sample_altitude[k], 0.0001,
+                                                                23.44 * math.pi / 180, 3, 3, init_ang[i], 0, earth_mass)
+                sc.display_name = str(round(float(sample_altitude[k] * 0.001))) + " - " + str(
+                    round(float(sail_loading[j]), 3)) + " - " + str(round(float(init_ang[i] * 180 / math.pi), 3))
                 pass
             sw_1.do_integration = True
 
             sw_1.create_and_integrate_swarm(rtol=1e-5, parproc=True, cores=5)
 
-            altitude_list = [(np.linalg.norm(np.array(sc.init_state_vector[0:3])) - EARTH_RADIUS) * 0.001 for sc in sw_1.list_of_spacecraft]
+            altitude_list = [(np.linalg.norm(np.array(sc.init_state_vector[0:3])) - EARTH_RADIUS) * 0.001 for sc in
+                             sw_1.list_of_spacecraft]
             altitude_list = sorted(altitude_list)
 
             l = 0
@@ -903,13 +914,18 @@ def atmpshere_min_altitude():
 
             try:
                 if l == 0:
-                    min_alt.append({"TAEPO": round(float(init_ang[i]) * 180 / math.pi, 3), "Sigma": round(float(sail_loading[j]), 3), "Cutoff": round(altitude_list[l], 3)})
+                    min_alt.append({"TAEPO": round(float(init_ang[i]) * 180 / math.pi, 3),
+                                    "Sigma": round(float(sail_loading[j]), 3), "Cutoff": round(altitude_list[l], 3)})
                 else:
                     cutoff_alt_1 = altitude_list[l]
-                    cutoff_alt_2 = altitude_list[l-1]
-                    min_alt.append({"TAEPO": round(float(init_ang[i]) * 180 / math.pi, 3), "Sigma": round(float(sail_loading[j]), 3), "Cutoff": round((cutoff_alt_1 + cutoff_alt_2) / 2, 3)})
+                    cutoff_alt_2 = altitude_list[l - 1]
+                    min_alt.append({"TAEPO": round(float(init_ang[i]) * 180 / math.pi, 3),
+                                    "Sigma": round(float(sail_loading[j]), 3),
+                                    "Cutoff": round((cutoff_alt_1 + cutoff_alt_2) / 2, 3)})
             except:
-                min_alt.append({"TAEPO": round(float(init_ang[i]) * 180 / math.pi, 3), "Sigma": round(float(sail_loading[j]), 3), "Cutoff": None})
+                min_alt.append(
+                    {"TAEPO": round(float(init_ang[i]) * 180 / math.pi, 3), "Sigma": round(float(sail_loading[j]), 3),
+                     "Cutoff": None})
             print(min_alt[-1])
             all_sc = all_sc + sw_1.list_of_spacecraft
 
@@ -955,7 +971,7 @@ def atmpshere_min_altitude():
 
 def inclination_checking():
     t_start = 0
-    t_end = 50*24*3600
+    t_end = 50 * 24 * 3600
     integration_points = list(np.linspace(t_start, t_end, 10000))
     earth_mass = 5.9722e24
     solar_mass = 1.989 * 10 ** 30
@@ -994,7 +1010,6 @@ def inclination_checking():
                  [2928.463010243008, 2928.463010243008, 1],
                  [0, 0, 1]]
 
-
     inc_list_base = np.linspace(1 * math.pi / 180, 28.5 * math.pi / 180, manifolds[4][2])
     init_dist_list_base = np.linspace(2000000, 10000000, 1)
     solar_phasing_list_base = np.linspace(0, 1.5 * math.pi, 1)
@@ -1016,17 +1031,26 @@ def inclination_checking():
         for j_2 in range(len(solar_phasing_list_base)):
             for j_3 in range(len(integration_cutoff_base)):
                 # New randomization in each run
-                rand_inc_list = np.array([0] + [random.uniform(-0.5 * float(inc_list_base[0] - inc_list_base[1]), 0.5 * float(inc_list_base[0] - inc_list_base[1])) for i in
-                                                range(len(inc_list_base) - 2)] + [0]) if len(inc_list_base) > 1 else np.array([0])
+                rand_inc_list = np.array([0] + [random.uniform(-0.5 * float(inc_list_base[0] - inc_list_base[1]),
+                                                               0.5 * float(inc_list_base[0] - inc_list_base[1])) for i
+                                                in
+                                                range(len(inc_list_base) - 2)] + [0]) if len(
+                    inc_list_base) > 1 else np.array([0])
                 rand_init_dist_list = np.array(
-                    [0] + [random.uniform(-0.5 * float(init_dist_list_base[0] - init_dist_list_base[1]), 0.5 * float(init_dist_list_base[0] - init_dist_list_base[1])) for i in
-                           range(len(init_dist_list_base) - 2)] + [0]) if len(init_dist_list_base) > 1 else np.array([0])
+                    [0] + [random.uniform(-0.5 * float(init_dist_list_base[0] - init_dist_list_base[1]),
+                                          0.5 * float(init_dist_list_base[0] - init_dist_list_base[1])) for i in
+                           range(len(init_dist_list_base) - 2)] + [0]) if len(init_dist_list_base) > 1 else np.array(
+                    [0])
                 rand_solar_phasing_list = np.array([0] + [
-                    random.uniform(-0.5 * float(solar_phasing_list_base[0] - solar_phasing_list_base[1]), 0.5 * float(solar_phasing_list_base[0] - solar_phasing_list_base[1])) for
-                    i in range(len(solar_phasing_list_base) - 2)] + [0]) if len(solar_phasing_list_base) > 1 else np.array([0])
+                    random.uniform(-0.5 * float(solar_phasing_list_base[0] - solar_phasing_list_base[1]),
+                                   0.5 * float(solar_phasing_list_base[0] - solar_phasing_list_base[1])) for
+                    i in range(len(solar_phasing_list_base) - 2)] + [0]) if len(
+                    solar_phasing_list_base) > 1 else np.array([0])
                 rand_integration_cutoff = np.array([0] + [
-                    random.uniform(-0.5 * float(integration_cutoff_base[0] - integration_cutoff_base[1]), 0.5 * float(integration_cutoff_base[0] - integration_cutoff_base[1])) for
-                    i in range(len(integration_cutoff_base) - 2)] + [0]) if len(integration_cutoff_base) > 1 else np.array([0])
+                    random.uniform(-0.5 * float(integration_cutoff_base[0] - integration_cutoff_base[1]),
+                                   0.5 * float(integration_cutoff_base[0] - integration_cutoff_base[1])) for
+                    i in range(len(integration_cutoff_base) - 2)] + [0]) if len(
+                    integration_cutoff_base) > 1 else np.array([0])
 
                 inc_list = inc_list_base + rand_inc_list
                 init_dist_list = init_dist_list_base + rand_init_dist_list
@@ -1055,14 +1079,16 @@ def inclination_checking():
 
                 for i, sc in enumerate(sw_1.list_of_spacecraft):
                     sc.event_cutoff_val = integration_cutoff[j_3]
-                    sc.init_state_vector = kepler_dynamics.oe_to_sv(EARTH_RADIUS + init_dist_list[j_1], 0.001, inc_list[i], 3, 3, 3, 0, earth_mass)
+                    sc.init_state_vector = kepler_dynamics.oe_to_sv(EARTH_RADIUS + init_dist_list[j_1], 0.001,
+                                                                    inc_list[i], 3, 3, 3, 0, earth_mass)
                     # sc.display_name = str(round(float(inc_list[i]) * 180 /
 
                 sw_1.do_integration = True
 
                 sw_1.create_and_integrate_swarm(rtol=1e-5, parproc=False, cores=11)
                 for i, sc in enumerate(sw_1.list_of_spacecraft):
-                    print(sc.display_name, " Inclination: ", round(float(inc_list[i]), 3), " Terminal distance: ", sc.slant_range_track[-1], end="")
+                    print(sc.display_name, " Inclination: ", round(float(inc_list[i]), 3), " Terminal distance: ",
+                          sc.slant_range_track[-1], end="")
                     try:
                         print(sc.event_time[0][0])
                     except:
@@ -1074,9 +1100,9 @@ def inclination_checking():
                     # Determining the final time:
                     terminal_index = None
                     if sc.event_time:
-                        for k in range(1, len(integration_points)-1):
-                            if integration_points[k-1] <= sc.event_time[0][0] <= integration_points[k]:
-                                terminal_index = k-1
+                        for k in range(1, len(integration_points) - 1):
+                            if integration_points[k - 1] <= sc.event_time[0][0] <= integration_points[k]:
+                                terminal_index = k - 1
 
                     r_init.append(float(sc.orbital_parameters_track[0][0]))
                     init_INC.append(float(inc_list[i]))
