@@ -7,7 +7,6 @@ import math
 mpl.rcParams['axes3d.mouserotationstyle'] = 'azel'
 
 def get_data_dimensions(df):
-    keys = df.keys().tolist()
     base_domain_keys = ["r_init", "INC_init", "solar_phasing", "propagation_cutoff_SMA"]
 
     base_domain_reorder = dict()
