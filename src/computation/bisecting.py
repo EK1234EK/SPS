@@ -40,5 +40,5 @@ def bisecting(fun, lb, ub, x_tol):
         else:
             lb = m
         pass
-    print(m, "  - ", n_eval)
+    # print(m, "  - ", n_eval)
     return m, n_eval

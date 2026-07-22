@@ -30,18 +30,18 @@ def angle_from_vector(v, d_1, d_2, d_3):
     return alpha, gamma
 
 
-def nonlin_alpha_denom(b_1, b_2, b_3, alpha):
+def nonlin_alpha_denom(b_2, b_3, alpha):
     return 3 * b_2 * math.cos(alpha) ** 3 + 2 * b_3 * math.cos(alpha) ** 2 - 2 * b_2 * math.cos(
         alpha) - b_3
 
+def get_pole_alpha(b_2, b_3):
+    def alpha_wrapper(alpha):
+        return nonlin_alpha_denom(b_2=b_2, b_3=b_3, alpha=alpha)
+    pole, _ = bisecting.bisecting(fun=alpha_wrapper, lb=0, ub=0.5*math.pi, x_tol=math.pi/180)
+    return pole
 
-def nonlin_alpha(sail, sigma, vel_change, state, force_model, a):
-    sail_params = sail_repository.Sail_parameters(sigma=sigma)
-    params = sail_params.sets[sail]
-    # Function to solve for the attitude of a real sail. Needs a numeric solution scheme
-    b_1 = 1 - params["r_f"] * params["s_f"]
-    b_2 = 2 * params["r_f"] * params["s_f"]
-    b_3 = params["B_f"] * (1 + params["s_f"]) * params["r_f"] + (1 - params["r_f"]) * params["e_f"]
+
+def nonlin_alpha_residual(b_1, b_2, b_3, vel_change, state, force_model, a):
 
     d_1, d_2, d_3, n = src.system_dynamics.SRP.sail_attitude([0, 0],
                                                              radiation_location=force_model.solar_pressure.radiation_location,
@@ -51,12 +51,7 @@ def nonlin_alpha(sail, sigma, vel_change, state, force_model, a):
     # Building the function to minimize
     num = math.sin(a) * (3 * b_2 * math.cos(a) ** 2 + 2 * b_3 * math.cos(a) + b_1)
 
-    def denom_wrapper(alpha):
-        return nonlin_alpha_denom(b_1=b_1, b_2=b_2, b_3=b_3, alpha=alpha)
-
-    pole = bisecting.bisecting(fun=denom_wrapper, lb=0, ub=0.5 * math.pi, x_tol=math.pi / 180)
-
-    res = math.tan(alpha_v) - num / denom_wrapper(a)
+    res = math.tan(alpha_v) - num / nonlin_alpha_denom(b_2=b_2, b_3=b_3, alpha=a)
     return res
 
 
@@ -92,6 +87,13 @@ def control_inversion_ideal(vel_change, state, force_model):
 
 
 def control_inversion_real_sail(sail, sigma, vel_change, state, force_model):
+    sail_params = sail_repository.Sail_parameters(sigma=sigma)
+    params = sail_params.sets[sail]
+    # Function to solve for the attitude of a real sail. Needs a numeric solution scheme
+    b_1 = 1 - params["r_f"] * params["s_f"]
+    b_2 = 2 * params["r_f"] * params["s_f"]
+    b_3 = params["B_f"] * (1 + params["s_f"]) * params["r_f"] + (1 - params["r_f"]) * params["e_f"]
+
     # To be used with real sail models. Also considers drag, as developed by Armando
     d_1, d_2, d_3, n = src.system_dynamics.SRP.sail_attitude([0, 0],
                                                              radiation_location=force_model.solar_pressure.radiation_location,
@@ -104,17 +106,14 @@ def control_inversion_real_sail(sail, sigma, vel_change, state, force_model):
         alpha = 0.5 * math.pi
         return [alpha, gamma], [alpha_v, gamma_v], n
 
-    """alpha_sample = np.linspace(0, 0.5 * math.pi, 100)
-    res = np.array([abs(nonlin_alpha(sail=sail, sigma=sigma, vel_change=vel_change, state=state,
-                                     force_model=force_model, a=alpha_test)) for alpha_test in alpha_sample])
-    idx = np.argmin(res)"""
+    # Getting the pole of the alpha mapping function:
+    pole = get_pole_alpha(b_2, b_3)
 
     def nonlin_alpha_wrapper(alpha):
-        alpha_f = nonlin_alpha(sail=sail, sigma=sigma, vel_change=vel_change, state=state,
-                                  force_model=force_model, a=alpha)
-        return alpha_f
+        res = nonlin_alpha_residual(b_1=b_1, b_2=b_2, b_3=b_3, vel_change=vel_change, state=state, force_model=force_model, a=alpha)
+        return res
 
-    alpha_fit, _ = bisecting.bisecting(fun=nonlin_alpha_wrapper, lb=0, ub=0.5 * math.pi, x_tol=math.pi / 180)
+    alpha_fit, _ = bisecting.bisecting(fun=nonlin_alpha_wrapper, lb=0, ub=pole, x_tol=math.pi / 180)
     return [alpha_fit, gamma], [alpha_v, gamma_v], n
 
 
@@ -428,10 +427,9 @@ class LocalOptimal:
         pos_sun = np.array([math.cos(arc_sun), math.sin(arc_sun), 0]) * 149000000000
         force_model.solar_pressure.radiation_location = pos_sun
 
-        # self.target_oe = {"SMA": 100000000, "INC": 28.5*math.pi/180}
-        if time == 52040.61455688963:
-            pass
-        self.target_oe = {"SMA": 100000000}
+        self.target_oe = {"SMA": 110000000, "INC": 28.5*math.pi/180}
+
+        # self.target_oe = {"SMA": 100000000}
         target_vel_change = self.target_orbit_gradient(state=state)
 
         sail_control, vel_angle, n = control_inversion_real_sail(sail=force_model.solar_pressure.sail_model,

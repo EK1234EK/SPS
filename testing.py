@@ -971,7 +971,7 @@ def atmpshere_min_altitude():
 
 def inclination_checking():
     t_start = 0
-    t_end = 50 * 24 * 3600
+    t_end = 5000 * 24 * 3600
     integration_points = list(np.linspace(t_start, t_end, 10000))
     earth_mass = 5.9722e24
     solar_mass = 1.989 * 10 ** 30
@@ -986,7 +986,7 @@ def inclination_checking():
     force_model = sd_1.inertial_force_model(path="./data/Moon.xlsx")
     force_model.define_central_attractor(mass=earth_mass, position=[0, 0, 0])
     force_model.central_attractor_gravity_law = src.astrodynamic_functions.kepler_dynamics.J_X_acceleration_equator_reference
-    srp_model = SRP.Solar_pressure(sail_model="ideal_real", central_attractor_mass=solar_mass, sigma=0.02)
+    srp_model = SRP.Solar_pressure(sail_model="ACS3", central_attractor_mass=solar_mass, sigma=0.02)
     srp_model.radiation_location = [149000000000, 0, 0]
     srp_model.sail_control = [0, 0]
     force_model.solar_pressure = srp_model
@@ -1006,14 +1006,14 @@ def inclination_checking():
                  [2638614.7315163864, 2638614.7315163864, 1],
                  [-753362.9238320779, -753362.9238320779, 1],
                  [-3074.0790258669726, -3074.0790258669726, 1],
-                 [-6384.415594809771, -6384.415594809771, 1],
+                 [-6384.415594809771, -6384.415594809771, 22],
                  [2928.463010243008, 2928.463010243008, 1],
                  [0, 0, 1]]
 
-    inc_list_base = np.linspace(1 * math.pi / 180, 28.5 * math.pi / 180, manifolds[4][2])
-    init_dist_list_base = np.linspace(2000000, 10000000, 1)
-    solar_phasing_list_base = np.linspace(0, 1.5 * math.pi, 1)
-    integration_cutoff_base = np.linspace(50000000, 100000000, 1)
+    inc_list_base = np.linspace(3 * math.pi / 180, 28.5 * math.pi / 180, manifolds[4][2])
+    init_dist_list_base = np.linspace(5000000, 5000000, 1)
+    solar_phasing_list_base = np.linspace(0, 1.5 * math.pi, 20)
+    integration_cutoff_base = np.linspace(100000000, 100000000, 1)
 
     init_result_df = pd.DataFrame()
     init_result_df["r_init"] = []
@@ -1031,7 +1031,7 @@ def inclination_checking():
         for j_2 in range(len(solar_phasing_list_base)):
             for j_3 in range(len(integration_cutoff_base)):
                 # New randomization in each run
-                rand_inc_list = np.array([0] + [random.uniform(-0.5 * float(inc_list_base[0] - inc_list_base[1]),
+                """rand_inc_list = np.array([0] + [random.uniform(-0.5 * float(inc_list_base[0] - inc_list_base[1]),
                                                                0.5 * float(inc_list_base[0] - inc_list_base[1])) for i
                                                 in
                                                 range(len(inc_list_base) - 2)] + [0]) if len(
@@ -1050,6 +1050,26 @@ def inclination_checking():
                     random.uniform(-0.5 * float(integration_cutoff_base[0] - integration_cutoff_base[1]),
                                    0.5 * float(integration_cutoff_base[0] - integration_cutoff_base[1])) for
                     i in range(len(integration_cutoff_base) - 2)] + [0]) if len(
+                    integration_cutoff_base) > 1 else np.array([0])"""
+
+                rand_inc_list = np.array([random.uniform(-0.5 * float(inc_list_base[0] - inc_list_base[1]),
+                                                               0.5 * float(inc_list_base[0] - inc_list_base[1])) for i
+                                                in
+                                                range(len(inc_list_base))]) if len(
+                    inc_list_base) > 1 else np.array([0])
+                rand_init_dist_list = np.array([random.uniform(-0.5 * float(init_dist_list_base[0] - init_dist_list_base[1]),
+                                          0.5 * float(init_dist_list_base[0] - init_dist_list_base[1])) for i in
+                           range(len(init_dist_list_base))]) if len(init_dist_list_base) > 1 else np.array(
+                    [0])
+                rand_solar_phasing_list = np.array([
+                    random.uniform(-0.5 * float(solar_phasing_list_base[0] - solar_phasing_list_base[1]),
+                                   0.5 * float(solar_phasing_list_base[0] - solar_phasing_list_base[1])) for
+                    i in range(len(solar_phasing_list_base))]) if len(
+                    solar_phasing_list_base) > 1 else np.array([0])
+                rand_integration_cutoff = np.array([
+                    random.uniform(-0.5 * float(integration_cutoff_base[0] - integration_cutoff_base[1]),
+                                   0.5 * float(integration_cutoff_base[0] - integration_cutoff_base[1])) for
+                    i in range(len(integration_cutoff_base))]) if len(
                     integration_cutoff_base) > 1 else np.array([0])
 
                 inc_list = inc_list_base + rand_inc_list
@@ -1074,7 +1094,7 @@ def inclination_checking():
                 sw_1.do_integration = False
                 sw_1.integration_points = integration_points
                 sw_1.square_swarm('generic')
-                sw_1.create_and_integrate_swarm(rtol=1e-6, parproc=False, cores=11)
+                sw_1.create_and_integrate_swarm(rtol=1e-6, parproc=True, cores=11)
                 # sw_1.get_swarm_body_distances(["Moon"])
 
                 for i, sc in enumerate(sw_1.list_of_spacecraft):
@@ -1085,7 +1105,7 @@ def inclination_checking():
 
                 sw_1.do_integration = True
 
-                sw_1.create_and_integrate_swarm(rtol=1e-5, parproc=False, cores=11)
+                sw_1.create_and_integrate_swarm(rtol=1e-5, parproc=True, cores=11)
                 for i, sc in enumerate(sw_1.list_of_spacecraft):
                     print(sc.display_name, " Inclination: ", round(float(inc_list[i]), 3), " Terminal distance: ",
                           sc.slant_range_track[-1], end="")
@@ -1128,7 +1148,7 @@ def inclination_checking():
                 out_df["SMA"] = SMA
                 out_df["ECC"] = ECC
                 out_df["INC"] = INC
-                out_df["t_s"] = INC
+                out_df["t_s"] = t_s
 
                 excel_data = pd.read_csv("interface.csv")
                 excel_data = pd.concat([excel_data, out_df], ignore_index=True)
