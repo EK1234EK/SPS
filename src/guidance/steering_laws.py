@@ -156,8 +156,12 @@ class LocalOptimal:
 
         self.initial_solar_phasing = 0
 
-        # Awitching guiance functions
+        # Switching guidance functions
         self.guidance_trigger = 0
+
+        self.eclipse_model = None
+
+
 
     def target_orbit_pinv_jacobian(self, state):
 
@@ -427,7 +431,7 @@ class LocalOptimal:
         pos_sun = np.array([math.cos(arc_sun), math.sin(arc_sun), 0]) * 149000000000
         force_model.solar_pressure.radiation_location = pos_sun
 
-        self.target_oe = {"SMA": 110000000, "INC": 28.5*math.pi/180}
+        self.target_oe = {"SMA": 210000000, "INC": 5*math.pi/180}
 
         # self.target_oe = {"SMA": 100000000}
         target_vel_change = self.target_orbit_gradient(state=state)
@@ -442,6 +446,12 @@ class LocalOptimal:
 
         force_model.solar_pressure.sail_control = sail_control
         self.current_control = force_model.solar_pressure.solar_acceleration(state=state[0:3])
+
+        # Taking into account eclipses:
+        if self.eclipse_model:
+            nu = self.eclipse_model.get_eclipse_factor(sc_pos=state[0:3], sun_pos=pos_sun, time=time)
+            self.current_control = self.current_control * nu
+
         if np.nan in self.current_control:
             pass
         if not self.control_command_track:

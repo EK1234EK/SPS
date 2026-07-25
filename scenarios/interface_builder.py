@@ -1,3 +1,4 @@
+import copy
 import random
 from ctypes.wintypes import SMALL_RECT
 
@@ -5,6 +6,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import pandas
 import pandas as pd
+from numba.core.unsafe.eh import exception_check
 
 import src.spacecraft.sc
 from src.system_dynamics import sd_1, SRP, atmo
@@ -19,19 +21,43 @@ import pickle
 
 from src.system_dynamics.atmo import EARTH_RADIUS
 
-def create_initial_states(manifolds: dict, ):
+def randomize(arr: np.array):
+    rand_list = np.array([random.uniform(0, 0.5 * float(arr[1] - arr[0]))] + [random.uniform(-0.5 * float(arr[1] - arr[0]),
+    0.5 * float(arr[1] - arr[0])) for i in range(len(arr) - 2)] + [random.uniform(-0.5 * float(arr[1] - arr[0]), 0)]) if len(arr) > 1 else np.array([0])
+    arr = arr + rand_list
+    return arr
+
+def create_initial_states(manifolds: dict):
+    # Dict: {"Name", [lower, upper, samples, random]}
     n_s_vecs = 1
+    keys = list(manifolds.keys())
     for key in manifolds.keys():
         n_s_vecs *= manifolds[key][2]
 
-    states = [np.array() for _ in range(n_s_vecs)]
+    states = []  # [np.zeros(len(keys)) for _ in range(n_s_vecs)]
 
+    range_arr_list = [np.linspace(manifolds[key][0], manifolds[key][1], manifolds[key][2]) for key in keys]
+
+    for i_1 in range(manifolds[keys[0]][2]):
+        for i_2 in range(manifolds[keys[1]][2]):
+            for i_3 in range(manifolds[keys[2]][2]):
+                for i_4 in range(manifolds[keys[3]][2]):
+                    idx = [i_1, i_2, i_3, i_4]
+                    s_vec = np.zeros(len(keys))
+                    for k in range(len(range_arr_list)):
+                        if manifolds[keys[k]][3] == 1:
+                            rand_arr = randomize(arr=copy.deepcopy(range_arr_list[k]))
+                            s_vec[k] = rand_arr[idx[k]]
+                        else:
+                            s_vec[k] = range_arr_list[k][idx[k]]
+                    states.append(s_vec)
+    return np.array(states)
 
 
 def interface():
     t_start = 0
     t_end = 5000 * 24 * 3600
-    integration_points = list(np.linspace(t_start, t_end, 10000))
+    integration_points = list(np.linspace(t_start, t_end, 3000))
     earth_mass = 5.9722e24
     solar_mass = 1.989 * 10 ** 30
 
@@ -42,7 +68,7 @@ def interface():
     else:
         print("Integrating all initial conditions")
 
-    force_model = sd_1.inertial_force_model(path="./data/Moon.xlsx")
+    force_model = sd_1.inertial_force_model(path="./../data/Moon.xlsx")
     force_model.define_central_attractor(mass=earth_mass, position=[0, 0, 0])
     force_model.central_attractor_gravity_law = src.astrodynamic_functions.kepler_dynamics.J_X_acceleration_equator_reference
     srp_model = SRP.Solar_pressure(sail_model="ACS3", central_attractor_mass=solar_mass, sigma=0.02)
@@ -61,146 +87,162 @@ def interface():
     drag_model.static_drag = 0
     # force_model.drag_model = drag_model
 
-    manifolds = [[-6197696.3949212525, -6197696.3949212525, 1],
-                 [2638614.7315163864, 2638614.7315163864, 1],
-                 [-753362.9238320779, -753362.9238320779, 1],
-                 [-3074.0790258669726, -3074.0790258669726, 1],
-                 [-6384.415594809771, -6384.415594809771, 22],
-                 [2928.463010243008, 2928.463010243008, 1],
-                 [0, 0, 1]]
+    # Getting the states
 
-    inc_list_base = np.linspace(3 * math.pi / 180, 28.5 * math.pi / 180, manifolds[4][2])
-    init_dist_list_base = np.linspace(5000000, 5000000, 1)
-    solar_phasing_list_base = np.linspace(0, 1.5 * math.pi, 20)
-    integration_cutoff_base = np.linspace(100000000, 100000000, 1)
+    r_init__INC_init = {
+        "r_init": [20000000, 20000000, 1, 0],
+        "INC_init": [15*math.pi/180, 15 * math.pi / 180, 1, 0],
+        "solar_phasing": [0, 1.5*math.pi, 25, 1],
+        "propagation_cutoff_SMA": [50000000, 200000000, 25, 1],
+    }
 
-    init_result_df = pd.DataFrame()
-    init_result_df["r_init"] = []
-    init_result_df["INC_init"] = []
-    init_result_df["solar_phasing"] = []
-    init_result_df["propagation_cutoff_SMA"] = []
-    init_result_df["SMA"] = []
-    init_result_df["ECC"] = []
-    init_result_df["INC"] = []
-    init_result_df["t_s"] = []
+    r_init__solar_phasing = {
+        "r_init": [20000000, 20000000, 1, 0],
+        "INC_init": [5 * math.pi / 180, 18.5 * math.pi / 180, 25, 1],
+        "solar_phasing": [0, 0, 1, 0],
+        "propagation_cutoff_SMA": [50000000, 200000000, 25, 1],
+    }
 
-    init_result_df.to_csv("interface.csv")
+    r_init__propagation_cutoff_SMA = {
+        "r_init": [20000000, 20000000, 1, 0],
+        "INC_init": [5 * math.pi / 180, 18.5 * math.pi / 180, 25, 1],
+        "solar_phasing": [0, 1.5*math.pi, 25, 1],
+        "propagation_cutoff_SMA": [100000000, 100000000, 1, 0]
+    }
 
-    for j_1 in range(len(init_dist_list_base)):
-        for j_2 in range(len(solar_phasing_list_base)):
-            for j_3 in range(len(integration_cutoff_base)):
+    INC_init__solar_phasing = {
+        "r_init": [EARTH_RADIUS + 500000, 20000000, 25, 1],
+        "INC_init": [15 * math.pi / 180, 15 * math.pi / 180, 1, 0],
+        "solar_phasing": [0, 0, 1, 0],
+        "propagation_cutoff_SMA": [50000000, 200000000, 25, 1],
+    }
+
+    INC_init__propagation_cutoff_SMA = {
+        "r_init": [EARTH_RADIUS + 500000, 20000000, 25, 1],
+        "INC_init": [15 * math.pi / 180, 15 * math.pi / 180, 1, 0],
+        "solar_phasing": [0, 1.5*math.pi, 25, 1],
+        "propagation_cutoff_SMA": [100000000, 100000000, 1, 0],
+    }
+
+    solar_phasing__propagation_cutoff_SMA = {
+        "r_init": [EARTH_RADIUS + 500000, 20000000, 25, 1],
+        "INC_init": [5 * math.pi / 180, 18.5 * math.pi / 180, 25, 1],
+        "solar_phasing": [0, 0, 1, 0],
+        "propagation_cutoff_SMA": [100000000, 100000000, 1, 0],
+    }
+
+    data_sets = {
+        "r_init__INC_init": r_init__INC_init,
+        "r_init__solar_phasing": r_init__solar_phasing,
+        "r_init__propagation_cutoff_SMA": r_init__propagation_cutoff_SMA,
+        "INC_init__solar_phasing": INC_init__solar_phasing,
+        "INC_init__propagation_cutoff_SMA": INC_init__propagation_cutoff_SMA,
+        "solar_phasing__propagation_cutoff_SMA": solar_phasing__propagation_cutoff_SMA,
+    }
+
+    # =================================================== #
+    # Generating a set of two fixed dimensions for each of the combinations of four degrees of freedom.
+    # =================================================== #
+
+    test_cases = data_sets.keys()
+
+    for test_idx, case in enumerate(test_cases):
+        try:
+            manifolds_states = data_sets[case]
+
+            states = create_initial_states(manifolds_states)
+
+            manifolds = [[-6197696.3949212525, -6197696.3949212525, 1],
+                         [2638614.7315163864, 2638614.7315163864, 1],
+                         [-753362.9238320779, -753362.9238320779, 1],
+                         [-3074.0790258669726, -3074.0790258669726, 1],
+                         [-6384.415594809771, -6384.415594809771, len(states)],
+                         [2928.463010243008, 2928.463010243008, 1],
+                         [0, 0, 1]]
+
+            result_df = dict()
+            result_df["r_init"] = []
+            result_df["INC_init"] = []
+            result_df["solar_phasing"] = []
+            result_df["propagation_cutoff_SMA"] = []
+            result_df["SMA"] = []
+            result_df["ECC"] = []
+            result_df["INC"] = []
+            result_df["RAAN"] = []
+            result_df["APERI"] = []
+            result_df["t_s"] = []
+
+            # result_df.to_csv("interface.csv")
+
+            sw_1 = swarm_1.particle_swarm(manifolds, force_model)
+            sw_1.do_integration = False
+            sw_1.integration_points = integration_points
+            sw_1.square_swarm('generic')
+            sw_1.create_and_integrate_swarm(rtol=1e-6, parproc=True, cores=11)
+
+            for s, state in enumerate(states):
+                # State = [r_init, INC_init, solar_phasing, propagation_cutoff_SMA]
+
+                # Saving the initial domain
+                result_df["r_init"].append(state[0])
+                result_df["INC_init"].append(state[1])
+                result_df["solar_phasing"].append(state[2])
+                result_df["propagation_cutoff_SMA"].append(state[3])
+
+                sc = sw_1.list_of_spacecraft[s]
+
+                sc.force_model.guidance.initial_solar_phasing = state[2]
+
+                sc.event_cutoff_val = state[3]
+                sc.init_state_vector = kepler_dynamics.oe_to_sv(state[0], 0.001, state[1], 3, 3, 3, 0, earth_mass)
+
+            sw_1.do_integration = True
+
+            sw_1.create_and_integrate_swarm(rtol=1e-5, parproc=True, cores=11)
+
+            # Extracting the state data from the setup
+            for i, sc in enumerate(sw_1.list_of_spacecraft):
+                # Determining the final time:
+                terminal_index = None
+                if sc.event_time:
+                    for k in range(1, len(integration_points) - 1):
+                        if integration_points[k - 1] <= sc.event_time[0][0] <= integration_points[k]:
+                            terminal_index = k - 1
+
+                print("Inclination: ", round(float(states[i][1]), 3), " Terminal distance: ", round(sc.slant_range_track[terminal_index]), end="")
+                try:
+                    print("  ", sc.event_time[0][0])
+                except:
+                    print("No event trigger")
+                    pass
 
 
-                rand_inc_list = np.array([random.uniform(-0.5 * float(inc_list_base[0] - inc_list_base[1]),
-                                                               0.5 * float(inc_list_base[0] - inc_list_base[1])) for i
-                                                in
-                                                range(len(inc_list_base))]) if len(
-                    inc_list_base) > 1 else np.array([0])
-                rand_init_dist_list = np.array([random.uniform(-0.5 * float(init_dist_list_base[0] - init_dist_list_base[1]),
-                                          0.5 * float(init_dist_list_base[0] - init_dist_list_base[1])) for i in
-                           range(len(init_dist_list_base))]) if len(init_dist_list_base) > 1 else np.array(
-                    [0])
-                rand_solar_phasing_list = np.array([
-                    random.uniform(-0.5 * float(solar_phasing_list_base[0] - solar_phasing_list_base[1]),
-                                   0.5 * float(solar_phasing_list_base[0] - solar_phasing_list_base[1])) for
-                    i in range(len(solar_phasing_list_base))]) if len(
-                    solar_phasing_list_base) > 1 else np.array([0])
-                rand_integration_cutoff = np.array([
-                    random.uniform(-0.5 * float(integration_cutoff_base[0] - integration_cutoff_base[1]),
-                                   0.5 * float(integration_cutoff_base[0] - integration_cutoff_base[1])) for
-                    i in range(len(integration_cutoff_base))]) if len(
-                    integration_cutoff_base) > 1 else np.array([0])
+                if terminal_index is not None:
+                    result_df["SMA"].append(float(sc.orbital_parameters_track[0][terminal_index]))
+                    result_df["ECC"].append(float(sc.orbital_parameters_track[1][terminal_index]))
+                    result_df["INC"].append(float(sc.orbital_parameters_track[2][terminal_index]))
+                    result_df["RAAN"].append(float(sc.orbital_parameters_track[3][terminal_index]))
+                    result_df["APERI"].append(float(sc.orbital_parameters_track[4][terminal_index]))
+                    result_df["t_s"].append(float(sc.event_time[0][0]))
+                else:
+                    result_df["SMA"].append(None)
+                    result_df["ECC"].append(None)
+                    result_df["INC"].append(None)
+                    result_df["RAAN"].append(None)
+                    result_df["APERI"].append(None)
+                    result_df["t_s"].append(None)
 
-                inc_list = inc_list_base + rand_inc_list
-                init_dist_list = init_dist_list_base + rand_init_dist_list
-                solar_phasing_list = solar_phasing_list_base + rand_solar_phasing_list
-                integration_cutoff = integration_cutoff_base + rand_integration_cutoff
-
-                force_model.guidance.initial_solar_phasing = solar_phasing_list[j_2]
-
-                # Output arrays
-                r_init = []
-                init_INC = []
-                solar_phasing = []
-                propagation_cutoff_SMA = []
-
-                SMA = []
-                ECC = []
-                INC = []
-                t_s = []
-
-                sw_1 = swarm_1.particle_swarm(manifolds, force_model)
-                sw_1.do_integration = False
-                sw_1.integration_points = integration_points
-                sw_1.square_swarm('generic')
-                sw_1.create_and_integrate_swarm(rtol=1e-6, parproc=True, cores=11)
-                # sw_1.get_swarm_body_distances(["Moon"])
-
-                for i, sc in enumerate(sw_1.list_of_spacecraft):
-                    sc.event_cutoff_val = integration_cutoff[j_3]
-                    sc.init_state_vector = kepler_dynamics.oe_to_sv(EARTH_RADIUS + init_dist_list[j_1], 0.001,
-                                                                    inc_list[i], 3, 3, 3, 0, earth_mass)
-                    # sc.display_name = str(round(float(inc_list[i]) * 180 /
-
-                sw_1.do_integration = True
-
-                sw_1.create_and_integrate_swarm(rtol=1e-5, parproc=True, cores=11)
-                for i, sc in enumerate(sw_1.list_of_spacecraft):
-                    print(sc.display_name, " Inclination: ", round(float(inc_list[i]), 3), " Terminal distance: ",
-                          sc.slant_range_track[-1], end="")
-                    try:
-                        print(sc.event_time[0][0])
-                    except:
-                        print("No event trigger")
-                        pass
-
-                # Extracting the state data from the setup
-                for i, sc in enumerate(sw_1.list_of_spacecraft):
-                    # Determining the final time:
-                    terminal_index = None
-                    if sc.event_time:
-                        for k in range(1, len(integration_points) - 1):
-                            if integration_points[k - 1] <= sc.event_time[0][0] <= integration_points[k]:
-                                terminal_index = k - 1
-
-                    r_init.append(float(sc.orbital_parameters_track[0][0]))
-                    init_INC.append(float(inc_list[i]))
-                    solar_phasing.append(float(solar_phasing_list[j_2]))
-                    propagation_cutoff_SMA.append(float(integration_cutoff[j_3]))
-
-                    if terminal_index is not None:
-                        SMA.append(float(sc.orbital_parameters_track[0][terminal_index]))
-                        ECC.append(float(sc.orbital_parameters_track[1][terminal_index]))
-                        INC.append(float(sc.orbital_parameters_track[2][terminal_index]))
-                        t_s.append(float(sc.event_time[0][0]))
-                    else:
-                        SMA.append(None)
-                        ECC.append(None)
-                        INC.append(None)
-                        t_s.append(None)
-
-                out_df = pd.DataFrame()
-                out_df["r_init"] = r_init
-                out_df["INC_init"] = init_INC
-                out_df["solar_phasing"] = solar_phasing
-                out_df["propagation_cutoff_SMA"] = propagation_cutoff_SMA
-                out_df["SMA"] = SMA
-                out_df["ECC"] = ECC
-                out_df["INC"] = INC
-                out_df["t_s"] = t_s
-
-                excel_data = pd.read_csv("interface.csv")
-                excel_data = pd.concat([excel_data, out_df], ignore_index=True)
+            result_df = pd.DataFrame.from_dict(result_df)
+            try:
+                excel_data = pd.read_csv(case + ".csv")
+                excel_data = pd.concat([excel_data, result_df], ignore_index=True)
                 excel_data.to_csv("interface.csv", index=False)
+            except:
+                result_df.to_csv(case + ".csv")
 
-                print("Initial radius: ", r_init)
-                print("Initial inclination: ", init_INC)
-                print("Solar phasing: ", solar_phasing)
-                print("Propagation cutoff SMA: ", propagation_cutoff_SMA)
-                print("Temrinal SMA: ", SMA)
-                print("Terminal ECC: ", ECC)
-                print("Terminal INC: ", INC)
-                print("Propagation time: ", t_s)
+        except:
+            print("No data saved for test case ", case)
+
 
     inp = input("Save= (y / n)")
     if inp == "y":
@@ -228,7 +270,13 @@ def interface():
     plots.moving_map_plot(k_modulo=10, match_tail_color=True)
     # plots.moving_map_plot(match_tail_color=False)
     plt.show()
-    plt.waitforbuttonpress(10000000000)
+    # plt.waitforbuttonpress(10000000000)
+
+    inp = input("Save= (y / n)")
+    if inp == "y":
+        # Safe the stuff with pickle
+        pickle.dump(sw_1.list_of_spacecraft, open('sv.p', 'wb'))
+        pickle.dump(force_model, open('.p', 'wb'))
 
 if __name__ == "__main__":
     interface()

@@ -27,7 +27,7 @@ def normalize_target_domain(df):
         normalized_df[key] = list(np.array(df[key].tolist()) / max(df[key].tolist()))
     return normalized_df
 
-data_raw = pd.read_csv("../interface.csv")
+data_raw = pd.read_csv("../scenarios/solar_phasing__propagation_cutoff_SMA.csv")
 data_raw = data_raw.drop('Unnamed: 0', axis=1)
 
 # base_domain = get_data_dimensions(data_raw)

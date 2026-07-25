@@ -10,7 +10,6 @@ from src.globals import colors
 import matplotx
 
 color_data, size_data = colors.get_color_data()
-mpl.rcParams['axes3d.mouserotationstyle'] = 'azel'
 
 
 class graph_output:
