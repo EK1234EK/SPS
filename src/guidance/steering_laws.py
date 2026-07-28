@@ -431,9 +431,9 @@ class LocalOptimal:
         pos_sun = np.array([math.cos(arc_sun), math.sin(arc_sun), 0]) * 149000000000
         force_model.solar_pressure.radiation_location = pos_sun
 
-        self.target_oe = {"SMA": 210000000, "INC": 5*math.pi/180}
+        # self.target_oe = {"SMA": 210000000, "INC": 5*math.pi/180}
 
-        # self.target_oe = {"SMA": 100000000}
+        self.target_oe = {"SMA": 21000000}
         target_vel_change = self.target_orbit_gradient(state=state)
 
         sail_control, vel_angle, n = control_inversion_real_sail(sail=force_model.solar_pressure.sail_model,
@@ -463,7 +463,7 @@ class LocalOptimal:
 
         self.vel_angle_track["Target velocity tilt"].append(vel_angle[0])
         self.vel_angle_track["Target velocity clock"].append(vel_angle[1])
-        return self.current_control
+        return self.current_control * 0
 
     def guidance_atmo(self, state, time, force_model):
         arc_sun = (time / (24 * 3600 * 365)) * 2 * math.pi

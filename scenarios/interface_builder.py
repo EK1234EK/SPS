@@ -6,6 +6,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import pandas
 import pandas as pd
+from PIL.ImageSequence import all_frames
 from numba.core.unsafe.eh import exception_check
 
 import src.spacecraft.sc
@@ -70,7 +71,7 @@ def interface():
 
     force_model = sd_1.inertial_force_model(path="./../data/Moon.xlsx")
     force_model.define_central_attractor(mass=earth_mass, position=[0, 0, 0])
-    force_model.central_attractor_gravity_law = src.astrodynamic_functions.kepler_dynamics.J_X_acceleration_equator_reference
+    force_model.central_attractor_gravity_law = src.astrodynamic_functions.kepler_dynamics.J_X_acceleration_tilted_to_ecliptic
     srp_model = SRP.Solar_pressure(sail_model="ACS3", central_attractor_mass=solar_mass, sigma=0.02)
     srp_model.radiation_location = [149000000000, 0, 0]
     srp_model.sail_control = [0, 0]
@@ -131,6 +132,27 @@ def interface():
         "propagation_cutoff_SMA": [100000000, 100000000, 1, 0],
     }
 
+    all_grid_1 = {
+        "r_init": [EARTH_RADIUS + 500000, 20000000, 7, 1],
+        "INC_init": [5 * math.pi / 180, 18.5 * math.pi / 180, 7, 1],
+        "solar_phasing": [0, 0.5*math.pi, 3, 1],
+        "propagation_cutoff_SMA": [50000000, 200000000, 7, 1],
+    }
+
+    all_grid_2 = {
+        "r_init": [EARTH_RADIUS + 500000, 20000000, 7, 1],
+        "INC_init": [5 * math.pi / 180, 18.5 * math.pi / 180, 7, 1],
+        "solar_phasing": [0.55 * math.pi, 1 * math.pi, 3, 1],
+        "propagation_cutoff_SMA": [50000000, 200000000, 7, 1],
+    }
+
+    all_grid_3 = {
+        "r_init": [EARTH_RADIUS + 500000, 20000000, 7, 1],
+        "INC_init": [5 * math.pi / 180, 18.5 * math.pi / 180, 7, 1],
+        "solar_phasing": [1.05 * math.pi, 1.5 * math.pi, 3, 1],
+        "propagation_cutoff_SMA": [50000000, 200000000, 7, 1],
+    }
+
     data_sets = {
         "r_init__INC_init": r_init__INC_init,
         "r_init__solar_phasing": r_init__solar_phasing,
@@ -138,6 +160,12 @@ def interface():
         "INC_init__solar_phasing": INC_init__solar_phasing,
         "INC_init__propagation_cutoff_SMA": INC_init__propagation_cutoff_SMA,
         "solar_phasing__propagation_cutoff_SMA": solar_phasing__propagation_cutoff_SMA,
+    }
+
+    data_sets = {
+        "All_grid_1": all_grid_1,
+        "All_grid_2": all_grid_2,
+        "All_grid_3": all_grid_3
     }
 
     # =================================================== #

@@ -26,7 +26,7 @@ class eclipse_model:
 
         a = math.asin(R_s / np.linalg.norm(sun_pos - sc_pos))
         b = math.asin(body_dia / np.linalg.norm(s))
-        c = math.asin((-np.transpose(s) * (sun_pos - sc_pos)) / (np.linalg.norm(sun_pos - sc_pos)))
+        c = math.asin((-np.transpose(s) * (sun_pos - sc_pos)) / (np.linalg.norm(sun_pos - sc_pos)))  # TODO domain error in arcsin
 
         x = (c**2 + a**2 - b**2) / (2 * c)
         y = (a**2 - x**2)**0.5
@@ -39,5 +39,5 @@ class eclipse_model:
     def get_eclipse_factor(self, sc_pos, sun_pos, time):
         nu = 1
         for i, key in enumerate(self.eclipsing_bodies.keys()):
-            nu = nu * self.get_single_body_eclipse(body_name=key, body_dia=self.eclipsing_bodies[key]["dia"], time=time, sc_pos=sc_pos, sun_pos=sun_pos)
+            nu = nu * self.get_single_body_eclipse(body_name=key, body_dia=self.eclipsing_bodies[key], time=time, sc_pos=np.array(sc_pos), sun_pos=sun_pos)
         return nu

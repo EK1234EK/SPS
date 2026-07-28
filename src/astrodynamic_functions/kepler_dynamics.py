@@ -4,6 +4,7 @@ from src.globals import Constants
 
 G, _, KS_TOLERANCE, GRAV_CONST, EARTH_RADIUS, OBLIQUITY = Constants.get_globals()
 
+rot_mat = np.array([[1, 0, 0], [0, math.cos(OBLIQUITY), math.sin(-OBLIQUITY)], [0, -math.sin(-OBLIQUITY), math.cos(OBLIQUITY)]])
 
 def Kepler_solver(M_e, e):
     while M_e < -2 * math.pi:
@@ -181,7 +182,7 @@ def gravitational_law(mass, x, y, z):
 
     return x_acc_base, y_acc_base, z_acc_base"""
 
-def J_X_acceleration_equator_reference(mass, x, y, z):
+def J_X_acceleration_tilted_to_ecliptic(mass, x, y, z):
     # The rotated one
     # Define the J-X constants:
     J_2 = 1082.63e-6
@@ -191,7 +192,6 @@ def J_X_acceleration_equator_reference(mass, x, y, z):
     r_mag = math.sqrt(x ** 2 + y ** 2 + z ** 2)
     my = GRAV_CONST * mass
 
-    rot_mat = np.array([[1, 0, 0], [0, math.cos(OBLIQUITY), math.sin(-OBLIQUITY)], [0, -math.sin(-OBLIQUITY), math.cos(OBLIQUITY)]])
     r_ECI = np.dot(rot_mat, np.array([x, y, z]))
 
     x_acc = (-my * r_ECI[0] / (r_mag ** 3)) * (1 -
@@ -215,7 +215,7 @@ def J_X_acceleration_equator_reference(mass, x, y, z):
 
     return acc_I[0], acc_I[1], acc_I[2]
 
-def J_X_acceleration_ecliptic_reference(mass, x, y, z):
+def J_X_acceleration_not_tilted(mass, x, y, z):
     # Define the J-X constants:
     J_2 = 1082.63e-6
     J_3 = -2.53e-6
