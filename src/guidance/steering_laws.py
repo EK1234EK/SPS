@@ -451,19 +451,22 @@ class LocalOptimal:
         if self.eclipse_model:
             nu = self.eclipse_model.get_eclipse_factor(sc_pos=state[0:3], sun_pos=pos_sun, time=time)
             self.current_control = self.current_control * nu
+        else:
+            nu = 1
 
         if np.nan in self.current_control:
             pass
         if not self.control_command_track:
-            self.control_command_track = {"Tilt": [], "Clock": []}
+            self.control_command_track = {"Tilt": [], "Clock": [], "Eclipse factor": []}
         if not self.vel_angle_track:
             self.vel_angle_track = {"Target velocity tilt": [], "Target velocity clock": []}
         self.control_command_track["Tilt"].append(sail_control[0])
         self.control_command_track["Clock"].append(sail_control[1])
+        self.control_command_track["Eclipse factor"].append(nu)
 
         self.vel_angle_track["Target velocity tilt"].append(vel_angle[0])
         self.vel_angle_track["Target velocity clock"].append(vel_angle[1])
-        return self.current_control * 0
+        return self.current_control
 
     def guidance_atmo(self, state, time, force_model):
         arc_sun = (time / (24 * 3600 * 365)) * 2 * math.pi

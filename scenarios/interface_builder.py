@@ -88,6 +88,9 @@ def interface():
     drag_model.static_drag = 0
     # force_model.drag_model = drag_model
 
+    Eclipse_interface = src.system_dynamics.eclipse.eclipse_model(eclipse_bodies={"central_attractor": 6378000}, force_model=force_model)
+    force_model.guidance.eclipse_model = Eclipse_interface
+
     # Getting the states
 
     r_init__INC_init = {

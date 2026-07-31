@@ -971,7 +971,7 @@ def atmpshere_min_altitude():
 
 def simple_run():
     t_start = 0
-    t_end = 400 * 24 * 3600
+    t_end = 10 * 24 * 3600
     integration_points = list(np.linspace(t_start, t_end, 10000))
     earth_mass = 5.9722e24
     solar_mass = 1.989 * 10 ** 30
@@ -1003,10 +1003,10 @@ def simple_run():
     # force_model.drag_model = drag_model
 
     Eclipse_interface = src.system_dynamics.eclipse.eclipse_model(eclipse_bodies={"central_attractor": 6378000}, force_model=force_model)
-    force_model.guidance.eclipse_model = Eclipse_interface
+    # force_model.guidance.eclipse_model = Eclipse_interface
 
     # Params:
-    inc = [0.001]
+    inc = [0.001, 0.001]
     RAAN_list = [0]
     init_altitude = 1000000
     cutoff_SMA = 20000000
@@ -1015,7 +1015,7 @@ def simple_run():
                  [2638614.7315163864, 2638614.7315163864, 1],
                  [-753362.9238320779, -753362.9238320779, 1],
                  [-3074.0790258669726, -3074.0790258669726, 1],
-                 [-6384.415594809771, -6384.415594809771, 1],
+                 [-6384.415594809771, -6384.415594809771, 2],
                  [2928.463010243008, 2928.463010243008, 1],
                  [0, 0, 1]]
 
@@ -1024,18 +1024,21 @@ def simple_run():
     sw_1.do_integration = False
     sw_1.integration_points = integration_points
     sw_1.square_swarm('generic')
-    sw_1.create_and_integrate_swarm(rtol=1e-6, parproc=False, cores=11)
+    sw_1.create_and_integrate_swarm(rtol=1e-6, parproc=True, cores=11)
     # sw_1.get_swarm_body_distances(["Moon"])
 
     for i, sc in enumerate(sw_1.list_of_spacecraft):
+        if i == 1:
+            sc.force_model.guidance.eclipse_model = Eclipse_interface
+            sc.display_name = "Eclipses"
         sc.event_cutoff_val = cutoff_SMA
         sc.init_state_vector = kepler_dynamics.oe_to_sv(EARTH_RADIUS + init_altitude, 0.001,
-                                                        inc[i], RAAN_list[0], 3, 3, 0, earth_mass)
-        sc.display_name = str(round(float(RAAN_list[0]) * 180 / math.pi))
+                                                        inc[i], RAAN_list[0], 0.001, 3.14, 0, earth_mass)
+        # sc.display_name = str(round(float(RAAN_list[0]) * 180 / math.pi))
 
     sw_1.do_integration = True
 
-    sw_1.create_and_integrate_swarm(rtol=1e-7, parproc=False, cores=11)
+    sw_1.create_and_integrate_swarm(rtol=1e-7, parproc=True, cores=11)
     for i, sc in enumerate(sw_1.list_of_spacecraft):
         print(sc.display_name, " INC: ", round(float(inc[i]), 3), " Terminal distance: ",
               sc.slant_range_track[-1], end="")
