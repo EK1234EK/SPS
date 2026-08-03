@@ -10,7 +10,7 @@ from PIL.ImageSequence import all_frames
 from numba.core.unsafe.eh import exception_check
 
 import src.spacecraft.sc
-from src.system_dynamics import sd_1, SRP, atmo
+from src.system_dynamics import sd_1, SRP, atmo, eclipse
 from src.analysis import plotting_functions
 from src.spacecraft import swarm_1
 from src.astrodynamic_functions import kepler_dynamics
@@ -57,7 +57,7 @@ def create_initial_states(manifolds: dict):
 
 def interface():
     t_start = 0
-    t_end = 5000 * 24 * 3600
+    t_end = 3000 * 24 * 3600
     integration_points = list(np.linspace(t_start, t_end, 3000))
     earth_mass = 5.9722e24
     solar_mass = 1.989 * 10 ** 30
@@ -72,7 +72,7 @@ def interface():
     force_model = sd_1.inertial_force_model(path="./../data/Moon.xlsx")
     force_model.define_central_attractor(mass=earth_mass, position=[0, 0, 0])
     force_model.central_attractor_gravity_law = src.astrodynamic_functions.kepler_dynamics.J_X_acceleration_tilted_to_ecliptic
-    srp_model = SRP.Solar_pressure(sail_model="ACS3", central_attractor_mass=solar_mass, sigma=0.02)
+    srp_model = SRP.Solar_pressure(sail_model="ACS3", central_attractor_mass=solar_mass, sigma=0.04)
     srp_model.radiation_location = [149000000000, 0, 0]
     srp_model.sail_control = [0, 0]
     force_model.solar_pressure = srp_model
@@ -136,24 +136,24 @@ def interface():
     }
 
     all_grid_1 = {
-        "r_init": [EARTH_RADIUS + 500000, 20000000, 7, 1],
-        "INC_init": [5 * math.pi / 180, 18.5 * math.pi / 180, 7, 1],
+        "r_init": [EARTH_RADIUS + 500000, 20000000, 6, 1],
+        "INC_init": [5 * math.pi / 180, 18.5 * math.pi / 180, 6, 1],
         "solar_phasing": [0, 0.5*math.pi, 3, 1],
-        "propagation_cutoff_SMA": [50000000, 200000000, 7, 1],
+        "propagation_cutoff_SMA": [50000000, 200000000, 6, 1],
     }
 
     all_grid_2 = {
-        "r_init": [EARTH_RADIUS + 500000, 20000000, 7, 1],
-        "INC_init": [5 * math.pi / 180, 18.5 * math.pi / 180, 7, 1],
+        "r_init": [EARTH_RADIUS + 500000, 20000000, 6, 1],
+        "INC_init": [5 * math.pi / 180, 18.5 * math.pi / 180, 6, 1],
         "solar_phasing": [0.55 * math.pi, 1 * math.pi, 3, 1],
-        "propagation_cutoff_SMA": [50000000, 200000000, 7, 1],
+        "propagation_cutoff_SMA": [50000000, 200000000, 6, 1],
     }
 
     all_grid_3 = {
-        "r_init": [EARTH_RADIUS + 500000, 20000000, 7, 1],
-        "INC_init": [5 * math.pi / 180, 18.5 * math.pi / 180, 7, 1],
+        "r_init": [EARTH_RADIUS + 500000, 20000000, 6, 1],
+        "INC_init": [5 * math.pi / 180, 18.5 * math.pi / 180, 6, 1],
         "solar_phasing": [1.05 * math.pi, 1.5 * math.pi, 3, 1],
-        "propagation_cutoff_SMA": [50000000, 200000000, 7, 1],
+        "propagation_cutoff_SMA": [50000000, 200000000, 6, 1],
     }
 
     data_sets = {
@@ -209,7 +209,7 @@ def interface():
             sw_1.do_integration = False
             sw_1.integration_points = integration_points
             sw_1.square_swarm('generic')
-            sw_1.create_and_integrate_swarm(rtol=1e-6, parproc=True, cores=11)
+            sw_1.create_and_integrate_swarm(rtol=1e-6, parproc=True, cores=12)
 
             for s, state in enumerate(states):
                 # State = [r_init, INC_init, solar_phasing, propagation_cutoff_SMA]
@@ -223,13 +223,14 @@ def interface():
                 sc = sw_1.list_of_spacecraft[s]
 
                 sc.force_model.guidance.initial_solar_phasing = state[2]
+                sc.force_model.guidance.target_oe = {"SMA": state[3] + 10000000}
 
                 sc.event_cutoff_val = state[3]
                 sc.init_state_vector = kepler_dynamics.oe_to_sv(state[0], 0.001, state[1], 3, 3, 3, 0, earth_mass)
 
             sw_1.do_integration = True
 
-            sw_1.create_and_integrate_swarm(rtol=1e-5, parproc=True, cores=11)
+            sw_1.create_and_integrate_swarm(rtol=1e-5, parproc=True, cores=12)
 
             # Extracting the state data from the setup
             for i, sc in enumerate(sw_1.list_of_spacecraft):

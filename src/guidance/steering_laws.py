@@ -433,7 +433,7 @@ class LocalOptimal:
 
         # self.target_oe = {"SMA": 210000000, "INC": 5*math.pi/180}
 
-        self.target_oe = {"SMA": 21000000}
+        self.target_oe = {"SMA": 210000000}
         target_vel_change = self.target_orbit_gradient(state=state)
 
         sail_control, vel_angle, n = control_inversion_real_sail(sail=force_model.solar_pressure.sail_model,
