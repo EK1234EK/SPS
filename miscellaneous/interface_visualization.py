@@ -4,6 +4,8 @@ import matplotlib.pyplot as plt
 import matplotlib as mpl
 import math
 
+from src.Optimization import Interface
+
 mpl.rcParams['axes3d.mouserotationstyle'] = 'azel'
 
 output_keys = ["SMA", "ECC", "INC", "RAAN", "APERI", "t_s"]
@@ -30,8 +32,12 @@ def normalize_target_domain(df):
         normalized_df[key] = list(np.array(df[key].tolist()) / max(df[key].tolist()))
     return normalized_df
 
-data_raw = pd.read_csv("../scenarios/Legacy/r_init__INC_init.csv")
-data_raw = data_raw.drop('Unnamed: 0', axis=1)
+
+surface_plot_domain = ["solar_phasing", "INC_init"]  # TODO this needds to be two dimensions of the terminal space
+sampling = 10
+
+data_raw = pd.read_csv("../scenarios/Legacy/r_init__propagation_cutoff_SMA.csv")
+data_raw = data_raw.drop('empty', axis=1)
 
 # base_domain = get_data_dimensions(data_raw)
 normalized_data = normalize_target_domain(data_raw)
@@ -40,6 +46,9 @@ transform_data = ["INC_init", "solar_phasing"]
 for k in transform_data:
     normalized_data[k] = list(np.array(normalized_data[k]) * 180 / math.pi)
 
+# Get interpolated data:
+connector = Interface.Interface(discrete_interface=normalized_data, interface_states=output_keys)
+bounds = connector.get_convex_rectangle()
 
 # Plot the shit
 
@@ -48,6 +57,7 @@ colors = {"INC": [1, 0, 0], "SMA": [1, 0, 1], "ECC": [0, 0, 1], "t_s": [0, 1, 0]
 fig_1 = plt.figure()
 fig_2= plt.figure()
 fig_3 = plt.figure()
+fig_4 = plt.figure()
 
 axes = []
 
@@ -65,12 +75,12 @@ axes[0].legend()
 for i in range(len(output_keys)):
     axis = fig_2.add_subplot(math.ceil(len(output_keys)**0.5), math.ceil(len(output_keys)**0.5), i + 1, projection="3d")
     axis.set_title(output_keys[i])
-    axis.scatter(normalized_data["solar_phasing"].tolist(), normalized_data["INC_init"].tolist(), normalized_data[output_keys[i]].tolist(), label=output_keys[i], color=colors[output_keys[i]], marker=".")
+    axis.scatter(normalized_data[surface_plot_domain[0]].tolist(), normalized_data[surface_plot_domain[1]].tolist(), normalized_data[output_keys[i]].tolist(), label=output_keys[i], color=colors[output_keys[i]], marker=".")
     axis.set_xlabel("Solar phasing")
     axis.set_ylabel("INC_init")
     axis.set_zlabel(output_keys[i])
 
-# Parameter vs. parameter plots
+# Output parameter vs. output parameter plots
 axes = []
 iter = 1
 for i_1, param_1 in enumerate(output_keys):
@@ -81,6 +91,21 @@ for i_1, param_1 in enumerate(output_keys):
         ax.set_ylabel(param_2)
         axes.append(ax)
         iter += 1
-# fig_3.tight_layout()
+
+# t_s vs. output parameter surface plots
+# First, get the output parameters that are NOT constant:
+params = []
+for k in output_keys:
+    if k != "t_s":
+        params.append(k)
+
+
+
+
+X, Y = np.meshgrid(np.linspace(bounds[surface_plot_domain[0]][0], bounds[surface_plot_domain[0]][1], sampling),
+                   np.linspace(bounds[surface_plot_domain[1]][0], bounds[surface_plot_domain[1]][1], sampling))
+
+
+
 plt.show()
 
