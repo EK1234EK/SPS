@@ -1,14 +1,18 @@
+from cProfile import label
+
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib as mpl
 import math
+import copy
 
 from src.Optimization import Interface
 
 mpl.rcParams['axes3d.mouserotationstyle'] = 'azel'
 
 output_keys = ["SMA", "ECC", "INC", "RAAN", "APERI", "t_s"]
+# output_keys = ["SMA", "ECC", "INC", "t_s"]
 input_keys = ["r_init", "INC_init", "solar_phasing", "propagation_cutoff_SMA"]
 
 def get_data_dimensions(df):
@@ -32,15 +36,72 @@ def normalize_target_domain(df):
         normalized_df[key] = list(np.array(df[key].tolist()) / max(df[key].tolist()))
     return normalized_df
 
+def create_sample_points(params, sampling):
+    import itertools
+
+    sample_dict =dict()
+    plot_dict = dict()
+    comb_sample = itertools.product(params, params)
+
+    all_par_plot_dict = dict()
+    all_par_points = []
+
+    all_par_disc = []
+    for p in params:
+        all_par_disc.append(list(np.linspace(bounds[p][0], bounds[p][1], sampling)))
+
+    # Create the vectors that include all dimensions:
+    var_par = itertools.product(*all_par_disc)
+
+    for i, key in enumerate(params):
+        all_par_plot_dict[key] = []
+
+    for vp, par_set in enumerate(var_par):
+        all_par_points.append(par_set)
+        for i, key in enumerate(params):
+            all_par_plot_dict[key].append(par_set[i])
+
+# Generating 2d slices
+
+    for cs in comb_sample:
+        par_disc = []
+
+        if cs[0] != cs[1]:
+            dct = []
+            for p in params:
+                # all_par_disc.append(np.linspace(bounds[p][0], bounds[p][1], sampling))
+                if p in cs:
+                   dct.append(np.linspace(bounds[p][0], bounds[p][1], sampling))
+                   par_disc.append(np.linspace(bounds[p][0], bounds[p][1], sampling))
+                else:
+                    dct.append([0.3 * (bounds[p][0] + bounds[p][1])])
+
+            ep_iter = itertools.product(*dct)
+            expaded_points = [e for e in ep_iter]
+            sample_dict[cs[0] + cs[1]] = expaded_points
+
+            # Get the 1d plotting arrays
+            dim_arr_1 =[]
+            dim_arr_2 = []
+            for a_1 in par_disc[0]:
+                for a_2 in par_disc[1]:
+                    dim_arr_1.append(a_1)
+                    dim_arr_2.append(a_2)
+            plot_dict[cs[0] + cs[1]] = [dim_arr_1, dim_arr_2]
+
+
+    return  sample_dict, plot_dict, all_par_points, all_par_plot_dict
+
 
 surface_plot_domain = ["solar_phasing", "INC_init"]  # TODO this needds to be two dimensions of the terminal space
 sampling = 10
 
-data_raw = pd.read_csv("../scenarios/Legacy/r_init__propagation_cutoff_SMA.csv")
+data_raw = pd.read_csv("../scenarios/Legacy/Interface_sigma_04.csv")
 data_raw = data_raw.drop('empty', axis=1)
 
 # base_domain = get_data_dimensions(data_raw)
 normalized_data = normalize_target_domain(data_raw)
+normalized_data = data_raw
 transform_data = ["INC_init", "solar_phasing"]
 
 for k in transform_data:
@@ -94,18 +155,30 @@ for i_1, param_1 in enumerate(output_keys):
 
 # t_s vs. output parameter surface plots
 # First, get the output parameters that are NOT constant:
-params = []
-for k in output_keys:
-    if k != "t_s":
-        params.append(k)
+domain_params = copy.deepcopy(output_keys)
+domain_params.remove("t_s")
+resampled_dict, plot_dict, all_par_points, all_par_plot_dict = create_sample_points(params=domain_params, sampling=20)
 
 
-
-
-X, Y = np.meshgrid(np.linspace(bounds[surface_plot_domain[0]][0], bounds[surface_plot_domain[0]][1], sampling),
-                   np.linspace(bounds[surface_plot_domain[1]][0], bounds[surface_plot_domain[1]][1], sampling))
-
-
-
+idx = 1
+for d_1, param_1 in enumerate(domain_params):
+    for d_2, param_2 in enumerate(domain_params):
+        if param_1 != param_2:
+            print(idx)
+            # eval = connector.interface_interpolation(eval_points=resampled_dict[param_1 + param_2], fill_val=69)
+            eval = connector.interface_interpolation(eval_points=all_par_points, fill_val=69)
+            eval = [e if e != 69 else float(np.nan) for e in eval]
+            ax = fig_4.add_subplot(len(domain_params), len(domain_params), idx, projection="3d")
+            ax.scatter(normalized_data[param_1], normalized_data[param_2], normalized_data["t_s"], label="Ground truth", marker=".", alpha=1, color=[0, 0, 1])
+            # ax.scatter(plot_dict[param_1+param_2][1], plot_dict[param_1+param_2][0], eval, label="Interpolated", marker=".", color=[1, 0, 0])
+            ax.scatter(all_par_plot_dict[param_1], all_par_plot_dict[param_2], eval, label="Interpolated", marker=".", color=[1, 0, 0])
+            ax.set_xlabel(param_1)
+            ax.set_ylabel(param_2)
+            # ax.view_init(0, 90, 0)
+        else:
+            ax = fig_4.add_subplot(len(domain_params), len(domain_params), idx, projection="3d")
+            ax.scatter([], [], [])
+        idx += 1
+fig_4.legend()
 plt.show()
 
