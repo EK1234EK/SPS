@@ -28,4 +28,7 @@ def check_and(sc):
         if max(sc.trajectory_track[0]) < 1 and min(sc.trajectory_track[0]) > 0.6:
             return True
 
-    return condition_1(sc)
+    def condition_7(sc):
+        if abs(((sc.trajectory_track[0][-1] - 0.8346191402770146)**2 + sc.trajectory_track[1][-1]**2 + sc.trajectory_track[2][-1]**2)**0.5) < 0.01 and abs((sc.trajectory_track[3][-1] ** 2 + sc.trajectory_track[4][-1] ** 2 + sc.trajectory_track[5][-1] ** 2) ** 0.5) < 0.01:
+            return True
+    return condition_7(sc)

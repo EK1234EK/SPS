@@ -161,6 +161,7 @@ class LocalOptimal:
 
         self.eclipse_model = None
 
+        self.gains = dict()
 
 
     def target_orbit_pinv_jacobian(self, state):
@@ -541,11 +542,22 @@ class LocalOptimal:
         self.vel_angle_track["Target velocity clock"].append(vel_angle[1])
         return self.current_control
 
-    def guidance_test(self, state, time, force_model):
-        force_model.solar_pressure.radiation_location = [0, 0, 0]
-        self.current_n = np.array(state[3:6]) / np.linalg.norm(np.array(state[3:6]))
-        force_model.solar_pressure.sail_control = [0, 0]
-        return np.array([0, 0, 0])
+    def lagrange_targeting(self, state, time, force_model):
+
+        k_p = self.gains["k_p"]
+        k_v = self.gains["k_v"]
+        acc = self.gains["acc"]
+
+        L1_state = self.target_oe
+        target_pos = np.array([L1_state["x"], L1_state["y"], L1_state["z"]])
+        target_vel = np.array([L1_state["vx"], L1_state["vy"], L1_state["vz"]])
+
+        self.current_control = k_p * (target_pos - state[0:3]) + k_v * (target_vel - state[3:6])
+        if np.linalg.norm(self.current_control) > 0.000000001:
+            self.current_control = acc * self.current_control / np.linalg.norm(self.current_control)
+        else:
+            self.current_control = np.array([0, 0, 0])
+        return self.current_control
 
     def guidance(self, state, time, force_model):
         return self.guidance_function(state, time, force_model)

@@ -31,8 +31,6 @@ class inertial_force_model:
         self.central_mass = 0
         self.central_attractor_pos = [0, 0, 0]
 
-        self.is_CR3BP = False
-
         # Steering
         self.guidance = None
         self.steer_acc_x = []
@@ -207,7 +205,7 @@ class inertial_force_model:
         return states
 
 
-class CR3BP:
+"""class CR3BP:
     def __init__(self, mass_parameter):
 
         # Load the dataset that defines the bodies, WITHOUT the central attractor
@@ -364,4 +362,4 @@ class CR3BP:
 
         V = - ((1 - self.mass_parameter) / r_1) - self.mass_parameter / r_2 - 0.5 * self.mass_parameter * (
                     1 - self.mass_parameter) - 0.5 * (x ** 2 + y ** 2)
-        return V
+        return V"""

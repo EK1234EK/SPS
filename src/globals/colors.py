@@ -1,18 +1,18 @@
 def get_color_data():
     colors = dict()
 
-    colors["generic"] = [1, 0, 0]
+    colors["generic"] = [0.8, 0.2, 1]
     colors["edge"] = [0, 1, 0]
-    colors["center"] = [0.8, 0.2, 1]
+    colors["center"] = [0, 1, 0.5]
     colors["feasible"] = [0.2, 1, 1]
     colors["resampled"] = [1, 0, 0]
 
-    colors["planet_traj"] = [0, 0, 0]# [1, 1, 1]
+    colors["planet_traj"] = [1, 1, 1]
     colors["special_tail_color"] = [0.5, 0.5, 0.5]
     colors["tail_line_width"] = 0.5
 
-    colors["background"] = (1, 1, 1)# (0, 0, 0)  # (21/265, 20/265, 27/265)
-    colors["ticks"] = (0, 0, 0) # (1, 1, 1)
+    colors["background"] = (0, 0, 0)  # (21/265, 20/265, 27/265)
+    colors["ticks"] = (1, 1, 1)
     colors["grid"] = (0.7, 0.6, 1)
     colors["map"] = "jet" # "jet"
 

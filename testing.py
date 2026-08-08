@@ -7,7 +7,8 @@ import pandas
 import pandas as pd
 
 import src.spacecraft.sc
-from src.system_dynamics import sd_1, SRP, atmo, eclipse
+from src.feasibility.valid_set import feasibility_setup
+from src.system_dynamics import sd_1, SRP, atmo, eclipse, sd_rotating
 from src.analysis import plotting_functions
 from src.spacecraft import swarm_1
 from src.astrodynamic_functions import kepler_dynamics
@@ -196,10 +197,17 @@ def orbiting_planet():
 
 
 def CR3BP():
-    t_end = 30
+    t_end = 4
     sim_time = list(np.linspace(0, t_end, 1000))
 
-    force_model_1 = sd_1.CR3BP(mass_parameter=1.215058560962404E-2)
+    force_model_1 = sd_rotating.CR3BP(mass_parameter=1.215058560962404E-2)
+    force_model_1.get_lagrange_points()
+
+    guidance = steering_laws.LocalOptimal()
+    guidance.guidance_function = guidance.lagrange_targeting
+    guidance.gains = {"k_p": 1, "k_v": 5, "acc": 0.1}
+    guidance.target_oe = {"x": (0.8296191402770146 + 0.8396191402770146) * 0.5, "y": 0, "z": 0, "vx": 0, "vy": 0, "vz": 0}
+    force_model_1.guidance = guidance
     # force_model_1 = sd_1.CR3BP(mass_parameter=3.054200000000000E-6)
 
     manifolds_4 = [[6.3891964038363835E-1, 6.3891964038363835E-1, 1],
@@ -242,50 +250,49 @@ def CR3BP():
                    [6.5943284888509311E-11, 6.5943284888509311E-11, 1],
                    [0, 0, 1]]
 
-    sw_1 = swarm_1.particle_swarm(manifolds_1, force_model_1)
+    manifolds_L1_precise = [[0.7896191402770146, 0.8796191402770146, 15], # 0.8596191402770146
+                   [-0.04, 0.04, 15],
+                   [0, 0, 1],
+                   [-0.2, 0.2, 15],
+                   [0, 0, 1],
+                   [0, 0, 1],
+                   [0, 0, 1]]
+
+    sw_1 = swarm_1.particle_swarm(manifolds_L1_precise, force_model_1)
     sw_1.integration_points = sim_time
     sw_1.direct_transformation = ("State_magnitude")
-    """sw_1.square_swarm('generic')
-    sw_1.manifolds = manifolds_4
-    sw_1.square_swarm('generic')
-    sw_1.manifolds = manifolds_5
-    sw_1.square_swarm('generic')"""
-    sw_1.manifolds = manifolds_1
-    sw_1.square_swarm('generic')
-    """sw_1.manifolds = manifolds_3
-    sw_1.square_swarm('generic')"""
+    sw_1.square_swarm()
     sw_1.do_integration = False
     sw_1.create_and_integrate_swarm(rtol=1e-10, parproc=True, cores=11)
     sw_1.do_integration = True
     sw_1.create_and_integrate_swarm(rtol=1e-10, parproc=True, cores=11)
     sw_1.get_swarm_body_distances(body_list=["body_1", "body_2"])
 
-    list_of_spacecraft = sw_1.list_of_spacecraft
-
-    list_of_spacecraft[0].plot_color = [0, 1, 0.3]
-    """list_of_spacecraft[1].plot_color = [0.3, 1, 0.5]
-    list_of_spacecraft[2].plot_color = [0.3, 0.3, 1]
-    list_of_spacecraft[3].plot_color = [1, 1, 0.3]
-    list_of_spacecraft[4].plot_color = [1, 0.3, 1]"""
-
-    """fs = valid_set.feasibility_setup(manifolds=[], list_of_sc=list_of_spacecraft, force_model=force_model_1)
+    fs = valid_set.feasibility_setup(list_of_sc=sw_1.list_of_spacecraft, force_model=force_model_1,
+                                     manifolds=manifolds_L1_precise)
     fs.check_conditions()
-    list_of_spacecraft = fs.list_of_sc"""
-
+    list_of_spacecraft = fs.list_of_sc
+    counter = 0
+    for sc in list_of_spacecraft:
+        if sc.is_feasible:
+            counter += 1
+    print("k_p: ", guidance.gains["k_p"], " - ", "k_v: ", guidance.gains["k_v"], "acc: ", guidance.gains["acc"], " - stable: ", counter)
     input("Start plotting?")
-    plots = plotting_functions.graph_output(list_of_spacecraft=[], list_of_resampled_spacecraft=[],
-                                            list_of_special_spacecraft=list_of_spacecraft,
+    plots = plotting_functions.graph_output(list_of_spacecraft=list_of_spacecraft, list_of_resampled_spacecraft=[],
+                                            list_of_special_spacecraft=[],
                                             force_model=force_model_1, animated=True, axis_visibility=True, fps=None)
 
-    plots.state_space_slice(index=0, slices=[["vx", "vy"]])
-    plots.state_space_slice(index=499, slices=[["vx", "vy"]])
+    plots.state_space_slice(index=0, slices=[["x", "y"]])
+    plots.state_space_slice(index=0, slices=[["x", "vx"]])
+    plots.state_space_slice(index=0, slices=[["y", "vx"]])
+    plots.state_space_slice(index=0, slices=[["x", "y", "vx"]], edge=False, generic=False, center=False, resample=False)
     # plots.parameters_plot()
     # plots.C3_plot()
     plots.magnitude_plot()
     plots.body_distances_plot(["body_1", "body_2"])
     plots.trajectory_xyz()
-    plots.moving_map_plot(k_modulo=4, plot_central_attractor=False, match_tail_color=False, init_azim=0,
-                          init_elevation=35, azim_rate=0.5)
+    plots.plot_steering_acceleration()
+    plots.moving_map_plot(k_modulo=10, plot_central_attractor=False, match_tail_color=False, init_azim=0)
 
 
 def CR3BP_ex_2():
@@ -353,8 +360,8 @@ def CR3BP_ex_2():
     list_of_spacecraft = fs.list_of_sc
 
     input("Start plotting?")
-    plots = plotting_functions.graph_output(list_of_spacecraft=[], list_of_resampled_spacecraft=[],
-                                            list_of_special_spacecraft=list_of_spacecraft,
+    plots = plotting_functions.graph_output(list_of_spacecraft=list_of_spacecraft, list_of_resampled_spacecraft=[],
+                                            list_of_special_spacecraft=[],
                                             force_model=force_model_1, animated=False, axis_visibility=True, fps=None)
 
     plots.state_space_slice(index=0, slices=[["x", "vy"]])
@@ -1080,7 +1087,7 @@ def simple_run():
 
 # ex_7_SSO()
 if __name__ == "__main__":
-    # CR3BP()
+    CR3BP()
     # CR3BP_ex_2()
     # SSO()
     # steering_testing()
@@ -1089,4 +1096,4 @@ if __name__ == "__main__":
     # atmpshere_min_altitude()
     # escape_time()
     # solar_pressure()
-    simple_run()
+    # simple_run()

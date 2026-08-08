@@ -163,7 +163,7 @@ resampled_dict, plot_dict, all_par_points, all_par_plot_dict = create_sample_poi
 idx = 1
 for d_1, param_1 in enumerate(domain_params):
     for d_2, param_2 in enumerate(domain_params):
-        if param_1 != param_2:
+        if param_1 != param_2 and d_2 < d_1:
             print(idx)
             # eval = connector.interface_interpolation(eval_points=resampled_dict[param_1 + param_2], fill_val=69)
             eval = connector.interface_interpolation(eval_points=all_par_points, fill_val=69)

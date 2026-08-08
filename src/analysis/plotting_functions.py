@@ -11,6 +11,8 @@ import matplotx
 
 color_data, size_data = colors.get_color_data()
 
+mpl.rcParams['axes3d.mouserotationstyle'] = 'azel'
+
 
 class graph_output:
     def __init__(self, list_of_spacecraft, list_of_resampled_spacecraft, list_of_special_spacecraft, force_model,
@@ -39,8 +41,8 @@ class graph_output:
         self.get_reference_data()
 
         # plt.style.use(matplotx.styles.aura["dark-soft"]) dark_background
-        """plt.style.use('dark_background')
-        plt.rc('axes', edgecolor=(1, 1, 1))"""
+        plt.style.use('dark_background')
+        plt.rc('axes', edgecolor=(1, 1, 1))
 
     def get_reference_data(self):
         if self.list_of_spacecraft:
@@ -1093,8 +1095,9 @@ class graph_output:
 
     def plot_steering_acceleration(self):
         # ATTENTION: Acceleration as a result of all steering contributions is listed right here
-
-        if not self.lst_spec_sc[0].steer_x:
+        if not self.lst_spec_sc:
+            return None
+        elif not self.lst_spec_sc[0].steer_x:
             return None
 
         fig = plt.figure(self.figure_counter + 1, figsize=(7.5, 2.5 * 1.5))
