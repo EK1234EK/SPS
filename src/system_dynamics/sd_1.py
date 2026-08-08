@@ -12,6 +12,8 @@ from src.astrodynamic_functions.kepler_dynamics import GRAV_CONST
 class inertial_force_model:
     def __init__(self, path):
 
+        self.is_CR3BP = False
+
         # Load the dataset that defines the bodies, WITHOUT the central attractor
         self.path_to_data = path
         self.names = []

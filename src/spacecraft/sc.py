@@ -60,6 +60,9 @@ class Spacecraft:
         self.drag_acc_z = []
         self.drag_mag_track = []
 
+        # Reference trajectory track
+        self.target_parameter_track = {"SMA": [], "ECC": [], "INC": [], "RAAN": [], "APERI": [], "TAEPO": []}
+
     def get_acc(self, state_vector, system_time):
         position = state_vector[0:3]
         velocity = state_vector[3:6]
@@ -242,6 +245,16 @@ class Spacecraft:
                 self.vel_angle_track[key] = interp(self.integration_points, self.force_model.true_time,
                                                        self.vel_angle_track[key], left=np.nan, right=np.nan).tolist()
                 self.vel_angle_track[key] = [None if x == np.nan else x for x in  self.vel_angle_track[key]]
+
+            if self.force_model.guidance.continuous_targeting:
+                # Getting the reference trajectory
+                keys = self.force_model.guidance.continuous_targeting.all_params
+                for tp in self.integration_points:
+                    setpoint = self.force_model.guidance.continuous_targeting.guidance_setpoint(time=tp)
+                    for ki, key in enumerate(keys):
+                        self.target_parameter_track[key].append(setpoint[ki])
+
+
 
         if self.force_model.drag_model is not None:
             self.drag_mag_track = interp(self.integration_points, self.force_model.true_time, self.force_model.drag_mag_track,

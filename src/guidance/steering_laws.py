@@ -1,3 +1,4 @@
+from numba.cpython.builtins import setitem_cpointer
 from scipy.optimize import direct
 from scipy.stats import alpha
 
@@ -7,6 +8,7 @@ import numpy as np
 import math
 from src.system_dynamics import sail_repository
 from src.computation import bisecting
+from src.guidance import  reference_trajectory
 
 from src.astrodynamic_functions.kepler_dynamics import GRAV_CONST, EARTH_RADIUS
 
@@ -162,6 +164,12 @@ class LocalOptimal:
         self.eclipse_model = None
 
         self.gains = dict()
+
+        # Continuous trajectory reference
+        self.continuous_targeting = None
+
+    def setup_continuouos_targeting(self, collocation_points):
+        self.continuous_targeting = reference_trajectory.steering_track(collocation_points=collocation_points)
 
 
     def target_orbit_pinv_jacobian(self, state):
@@ -558,6 +566,21 @@ class LocalOptimal:
         else:
             self.current_control = np.array([0, 0, 0])
         return self.current_control
+
+    def guidance_conti(self, state, time, force_model):
+        guidance_setpoint = self.continuous_targeting.guidance_setpoint(time=time)
+        for i, param in enumerate(["SMA", "ECC", "INC", "RAAN", "APERI", "TAEPO"]):
+            if guidance_setpoint[i]:
+                self.target_oe[param] = guidance_setpoint[i]
+
+        self.current_control = self.target_orbit_gradient(state=state)
+
+        if np.linalg.norm(self.current_control) > 0.000000001:
+            self.current_control = self.gains["acc"] * self.current_control / np.linalg.norm(self.current_control)
+        else:
+            self.current_control = np.array([0, 0, 0])
+        return self.current_control
+
 
     def guidance(self, state, time, force_model):
         return self.guidance_function(state, time, force_model)

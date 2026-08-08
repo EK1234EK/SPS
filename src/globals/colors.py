@@ -14,7 +14,7 @@ def get_color_data():
     colors["background"] = (0, 0, 0)  # (21/265, 20/265, 27/265)
     colors["ticks"] = (1, 1, 1)
     colors["grid"] = (0.7, 0.6, 1)
-    colors["map"] = "jet" # "jet"
+    colors["map"] = "cool" # "jet"
 
     colors["lagrange_marker_symbol"] = "D"
     colors["lagrange_marker_color"] = [1, 0.5, 0.5]
@@ -22,6 +22,7 @@ def get_color_data():
     size = dict()
     size["sc"] = 10
     size["dia_linewidth"] = 0.5
+    size["ref_par_linewidth"] = 1
     size["plot_alpha"] = 1
     size["lagrange_marker_size"] = 10
 

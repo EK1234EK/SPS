@@ -686,7 +686,7 @@ class graph_output:
         ax_5.set_ylabel("Y velocity [m/s]")
         ax_6.set_ylabel("Z velocity [m/s]")
 
-    def parameters_plot(self):
+    def parameters_plot(self, plot_reference_trajectory=True):
         fig = plt.figure(self.figure_counter + 1)
         self.figure_counter += 1
         fig.set_facecolor(color_data["background"])
@@ -703,6 +703,7 @@ class graph_output:
         ax_6 = fig.add_subplot(236)
 
         axes = [ax_1, ax_2, ax_3, ax_4, ax_5, ax_6]
+        param_names = ["SMA", "ECC", "INC", "RAAN", "APERI", "TAEPO"]
 
         for ax_1 in axes:
             ax_1.xaxis.label.set_color(color_data["ticks"])
@@ -745,6 +746,15 @@ class graph_output:
                             color=colors[sci],
                             linewidth=size_data["dia_linewidth"],
                             alpha=size_data["plot_alpha"])
+                    if plot_reference_trajectory:
+                        itp = self.integration_points
+                        refpar = sc.target_parameter_track[param_names[i]]
+                        ax.plot(itp,
+                                refpar,
+                                color=colors[sci],
+                                linewidth=size_data["ref_par_linewidth"],
+                                alpha=size_data["plot_alpha"],
+                                linestyle=(0, (5, 10)))
                 else:
                     ax.scatter(self.integration_points,
                                sc.orbital_parameters_track[i],
@@ -756,6 +766,15 @@ class graph_output:
                             color=sc.plot_color,
                             linewidth=size_data["dia_linewidth"],
                             alpha=size_data["plot_alpha"])
+                    if plot_reference_trajectory:
+                        itp = self.integration_points
+                        refpar = sc.target_parameter_track[param_names[i]]
+                        ax.plot(itp,
+                                refpar,
+                                color=sc.plot_color,
+                                linewidth=size_data["ref_par_linewidth"],
+                                alpha=size_data["plot_alpha"],
+                                linestyle=(0, (5, 10)))
 
         ax_6.legend()
         lgnd = ax_6.legend()
@@ -1234,7 +1253,9 @@ class graph_output:
     def plot_drag_acceleration(self):
         # ATTENTION: Acceleration as a result of all steering contributions is listed right here
 
-        if not self.lst_spec_sc[0].steer_x:
+        if not self.lst_spec_sc:
+            return None
+        if not self.lst_spec_sc[0].drag_acc_x:
             return None
 
         fig = plt.figure(self.figure_counter + 1, figsize=(7.5, 2.5 * 1.5))
@@ -1369,6 +1390,8 @@ class graph_output:
         fig.subplots_adjust(hspace=0.5)
 
     def plot_control(self):
+        if not self.lst_spec_sc:
+            return None
         if not self.lst_spec_sc[0].control_input_track:
             return None
 
@@ -1433,6 +1456,8 @@ class graph_output:
         fig.subplots_adjust(hspace=0.5)
 
     def plot_control_phase_space(self, time_dimension=False):
+        if not self.lst_spec_sc:
+            return None
         if not self.lst_spec_sc[0].control_input_track:
             return None
 
@@ -1549,7 +1574,9 @@ class graph_output:
         fig.subplots_adjust(hspace=0.5)
 
     def plot_target_velocity_angles(self):
-        if not self.lst_spec_sc[0].control_input_track:
+        if not self.lst_spec_sc:
+            return None
+        if not self.lst_spec_sc[0].vel_angle_track:
             return None
 
         fig = plt.figure(self.figure_counter + 1, figsize=(7.5, 2.5 * 1.5))
