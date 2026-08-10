@@ -197,7 +197,7 @@ def orbiting_planet():
 
 
 def CR3BP():
-    t_end = 4
+    t_end = 20
     sim_time = list(np.linspace(0, t_end, 1000))
 
     force_model_1 = sd_rotating.CR3BP(mass_parameter=1.215058560962404E-2)
@@ -207,10 +207,10 @@ def CR3BP():
     guidance.guidance_function = guidance.lagrange_targeting
     guidance.gains = {"k_p": 1, "k_v": 5, "acc": 0.1}
     guidance.target_oe = {"x": (0.8296191402770146 + 0.8396191402770146) * 0.5, "y": 0, "z": 0, "vx": 0, "vy": 0, "vz": 0}
-    force_model_1.guidance = guidance
+    # force_model_1.guidance = guidance
     # force_model_1 = sd_1.CR3BP(mass_parameter=3.054200000000000E-6)
 
-    manifolds_4 = [[6.3891964038363835E-1, 6.3891964038363835E-1, 1],
+    manifolds_4 = [[6.2891964038363835E-1, 6.4891964038363835E-1, 10],
                    [4.2544999999999999E-1, 4.2544999999999999E-1, 1],
                    [6.3338764777407142E-1, 6.3338764777407142E-1, 1],
                    [-3.1073088790628428E-1, -3.1073088790628428E-1, 1],
@@ -250,15 +250,15 @@ def CR3BP():
                    [6.5943284888509311E-11, 6.5943284888509311E-11, 1],
                    [0, 0, 1]]
 
-    manifolds_L1_precise = [[0.7896191402770146, 0.8796191402770146, 15], # 0.8596191402770146
-                   [-0.04, 0.04, 15],
+    manifolds_L1_precise = [[0.7896191402770146, 0.8796191402770146, 1], # 0.8596191402770146
+                   [-0.04, 0.04, 1],
                    [0, 0, 1],
-                   [-0.2, 0.2, 15],
+                   [-0.2, 0.2, 1],
                    [0, 0, 1],
                    [0, 0, 1],
                    [0, 0, 1]]
 
-    sw_1 = swarm_1.particle_swarm(manifolds_L1_precise, force_model_1)
+    sw_1 = swarm_1.particle_swarm(manifolds_4, force_model_1)
     sw_1.integration_points = sim_time
     sw_1.direct_transformation = ("State_magnitude")
     sw_1.square_swarm()
@@ -278,8 +278,8 @@ def CR3BP():
             counter += 1
     print("k_p: ", guidance.gains["k_p"], " - ", "k_v: ", guidance.gains["k_v"], "acc: ", guidance.gains["acc"], " - stable: ", counter)
     input("Start plotting?")
-    plots = plotting_functions.graph_output(list_of_spacecraft=list_of_spacecraft, list_of_resampled_spacecraft=[],
-                                            list_of_special_spacecraft=[],
+    plots = plotting_functions.graph_output(list_of_spacecraft=[], list_of_resampled_spacecraft=[],
+                                            list_of_special_spacecraft=list_of_spacecraft,
                                             force_model=force_model_1, animated=True, axis_visibility=True, fps=None)
 
     plots.state_space_slice(index=0, slices=[["x", "y"]])
@@ -287,12 +287,15 @@ def CR3BP():
     plots.state_space_slice(index=0, slices=[["y", "vx"]])
     plots.state_space_slice(index=0, slices=[["x", "y", "vx"]], edge=False, generic=False, center=False, resample=False)
     # plots.parameters_plot()
+    plots.plot_control()
+    plots.plot_steering_acceleration()
     # plots.C3_plot()
     plots.magnitude_plot()
     plots.body_distances_plot(["body_1", "body_2"])
     plots.trajectory_xyz()
     plots.plot_steering_acceleration()
-    plots.moving_map_plot(k_modulo=10, plot_central_attractor=False, match_tail_color=False, init_azim=0)
+    plots.moving_map_plot(k_modulo=10, plot_central_attractor=False, match_tail_color=True, init_azim=0)
+    plt.show()
 
 
 def CR3BP_ex_2():
@@ -978,7 +981,7 @@ def atmpshere_min_altitude():
 
 def simple_run():
     t_start = 0
-    t_end = 10 * 24 * 3600
+    t_end = 120 * 60
     integration_points = list(np.linspace(t_start, t_end, 10000))
     earth_mass = 5.9722e24
     solar_mass = 1.989 * 10 ** 30
@@ -996,6 +999,11 @@ def simple_run():
     srp_model = SRP.Solar_pressure(sail_model="ACS3", central_attractor_mass=solar_mass, sigma=0.02)
     srp_model.radiation_location = [149000000000, 0, 0]
     srp_model.sail_control = [0, 0]
+
+    srp_model_2 = SRP.Solar_pressure(sail_model="ideal", central_attractor_mass=solar_mass, sigma=0.02)
+    srp_model_2.radiation_location = [149000000000, 0, 0]
+    srp_model_2.sail_control = [0, 0]
+
     force_model.solar_pressure = srp_model
 
     guidance_law = steering_laws.LocalOptimal()
@@ -1009,7 +1017,7 @@ def simple_run():
     drag_model.static_drag = 0
     # force_model.drag_model = drag_model
 
-    Eclipse_interface = src.system_dynamics.eclipse.eclipse_model(eclipse_bodies={"central_attractor": 6378000}, force_model=force_model)
+    # Eclipse_interface = src.system_dynamics.eclipse.eclipse_model(eclipse_bodies={"central_attractor": 6378000}, force_model=force_model)
     # force_model.guidance.eclipse_model = Eclipse_interface
 
     # Params:
@@ -1036,8 +1044,9 @@ def simple_run():
 
     for i, sc in enumerate(sw_1.list_of_spacecraft):
         if i == 1:
-            sc.force_model.guidance.eclipse_model = Eclipse_interface
-            sc.display_name = "Eclipses"
+            sc.force_model.solar_pressure = srp_model_2
+            sc.force_model.guidance.guidance_function = guidance_law.guidance_3_ideal
+            sc.display_name = "Ideal"
         sc.event_cutoff_val = cutoff_SMA
         sc.init_state_vector = kepler_dynamics.oe_to_sv(EARTH_RADIUS + init_altitude, 0.001,
                                                         inc[i], RAAN_list[0], 0.001, 3.14, 0, earth_mass)
@@ -1086,7 +1095,7 @@ def simple_run():
 
 def conti_guidance_test():
     t_start = 0
-    t_end = 100 * 24 * 3600
+    t_end = -1 * 24 * 3600
     integration_points = list(np.linspace(t_start, t_end, 10000))
     earth_mass = 5.9722e24
     solar_mass = 1.989 * 10 ** 30
@@ -1104,11 +1113,19 @@ def conti_guidance_test():
 
     guidance_law = steering_laws.LocalOptimal()
     guidance_law.setup_continuouos_targeting(collocation_points={"SMA": [50000000, 70000000, 70000000, 90000000, 50000000],
-                                                                 "INC": [0.1, 0.3, 0.3, 0.2, 0.2],
-                                                                 "RAAN": [1, 1.5, 1.5, 2, 2],
+                                                                 # "INC": [0.1, 0.3, 0.3, 0.2, 0.2],
+                                                                 "ECC": [0.1, 0.15, 0.15, 0.2, 0.1],
+                                                                 # "RAAN": [1, 1.5, 1.5, 2, 2],
                                                                  "t": [5 * 24 * 3600, 15 * 24 * 3600, 20 * 24 * 3600, 25 * 24 * 3600, 35 * 24 * 3600]})
+
+    guidance_law.setup_continuouos_targeting(collocation_points={"SMA": [70000000],
+                                                                 # "INC": [0.1, 0.3, 0.3, 0.2, 0.2],
+                                                                 # "ECC": [0.1],
+                                                                 # "RAAN": [1, 1.5, 1.5, 2, 2],
+                                                                 "t": [-20 * 24 * 3600]})
+
     guidance_law.conversion_mass = earth_mass
-    guidance_law.gains = {"acc": 0.001}
+    guidance_law.gains = {"acc": 0.0001}
     guidance_law.guidance_function = guidance_law.guidance_conti
     force_model.guidance = guidance_law
 
@@ -1136,12 +1153,12 @@ def conti_guidance_test():
 
     for i, sc in enumerate(sw_1.list_of_spacecraft):
         sc.init_state_vector = kepler_dynamics.oe_to_sv(EARTH_RADIUS + init_altitude, 0.001,
-                                                        inc[i], RAAN_list[0], 0.001, 3.14, 0, earth_mass)
+                                                        inc[i], RAAN_list[0], 3, 3.14, 0, earth_mass)
         # sc.display_name = str(round(float(RAAN_list[0]) * 180 / math.pi))
 
     sw_1.do_integration = True
 
-    sw_1.create_and_integrate_swarm(rtol=1e-4, parproc=False, cores=11)
+    sw_1.create_and_integrate_swarm(rtol=1e-10, parproc=False, cores=11)
 
     inp = input("Save= (y / n)")
     if inp == "y":
@@ -1159,9 +1176,10 @@ def conti_guidance_test():
                                             animated=False)
 
     plots.trajectory_xyz()
-    plots.parameters_plot(plot_reference_trajectory=True)
+    plots.parameters_plot(plot_reference_trajectory=False)
     plots.plot_steering_acceleration()
     plots.plot_control()
+    plots.plot_drag_acceleration()
     plots.plot_target_velocity_angles()
     plots.magnitude_plot()
     plots.plot_drag_acceleration()

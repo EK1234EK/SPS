@@ -746,7 +746,7 @@ class graph_output:
                             color=colors[sci],
                             linewidth=size_data["dia_linewidth"],
                             alpha=size_data["plot_alpha"])
-                    if plot_reference_trajectory:
+                    if plot_reference_trajectory and sc.force_model.guidance and sc.force_model.guidance.continuous_targeting:
                         itp = self.integration_points
                         refpar = sc.target_parameter_track[param_names[i]]
                         ax.plot(itp,
@@ -766,7 +766,7 @@ class graph_output:
                             color=sc.plot_color,
                             linewidth=size_data["dia_linewidth"],
                             alpha=size_data["plot_alpha"])
-                    if plot_reference_trajectory:
+                    if plot_reference_trajectory and sc.force_model.guidance and sc.force_model.guidance.continuous_targeting:
                         itp = self.integration_points
                         refpar = sc.target_parameter_track[param_names[i]]
                         ax.plot(itp,

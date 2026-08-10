@@ -53,8 +53,8 @@ class steering_track:
 
 if __name__ == "__main__":
     import random
-    ncol = 1
-    collolcation_points = {"SMA": [50000000, 70000000, 70000000, 90000000, ], "t": [5 * 24 * 3600, 15 * 24 * 3600, 20 * 24 * 3600, 25 * 24 * 3600]}
+    ncol = 10
+    collolcation_points = {"SMA": [random.randint(-10, 10) for _ in range(ncol)], "ECC": [random.randint(-10, 10) for _ in range(ncol)], "t": np.arange(ncol)}
     target_track = steering_track(collocation_points=collolcation_points)
 
     times = np.linspace(collolcation_points["t"][0] - 2, collolcation_points["t"][-1] + 2, 10000)

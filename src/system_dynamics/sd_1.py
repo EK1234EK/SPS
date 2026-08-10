@@ -157,6 +157,7 @@ class inertial_force_model:
             #  Adding the acceleration vector from the steering law
             command = self.guidance.guidance(state=[x, y, z, velocity[0], velocity[1], velocity[2]], time=system_time,
                                              force_model=self)
+
             acc_vector = [acc_vector[0] + command[0], acc_vector[1] + command[1], acc_vector[2] + command[2]]
 
             self.steer_acc_x.append(command[0])

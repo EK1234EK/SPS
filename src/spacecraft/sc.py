@@ -1,5 +1,6 @@
 import time
 import numpy as np
+from numba.np.npyfuncs import np_real_tan_impl
 from numpy import interp
 from scipy.integrate import solve_ivp
 
@@ -7,6 +8,22 @@ import src.globals.colors
 from src.astrodynamic_functions import kepler_dynamics
 from src.astrodynamic_functions.kepler_dynamics import GRAV_CONST
 
+
+def interpolate_and_pad(ref_time: np.array, ref_val: np.array, new_time: np.array, pad_val=None):
+
+    def itp(ref_time_i, ref_val_i, new_time_i, pad_val_i=pad_val):
+        interp_val = interp(new_time_i, ref_time_i, ref_val_i, left=np.nan, right=np.nan).tolist()
+        padded_base = [pad_val_i if x == np.nan else x for x in interp_val]
+        return padded_base
+
+    if ref_time[-1] > ref_time[0] and new_time[-1] > new_time[0]:
+        padded = itp(ref_time, ref_val, new_time, pad_val_i=None)
+    elif ref_time[-1] < ref_time[0] and new_time[-1] < new_time[0]:
+        padded = itp(np.flip(ref_time), np.flip(ref_val), np.flip(new_time), pad_val_i=None)
+        padded = np.flip(padded)
+    else:
+        raise ValueError("Reference time and new time do not run in the same direction!")
+    return list(padded)
 
 class Spacecraft:
     def __init__(self, init_state_vector, force_model):
@@ -194,18 +211,21 @@ class Spacecraft:
             print(" ", terminal_message, " ", end="")
             self.display_name += " - Integration error"
             for state in range(6):
-                sol[state] = interp(self.integration_points, integrated_time, sol[state], left=np.nan, right=np.nan).tolist()
+                """sol[state] = interp(self.integration_points, integrated_time, sol[state], left=np.nan, right=np.nan).tolist()
                 sol[state] = [None if x == np.nan else x for x in sol[state]]
-                self.trajectory_track[state] += sol[state]
+                self.trajectory_track[state] += sol[state]"""
+                self.trajectory_track[state] += interpolate_and_pad(integrated_time, sol[state], np.array(self.integration_points), pad_val=None)
         elif terminal_message == 'A termination event occurred.':
             for state in range(6):
-                sol[state] = interp(self.integration_points, integrated_time, sol[state], left=np.nan, right=np.nan).tolist()
+                """sol[state] = interp(self.integration_points, integrated_time, sol[state], left=np.nan, right=np.nan).tolist()
                 sol[state] = [None if x == np.nan else x for x in sol[state]]
-                self.trajectory_track[state] += sol[state]
+                self.trajectory_track[state] += sol[state]"""
+                self.trajectory_track[state] += interpolate_and_pad(integrated_time, sol[state], np.array(self.integration_points), pad_val=None)
         else:
             for state in range(6):
-                sol[state] = interp(self.integration_points, eval_points, sol[state], left=None, right=None).tolist()
-                self.trajectory_track[state] += sol[state]
+                """sol[state] = interp(self.integration_points, eval_points, sol[state], left=None, right=None).tolist()
+                self.trajectory_track[state] += sol[state]"""
+                self.trajectory_track[state] += interpolate_and_pad(np.array(eval_points), sol[state], np.array(self.integration_points), pad_val=None)
 
         # Save the steering acceleration
         if self.force_model.guidance is not None:
@@ -215,36 +235,43 @@ class Spacecraft:
                                      self.force_model.steer_acc_z[i] ** 2) ** 0.5 for i in
                                     range(len(self.force_model.steer_acc_x))]
 
-            self.steer_x = interp(self.integration_points, self.force_model.true_time, self.force_model.steer_acc_x,
+            """self.steer_x = interp(self.integration_points, self.force_model.true_time, self.force_model.steer_acc_x,
                                   left=np.nan, right=np.nan).tolist()
-            self.steer_x = [None if x == np.nan else x for x in self.steer_x]
-            self.steer_y = interp(self.integration_points, self.force_model.true_time, self.force_model.steer_acc_y,
-                                  left=np.nan, right=np.nan).tolist()
-            self.steer_y = [None if x == np.nan else x for x in self.steer_y]
-            self.steer_z = interp(self.integration_points, self.force_model.true_time, self.force_model.steer_acc_z,
-                                  left=np.nan, right=np.nan).tolist()
-            self.steer_z = [None if x == np.nan else x for x in self.steer_z]
+            self.steer_x = [None if x == np.nan else x for x in self.steer_x]"""
+            self.steer_x = interpolate_and_pad(np.array(self.force_model.true_time), np.array(self.force_model.steer_acc_x), np.array(self.integration_points), pad_val=None)
 
-            steer_mag_res = interp(self.integration_points, self.force_model.true_time, self.steer_magnitude,
+            """self.steer_y = interp(self.integration_points, self.force_model.true_time, self.force_model.steer_acc_y,
+                                  left=np.nan, right=np.nan).tolist()
+            self.steer_y = [None if x == np.nan else x for x in self.steer_y]"""
+            self.steer_y = interpolate_and_pad(np.array(self.force_model.true_time), np.array(self.force_model.steer_acc_y), np.array(self.integration_points), pad_val=None)
+
+            """self.steer_z = interp(self.integration_points, self.force_model.true_time, self.force_model.steer_acc_z,
+                                  left=np.nan, right=np.nan).tolist()
+            self.steer_z = [None if x == np.nan else x for x in self.steer_z]"""
+            self.steer_z = interpolate_and_pad(np.array(self.force_model.true_time), np.array(self.force_model.steer_acc_z), np.array(self.integration_points), pad_val=None)
+
+            """steer_mag_res = interp(self.integration_points, self.force_model.true_time, self.steer_magnitude,
                                    left=np.nan, right=np.nan).tolist()
-            steer_mag_res = [None if x == np.nan else x for x in steer_mag_res]
+            steer_mag_res = [None if x == np.nan else x for x in steer_mag_res]"""
+            self.steer_magnitude = interpolate_and_pad(np.array(self.force_model.true_time), np.array(self.steer_magnitude), np.array(self.integration_points), pad_val=None)
 
-            self.steer_magnitude = steer_mag_res
+            # self.steer_magnitude = steer_mag_res
 
             self.control_input_track = self.force_model.guidance.control_command_track
             self.vel_angle_track = self.force_model.guidance.vel_angle_track
 
             # Interpolating everything onto the integration points:
             for key in self.control_input_track.keys():
-                self.control_input_track[key] = interp(self.integration_points, self.force_model.true_time,
+                """self.control_input_track[key] = interp(self.integration_points, self.force_model.true_time,
                                                        self.control_input_track[key], left=np.nan, right=np.nan).tolist()
-                self.control_input_track[key] = [None if x == np.nan else x for x in self.control_input_track[key]]
-
+                self.control_input_track[key] = [None if x == np.nan else x for x in self.control_input_track[key]]"""
+                self.control_input_track[key] = interpolate_and_pad(np.array(self.force_model.true_time), np.array(self.control_input_track[key]), np.array(self.integration_points), pad_val=None)
 
             for key in self.vel_angle_track.keys():
                 self.vel_angle_track[key] = interp(self.integration_points, self.force_model.true_time,
                                                        self.vel_angle_track[key], left=np.nan, right=np.nan).tolist()
                 self.vel_angle_track[key] = [None if x == np.nan else x for x in  self.vel_angle_track[key]]
+                self.vel_angle_track[key] = interpolate_and_pad(np.array(self.force_model.true_time), np.array(self.vel_angle_track[key]), np.array(self.integration_points), pad_val=None)
 
             if self.force_model.guidance.continuous_targeting:
                 # Getting the reference trajectory
@@ -257,21 +284,28 @@ class Spacecraft:
 
 
         if self.force_model.drag_model is not None:
-            self.drag_mag_track = interp(self.integration_points, self.force_model.true_time, self.force_model.drag_mag_track,
+            """self.drag_mag_track = interp(self.integration_points, self.force_model.true_time, self.force_model.drag_mag_track,
                                   left=np.nan, right=np.nan).tolist()
-            self.drag_mag_track = [None if x == np.nan else x for x in self.drag_mag_track]
+            self.drag_mag_track = [None if x == np.nan else x for x in self.drag_mag_track]"""
+            self.drag_mag_track = interpolate_and_pad(np.array(self.force_model.true_time), np.array(self.force_model.drag_mag_track), np.array(self.integration_points), pad_val=None)
 
-            self.drag_acc_x = interp(self.integration_points, self.force_model.true_time, self.force_model.drag_acc_x,
+            """self.drag_acc_x = interp(self.integration_points, self.force_model.true_time, self.force_model.drag_acc_x,
                                   left=np.nan, right=np.nan).tolist()
-            self.drag_acc_x = [None if x == np.nan else x for x in self.drag_acc_x]
+            self.drag_acc_x = [None if x == np.nan else x for x in self.drag_acc_x]"""
+            self.drag_acc_x = interpolate_and_pad(np.array(self.force_model.true_time), np.array(self.force_model.drag_acc_x), np.array(self.integration_points),
+                                                      pad_val=None)
 
-            self.drag_acc_y = interp(self.integration_points, self.force_model.true_time, self.force_model.drag_acc_y,
+            """self.drag_acc_y = interp(self.integration_points, self.force_model.true_time, self.force_model.drag_acc_y,
                                      left=np.nan, right=np.nan).tolist()
-            self.drag_acc_y = [None if x == np.nan else x for x in self.drag_acc_y]
+            self.drag_acc_y = [None if x == np.nan else x for x in self.drag_acc_y]"""
+            self.drag_acc_y = interpolate_and_pad(np.array(self.force_model.true_time), np.array(self.force_model.drag_acc_y), np.array(self.integration_points),
+                                                  pad_val=None)
 
-            self.drag_acc_z = interp(self.integration_points, self.force_model.true_time, self.force_model.drag_acc_z,
+            """self.drag_acc_z = interp(self.integration_points, self.force_model.true_time, self.force_model.drag_acc_z,
                                      left=np.nan, right=np.nan).tolist()
-            self.drag_acc_z = [None if x == np.nan else x for x in self.drag_acc_z]
+            self.drag_acc_z = [None if x == np.nan else x for x in self.drag_acc_z]"""
+            self.drag_acc_z = interpolate_and_pad(np.array(self.force_model.true_time), np.array(self.force_model.drag_acc_z), np.array(self.integration_points),
+                                                  pad_val=None)
 
         print("Integrating " + str(round(terminal_time - init_time, 3)) + " s after " + str(
             steps) + " evaluations", end="")

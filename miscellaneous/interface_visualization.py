@@ -96,7 +96,7 @@ def create_sample_points(params, sampling):
 surface_plot_domain = ["solar_phasing", "INC_init"]  # TODO this needds to be two dimensions of the terminal space
 sampling = 10
 
-data_raw = pd.read_csv("../scenarios/Legacy/Interface_sigma_04.csv")
+data_raw = pd.read_csv("../scenarios/Legacy/r_init__propagation_cutoff_SMA.csv")
 data_raw = data_raw.drop('empty', axis=1)
 
 # base_domain = get_data_dimensions(data_raw)
@@ -155,7 +155,7 @@ for i_1, param_1 in enumerate(output_keys):
 
 # t_s vs. output parameter surface plots
 # First, get the output parameters that are NOT constant:
-domain_params = copy.deepcopy(output_keys)
+"""domain_params = copy.deepcopy(output_keys)
 domain_params.remove("t_s")
 resampled_dict, plot_dict, all_par_points, all_par_plot_dict = create_sample_points(params=domain_params, sampling=20)
 
@@ -179,6 +179,6 @@ for d_1, param_1 in enumerate(domain_params):
             ax = fig_4.add_subplot(len(domain_params), len(domain_params), idx, projection="3d")
             ax.scatter([], [], [])
         idx += 1
-fig_4.legend()
+fig_4.legend()"""
 plt.show()
 
