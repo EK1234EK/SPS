@@ -8,7 +8,7 @@ import pandas as pd
 
 import src.spacecraft.sc
 from src.feasibility.valid_set import feasibility_setup
-from src.system_dynamics import sd_1, SRP, atmo, eclipse, sd_rotating
+from src.system_dynamics import sd_1, SRP, atmo, eclipse, sd_rotating, R4BP_inertial
 from src.analysis import plotting_functions
 from src.spacecraft import swarm_1
 from src.astrodynamic_functions import kepler_dynamics
@@ -1095,7 +1095,7 @@ def simple_run():
 
 def conti_guidance_test():
     t_start = 0
-    t_end = -1 * 24 * 3600
+    t_end = -200 * 24 * 3600
     integration_points = list(np.linspace(t_start, t_end, 10000))
     earth_mass = 5.9722e24
     solar_mass = 1.989 * 10 ** 30
@@ -1118,11 +1118,11 @@ def conti_guidance_test():
                                                                  # "RAAN": [1, 1.5, 1.5, 2, 2],
                                                                  "t": [5 * 24 * 3600, 15 * 24 * 3600, 20 * 24 * 3600, 25 * 24 * 3600, 35 * 24 * 3600]})
 
-    guidance_law.setup_continuouos_targeting(collocation_points={"SMA": [70000000],
-                                                                 # "INC": [0.1, 0.3, 0.3, 0.2, 0.2],
-                                                                 # "ECC": [0.1],
+    guidance_law.setup_continuouos_targeting(collocation_points={"SMA": [45000000, 55000000, 50000000],
+                                                                 "INC": [0.06, 0.15, 0.1],
+                                                                 "ECC": [0.1, 0.05, 0.1],
                                                                  # "RAAN": [1, 1.5, 1.5, 2, 2],
-                                                                 "t": [-20 * 24 * 3600]})
+                                                                 "t": [-150 * 24 * 3600, -70 * 24 * 3600, -20 * 24 * 3600]})
 
     guidance_law.conversion_mass = earth_mass
     guidance_law.gains = {"acc": 0.0001}
@@ -1158,7 +1158,7 @@ def conti_guidance_test():
 
     sw_1.do_integration = True
 
-    sw_1.create_and_integrate_swarm(rtol=1e-10, parproc=False, cores=11)
+    sw_1.create_and_integrate_swarm(rtol=1e-6, parproc=False, cores=11)
 
     inp = input("Save= (y / n)")
     if inp == "y":
@@ -1176,7 +1176,7 @@ def conti_guidance_test():
                                             animated=False)
 
     plots.trajectory_xyz()
-    plots.parameters_plot(plot_reference_trajectory=False)
+    plots.parameters_plot(plot_reference_trajectory=True)
     plots.plot_steering_acceleration()
     plots.plot_control()
     plots.plot_drag_acceleration()
@@ -1185,6 +1185,107 @@ def conti_guidance_test():
     plots.plot_drag_acceleration()
     plots.C3_plot()
     plots.moving_map_plot(k_modulo=10, match_tail_color=True)
+    # plots.moving_map_plot(match_tail_color=False)
+    plt.show()
+    plt.waitforbuttonpress(10000000000)
+
+def R4BP_test():
+    # Notes for Lagrange setup:
+    mu_star = 256305510941185.12
+
+    t_start = 0
+    t_end = 10 * 24 * 3600
+    integration_points = list(np.linspace(t_start, t_end, 10000))
+    earth_mass = 5.9722e24
+    solar_mass = 1.989 * 10 ** 30
+
+    inp = input("Load pickle? (y)")
+    if inp == "y":
+        force_model = pickle.load(open('.p', 'rb'))
+        sc_list = pickle.load(open('sv.p', 'rb'))
+    else:
+        print("Integrating all initial conditions")
+
+    force_model = R4BP_inertial.R4BP_force_model(path="./data/R4BP_no_sync.xlsx")
+    force_model.define_central_attractor(mass=earth_mass, position=[0, 0, 0])
+    # force_model.central_attractor_gravity_law = src.astrodynamic_functions.kepler_dynamics.J_X_acceleration_tilted_to_ecliptic
+
+    guidance_law = steering_laws.LocalOptimal()
+    guidance_law.setup_continuouos_targeting(collocation_points={"SMA": [50000000, 70000000, 70000000, 90000000, 50000000],
+                                                                 # "INC": [0.1, 0.3, 0.3, 0.2, 0.2],
+                                                                 "ECC": [0.1, 0.15, 0.15, 0.2, 0.1],
+                                                                 # "RAAN": [1, 1.5, 1.5, 2, 2],
+                                                                 "t": [5 * 24 * 3600, 15 * 24 * 3600, 20 * 24 * 3600, 25 * 24 * 3600, 35 * 24 * 3600]})
+
+    guidance_law.setup_continuouos_targeting(collocation_points={"SMA": [45000000, 55000000, 50000000],
+                                                                 "INC": [0.06, 0.15, 0.1],
+                                                                 "ECC": [0.1, 0.05, 0.1],
+                                                                 # "RAAN": [1, 1.5, 1.5, 2, 2],
+                                                                 "t": [-150 * 24 * 3600, -70 * 24 * 3600, -20 * 24 * 3600]})
+
+    guidance_law.conversion_mass = earth_mass
+    guidance_law.gains = {"acc": 0.0001}
+    guidance_law.guidance_function = guidance_law.guidance_conti
+    # force_model.guidance = guidance_law
+
+    # Params:
+    L1_bary = 318497940.4568403
+    inc = [0.09086956096922796]
+    RAAN_list = [0.001]
+    a = np.linspace(-10000000, 10000000, 100)
+    a = a + np.ones(len(a)) * L1_bary
+    cutoff_SMA = 20000000
+
+    manifolds = [[-6197696.3949212525, -6197696.3949212525, 1],
+                 [2638614.7315163864, 2638614.7315163864, 1],
+                 [-753362.9238320779, -753362.9238320779, 1],
+                 [-3074.0790258669726, -3074.0790258669726, 1],
+                 [-6384.415594809771, -6384.415594809771, 100],
+                 [2928.463010243008, 2928.463010243008, 1],
+                 [0, 0, 1]]
+
+
+    sw_1 = swarm_1.particle_swarm(manifolds, force_model)
+    sw_1.do_integration = False
+    sw_1.integration_points = integration_points
+    sw_1.square_swarm('generic')
+    sw_1.create_and_integrate_swarm(rtol=1e-6, parproc=True, cores=11)
+    # sw_1.get_swarm_body_distances(["Moon"])
+
+    for i, sc in enumerate(sw_1.list_of_spacecraft):
+        sc.init_state_vector = kepler_dynamics.oe_to_sv(a[i], 0.00001,
+                                                        inc[0], RAAN_list[0], 0, 0, 0, mu_star / (6.67430*10**(-11)))
+        # sc.display_name = str(round(float(RAAN_list[0]) * 180 / math.pi))
+
+    sw_1.do_integration = True
+
+    sw_1.create_and_integrate_swarm(rtol=1e-5, parproc=True, cores=11)
+
+    inp = input("Save= (y / n)")
+    if inp == "y":
+        # Safe the stuff with pickle
+        pickle.dump(sw_1.list_of_spacecraft, open('sv.p', 'wb'))
+        pickle.dump(force_model, open('.p', 'wb'))
+
+    input("Start plotting?")
+
+    plots = plotting_functions.graph_output(list_of_spacecraft=sw_1.list_of_spacecraft,
+                                            list_of_resampled_spacecraft=[],
+                                            list_of_special_spacecraft=[],
+                                            force_model=force_model,
+                                            axis_visibility=False,
+                                            animated=True)
+
+    plots.trajectory_xyz()
+    plots.parameters_plot(plot_reference_trajectory=True)
+    plots.plot_steering_acceleration()
+    plots.plot_control()
+    plots.plot_drag_acceleration()
+    plots.plot_target_velocity_angles()
+    plots.magnitude_plot()
+    plots.plot_drag_acceleration()
+    plots.C3_plot()
+    plots.moving_map_plot(k_modulo=20, match_tail_color=True, override_limits={"x": [-5e8, 5e8], "y": [-5e8, 5e8], "z": [-5e8, 5e8]})
     # plots.moving_map_plot(match_tail_color=False)
     plt.show()
     plt.waitforbuttonpress(10000000000)
@@ -1202,4 +1303,5 @@ if __name__ == "__main__":
     # escape_time()
     # solar_pressure()
     # simple_run()
-    conti_guidance_test()
+    # conti_guidance_test()
+    R4BP_test()

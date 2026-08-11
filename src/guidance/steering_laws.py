@@ -576,16 +576,11 @@ class LocalOptimal:
         self.current_control = self.target_orbit_gradient(state=state)
         angle = math.acos(np.dot(self.current_control / np.linalg.norm(self.current_control), np.array(state[3:6]) / np.linalg.norm(np.array(state[3:6]))))
 
-        print("Control command norm: ", self.current_control / np.linalg.norm(self.current_control))
-        print("Velocity command norm: ", np.array(state[3:6]) / np.linalg.norm(np.array(state[3:6])))
-        print("Angle:               ", round(angle, 3))
-        print("=============")
-
         if np.linalg.norm(self.current_control) > 0.000000001:
             self.current_control = self.gains["acc"] * self.current_control / np.linalg.norm(self.current_control)
         else:
             self.current_control = np.array([0, 0, 0])
-        return self.current_control
+        return -self.current_control
 
 
     def guidance(self, state, time, force_model):
