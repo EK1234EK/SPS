@@ -73,6 +73,9 @@ if __name__ == "__main__":
     for key in collolcation_points.keys():
         if key != "t":
             ax.scatter(collolcation_points["t"], collolcation_points[key], label=key + " col point")
+    ax.set_xlabel("Time []")
+    ax.set_ylabel("Parameter value []")
+    ax.set_title("Example of collocation point and spline")
     ax.legend()
     plt.show()
 

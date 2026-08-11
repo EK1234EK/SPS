@@ -580,7 +580,7 @@ class LocalOptimal:
             self.current_control = self.gains["acc"] * self.current_control / np.linalg.norm(self.current_control)
         else:
             self.current_control = np.array([0, 0, 0])
-        return -self.current_control
+        return self.current_control
 
 
     def guidance(self, state, time, force_model):

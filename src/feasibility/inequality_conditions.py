@@ -21,7 +21,7 @@ def check_and(sc):
             return True
 
     def condition_5(sc):
-        if min(sc.body_distances["body_1"]) < 0.9e9:
+        if 300097940.4568403 < sc.slant_range_track[-1] < 340497940.4568403:
             return True
 
     def condition_6(sc):
@@ -31,4 +31,4 @@ def check_and(sc):
     def condition_7(sc):
         if abs(((sc.trajectory_track[0][-1] - 0.8346191402770146)**2 + sc.trajectory_track[1][-1]**2 + sc.trajectory_track[2][-1]**2)**0.5) < 0.01 and abs((sc.trajectory_track[3][-1] ** 2 + sc.trajectory_track[4][-1] ** 2 + sc.trajectory_track[5][-1] ** 2) ** 0.5) < 0.01:
             return True
-    return condition_7(sc)
+    return condition_5(sc)

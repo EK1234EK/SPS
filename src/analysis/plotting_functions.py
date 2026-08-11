@@ -702,6 +702,8 @@ class graph_output:
         ax_5 = fig.add_subplot(235)
         ax_6 = fig.add_subplot(236)
 
+        ax_1.set_ylabel("SMA [m]")
+
         axes = [ax_1, ax_2, ax_3, ax_4, ax_5, ax_6]
         param_names = ["SMA", "ECC", "INC", "RAAN", "APERI", "TAEPO"]
 
