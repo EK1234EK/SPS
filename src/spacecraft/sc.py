@@ -59,6 +59,7 @@ class Spacecraft:
 
         self.event_time = None
         self.event_cutoff_val = None
+        self.event_cutoff_parameters = None
 
         # Steering track
         self.steer_x = []
@@ -79,6 +80,7 @@ class Spacecraft:
 
         # Reference trajectory track
         self.target_parameter_track = {"SMA": [], "ECC": [], "INC": [], "RAAN": [], "APERI": [], "TAEPO": []}
+        self.interface = None
 
     def get_acc(self, state_vector, system_time):
         position = state_vector[0:3]

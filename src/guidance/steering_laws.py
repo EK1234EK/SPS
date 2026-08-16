@@ -167,6 +167,7 @@ class LocalOptimal:
 
         # Continuous trajectory reference
         self.continuous_targeting = None
+        self.integration_direction = 1  # Set to -1 if backwards integration
 
     def setup_continuouos_targeting(self, collocation_points):
         self.continuous_targeting = reference_trajectory.steering_track(collocation_points=collocation_points)
@@ -580,7 +581,7 @@ class LocalOptimal:
             self.current_control = self.gains["acc"] * self.current_control / np.linalg.norm(self.current_control)
         else:
             self.current_control = np.array([0, 0, 0])
-        return self.current_control
+        return self.current_control * self.integration_direction
 
 
     def guidance(self, state, time, force_model):

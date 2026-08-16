@@ -39,7 +39,22 @@ def kill_integrator_SMA(time, state, cutoff):
         print(-1)
         return -1"""
 
+def kill_integrator_interface(time, state, cutoff):
+    oe = kepler_dynamics.sv_to_oe(state_vector=state, mass=5.9722e24)
+    # if not (49877718.58332233 < oe[0] < 199590371.3654217):
+    if not (49877718.58332233 < oe[0] < 179590371.3654217):
+        return -1
+    if not (0.1294540679910744 < oe[1] < 0.4927204547048896):
+        return -1
+    if not (0.0792983383511437 < oe[2] < 0.6051461805592163):
+        return -1
+    return 1
 
-def kill_integrator_altitude(time, state):
-    radius = np.linalg.norm(np.array(state[0:3]))
-    return radius - 100000000
+
+def kill_integrator_interface_convex(time, state, interface_inst):
+    oe = kepler_dynamics.sv_to_oe(state_vector=state, mass=5.9722e24)
+    interp_val = interface_inst.interface_interpolation(eval_points=[oe[0], oe[1], oe[2]], fill_val=69)
+    if interp_val != 69:
+        return -1
+    else:
+        return 1

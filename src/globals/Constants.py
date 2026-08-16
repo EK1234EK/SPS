@@ -18,3 +18,6 @@ def get_SRP_globals():
     R_s = 696340000  # m
     c = 299792458  # m/s
     return sigma_star, L_s, R_s, c
+
+def get_normalization_factors():
+    return {"SMA": 300000000, "ECC": 1, "INC": 1, "t_prop": 100*24*3600}

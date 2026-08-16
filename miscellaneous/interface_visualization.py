@@ -96,7 +96,7 @@ def create_sample_points(params, sampling):
 surface_plot_domain = ["solar_phasing", "INC_init"]  # TODO this needds to be two dimensions of the terminal space
 sampling = 10
 
-data_raw = pd.read_csv("../scenarios/Legacy/r_init__propagation_cutoff_SMA.csv")
+data_raw = pd.read_csv("../scenarios/Legacy/Interface_sigma_04.csv")
 data_raw = data_raw.drop('empty', axis=1)
 
 # base_domain = get_data_dimensions(data_raw)
@@ -155,7 +155,7 @@ for i_1, param_1 in enumerate(output_keys):
 
 # t_s vs. output parameter surface plots
 # First, get the output parameters that are NOT constant:
-"""domain_params = copy.deepcopy(output_keys)
+domain_params = copy.deepcopy(output_keys)
 domain_params.remove("t_s")
 resampled_dict, plot_dict, all_par_points, all_par_plot_dict = create_sample_points(params=domain_params, sampling=20)
 
@@ -168,17 +168,20 @@ for d_1, param_1 in enumerate(domain_params):
             # eval = connector.interface_interpolation(eval_points=resampled_dict[param_1 + param_2], fill_val=69)
             eval = connector.interface_interpolation(eval_points=all_par_points, fill_val=69)
             eval = [e if e != 69 else float(np.nan) for e in eval]
-            ax = fig_4.add_subplot(len(domain_params), len(domain_params), idx, projection="3d")
-            ax.scatter(normalized_data[param_1], normalized_data[param_2], normalized_data["t_s"], label="Ground truth", marker=".", alpha=1, color=[0, 0, 1])
+            fig = plt.figure()
+            ax = fig.add_subplot(111, projection="3d")
+            # ax = fig_4.add_subplot(len(domain_params), len(domain_params), idx, projection="3d")
+            ax.scatter(normalized_data[param_1], normalized_data[param_2], normalized_data["t_s"], label="Ground truth", marker=".", alpha=0.3, color=[0, 0, 1])
             # ax.scatter(plot_dict[param_1+param_2][1], plot_dict[param_1+param_2][0], eval, label="Interpolated", marker=".", color=[1, 0, 0])
-            ax.scatter(all_par_plot_dict[param_1], all_par_plot_dict[param_2], eval, label="Interpolated", marker=".", color=[1, 0, 0])
+            ax.scatter(all_par_plot_dict[param_1], all_par_plot_dict[param_2], eval, label="Interpolated", marker=".", alpha=0.3,  color=[1, 0, 0])
             ax.set_xlabel(param_1)
             ax.set_ylabel(param_2)
+            ax.legend()
             # ax.view_init(0, 90, 0)
         else:
             ax = fig_4.add_subplot(len(domain_params), len(domain_params), idx, projection="3d")
             ax.scatter([], [], [])
         idx += 1
-fig_4.legend()"""
+fig_4.legend()
 plt.show()
 

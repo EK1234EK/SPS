@@ -53,8 +53,8 @@ class steering_track:
 
 if __name__ == "__main__":
     import random
-    ncol = 10
-    collolcation_points = {"SMA": [random.randint(-10, 10) for _ in range(ncol)], "ECC": [random.randint(-10, 10) for _ in range(ncol)], "t": np.arange(-ncol, 0)}
+    ncol = 5
+    collolcation_points = {"SMA": list(np.linspace(0.3422, 9.08695610e-02, 5)), "ECC": [3.42200001e-01, 2.79367392e-01, 2.16534782e-01, 1.53702172e-01, 9.08695609e-02], "t": np.arange(-ncol, 0)}
     target_track = steering_track(collocation_points=collolcation_points)
 
     times = np.linspace(collolcation_points["t"][0] - 2, collolcation_points["t"][-1] + 2, 10000)
@@ -69,7 +69,7 @@ if __name__ == "__main__":
     fig = plt.figure()
     ax = fig.add_subplot(111)
     ax.plot(times, SMA_track, color=[1, 0, 0], label="SMA")
-    ax.plot(times, ECC_track, color=[0, 1, 0], label="ECC")
+    ax.plot(times, ECC_track, color=[0, 1, 0], label="SMA solution")
     for key in collolcation_points.keys():
         if key != "t":
             ax.scatter(collolcation_points["t"], collolcation_points[key], label=key + " col point")

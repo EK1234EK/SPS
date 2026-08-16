@@ -5,8 +5,10 @@ import numpy as np
 import matplotlib.pyplot as plt
 import pandas
 import pandas as pd
+from numpy.ma.core import argmin
 
 import src.spacecraft.sc
+from scenarios.interface_builder import interface
 from src.feasibility.valid_set import feasibility_setup
 from src.system_dynamics import sd_1, SRP, atmo, eclipse, sd_rotating, R4BP_inertial
 from src.analysis import plotting_functions
@@ -19,6 +21,9 @@ import math
 import pickle
 
 from src.system_dynamics.atmo import EARTH_RADIUS
+
+from src.globals import Constants
+normalization = Constants.get_normalization_factors()
 
 
 def all_plots():
@@ -1189,15 +1194,26 @@ def conti_guidance_test():
     plt.show()
     plt.waitforbuttonpress(10000000000)
 
-def R4BP_test():
+def linear_transfer(dof_vec):
     # Notes for Lagrange setup:
+    from src.Optimization import Interface
+
+    SMA_track = list(np.array(dof_vec[0:5]) * normalization["SMA"])
+    ECC_track = list(np.array(dof_vec[5:10]) * normalization["ECC"])
+    INC_track = list(np.array(dof_vec[10:15]) * normalization["INC"])
+
     mu_star = 256305510941185.12
 
+    target_bounds = Interface.Interface(discrete_interface=pd.read_csv("./scenarios/Legacy/Interface_sigma_04.csv"), interface_states=["SMA", "ECC", "INC"]).get_convex_rectangle()
+
     t_start = 0
-    t_end = 10 * 24 * 3600
-    integration_points = list(np.linspace(t_start, t_end, 10000))
+    t_end = -100*24*3600
+    integration_points = list(np.linspace(t_start, t_end, 1000))
     earth_mass = 5.9722e24
     solar_mass = 1.989 * 10 ** 30
+
+    L1_state_vector = [306770476.4024763, 316770.58199267735, 0.0, -0.8958042029688121, 895.8039043673915, 81.62614187080287]
+    print("L1 parameters: ", kepler_dynamics.sv_to_oe(state_vector=L1_state_vector, mass=earth_mass))
 
     inp = input("Load pickle? (y)")
     if inp == "y":
@@ -1206,34 +1222,31 @@ def R4BP_test():
     else:
         print("Integrating all initial conditions")
 
+    itf = Interface.Interface(discrete_interface=pd.read_csv("./scenarios/Legacy/Interface_sigma_04.csv"), interface_states=["SMA", "ECC", "INC", "t_s"])
+
     force_model = R4BP_inertial.R4BP_force_model(path="./data/R4BP_no_sync_circular.xlsx")
     force_model.define_central_attractor(mass=earth_mass, position=[0, 0, 0])
     # force_model.central_attractor_gravity_law = src.astrodynamic_functions.kepler_dynamics.J_X_acceleration_tilted_to_ecliptic
 
     guidance_law = steering_laws.LocalOptimal()
-    guidance_law.setup_continuouos_targeting(collocation_points={"SMA": [50000000, 70000000, 70000000, 90000000, 50000000],
-                                                                 # "INC": [0.1, 0.3, 0.3, 0.2, 0.2],
-                                                                 "ECC": [0.1, 0.15, 0.15, 0.2, 0.1],
-                                                                 # "RAAN": [1, 1.5, 1.5, 2, 2],
-                                                                 "t": [5 * 24 * 3600, 15 * 24 * 3600, 20 * 24 * 3600, 25 * 24 * 3600, 35 * 24 * 3600]})
-
-    guidance_law.setup_continuouos_targeting(collocation_points={"SMA": [45000000, 55000000, 50000000],
-                                                                 "INC": [0.06, 0.15, 0.1],
-                                                                 "ECC": [0.1, 0.05, 0.1],
-                                                                 # "RAAN": [1, 1.5, 1.5, 2, 2],
-                                                                 "t": [-150 * 24 * 3600, -70 * 24 * 3600, -20 * 24 * 3600]})
+    guidance_law.setup_continuouos_targeting(collocation_points={"SMA": SMA_track,
+                                                                 "ECC": ECC_track,
+                                                                 "INC": INC_track,
+                                                                 "t": np.linspace(t_end, t_start, 5)})
 
     guidance_law.conversion_mass = earth_mass
     guidance_law.gains = {"acc": 0.0001}
     guidance_law.guidance_function = guidance_law.guidance_conti
-    # force_model.guidance = guidance_law
+    guidance_law.integration_direction = -1
+    force_model.guidance = guidance_law
+    # force_model.guidance.terminator = events.kill_integrator_interface_convex
 
     # Params:
     L1_bary = 318497940.4568403
     inc = [0.09086956096922796]
     RAAN_list = [0.001]
     # a = np.linspace(-21500000, -21300000, 100)
-    a = np.linspace(-5000000, 0, 100)
+    a = np.linspace(-5000000, 0, 1)
     a = a + np.ones(len(a)) * L1_bary
     cutoff_SMA = 20000000
 
@@ -1241,7 +1254,7 @@ def R4BP_test():
                  [2638614.7315163864, 2638614.7315163864, 1],
                  [-753362.9238320779, -753362.9238320779, 1],
                  [-3074.0790258669726, -3074.0790258669726, 1],
-                 [-6384.415594809771, -6384.415594809771, 100],
+                 [-6384.415594809771, -6384.415594809771, 1],
                  [2928.463010243008, 2928.463010243008, 1],
                  [0, 0, 1]]
 
@@ -1250,41 +1263,71 @@ def R4BP_test():
     sw_1.do_integration = False
     sw_1.integration_points = integration_points
     sw_1.square_swarm('generic')
-    sw_1.create_and_integrate_swarm(rtol=1e-6, parproc=True, cores=11)
+    sw_1.create_and_integrate_swarm(rtol=1e-6, parproc=False, cores=11)
     # sw_1.get_swarm_body_distances(["Moon"])
 
     for i, sc in enumerate(sw_1.list_of_spacecraft):
-        sc.init_state_vector = kepler_dynamics.oe_to_sv(a[i], 0.00001,
-                                                        inc[0], RAAN_list[0], 0, 0, 0, mu_star / (6.67430*10**(-11)))
-        # sc.display_name = str(round(float(RAAN_list[0]) * 180 / math.pi))
+        sc.init_state_vector = L1_state_vector
+
 
     sw_1.do_integration = True
 
-    sw_1.create_and_integrate_swarm(rtol=1e-5, parproc=True, cores=11)
+    sw_1.create_and_integrate_swarm(rtol=1e-5, parproc=False, cores=11)
 
-    fs = valid_set.feasibility_setup(list_of_sc=sw_1.list_of_spacecraft, force_model=force_model,
-                                     manifolds=manifolds)
-    fs.check_conditions()
-    list_of_spacecraft = fs.list_of_sc
+    """event_index = None
+
+    for i, sc in enumerate(sw_1.list_of_spacecraft):
+        try:
+            print(sc.event_time[0][0])
+            for itp in range(len(integration_points) - 1):
+                if (integration_points[itp] <= sc.event_time[0][0] <= integration_points[itp + 1]) \
+                        or (integration_points[itp] >= sc.event_time[0][0] >= integration_points[itp + 1]):
+                    event_index = itp
+                    break
+            sc.event_cutoff_parameters = [sc.orbital_parameters_track[k][event_index] for k in range(6)]
+
+            print("Event cutoff state: ", sc.event_cutoff_parameters)
+            print("Time of flight: ", -integration_points[event_index])
+
+        except:
+            print("No event trigger")
 
 
     inp = input("Save= (y / n)")
     if inp == "y":
         # Safe the stuff with pickle
-        pickle.dump(list_of_spacecraft, open('sv.p', 'wb'))
-        pickle.dump(force_model, open('.p', 'wb'))
+        pickle.dump(sw_1.list_of_spacecraft, open('sv.p', 'wb'))
+        pickle.dump(force_model, open('.p', 'wb'))"""
+
+    for i, sc in enumerate(sw_1.list_of_spacecraft):
+        # Find the point of the trajectory with the lowest total cost, also after propagating past the interface domain
+        samples = [[sc.orbital_parameters_track[index][f] for index in range(3)] for f in range(len(integration_points))]
+        t_interface = itf.interface_interpolation(eval_points=samples, fill_val=5*10**8)
+        t_integral = [integration_points[f] for f in range(len(integration_points))]
+        t_total = np.array(t_interface) - np.array(t_integral)
+        print("Minimum cost: ", round(min(t_total)), " at integration point ", argmin(t_total), ", system time ", round(integration_points[argmin(t_total)]))
+
+        fig = plt.figure()
+        ax_1 = fig.add_subplot(131)
+        ax_2 = fig.add_subplot(132)
+        ax_3 = fig.add_subplot(133)
+        ax_1.plot(integration_points, t_interface, label="Interface")
+        ax_2.plot(integration_points, -np.array(t_integral), label="Interface")
+        ax_3.plot(integration_points, t_total, label="Total cost")
+        fig.legend()
+        plt.show()
+    pass
 
     input("Start plotting?")
 
-    plots = plotting_functions.graph_output(list_of_spacecraft=list_of_spacecraft,
+    plots = plotting_functions.graph_output(list_of_spacecraft=[],
                                             list_of_resampled_spacecraft=[],
-                                            list_of_special_spacecraft=[],
+                                            list_of_special_spacecraft=sw_1.list_of_spacecraft,
                                             force_model=force_model,
                                             axis_visibility=False,
-                                            animated=True,
-                                            fps=20)
+                                            animated=True)
 
-    """plots.trajectory_xyz()
+    plots.trajectory_xyz()
     plots.parameters_plot(plot_reference_trajectory=True)
     plots.plot_steering_acceleration()
     plots.plot_control()
@@ -1292,8 +1335,8 @@ def R4BP_test():
     plots.plot_target_velocity_angles()
     plots.magnitude_plot()
     plots.plot_drag_acceleration()
-    plots.C3_plot()"""
-    plots.moving_map_plot(k_modulo=20, match_tail_color=True, moving_window={"Body": "Moon", "x": 300000000, "y": 300000000, "z": 300000000})
+    plots.C3_plot()
+    plots.moving_map_plot(k_modulo=20, match_tail_color=True, override_limits={"x": [-500000000, 500000000], "y": [-500000000, 500000000], "z": [-500000000, 500000000]})
     # plots.moving_map_plot(match_tail_color=False)
     plt.show()
     plt.waitforbuttonpress(10000000000)
@@ -1311,5 +1354,18 @@ if __name__ == "__main__":
     # escape_time()
     # solar_pressure()
     # simple_run()
-    conti_guidance_test()
-    # R4BP_test()
+    # conti_guidance_test()
+
+    init = np.array(list(np.linspace(124734044, 2.22736184e+08, 5) / normalization["SMA"]) + list(np.linspace(0.31108, 3.77282462e-01, 5) / normalization["ECC"]) + list(np.linspace(0.3422, 9.08695610e-02, 5) / normalization["INC"]))
+    init_SMA = [0.41578015, 0.5974486,  0.57911705, 0.3607855,  0.74245395]
+    init_ECC = [0.31108,    0.32763062, 0.34418123, 0.36073185, 0.37728246]
+    init_INC = [0.3422,     0.27936739, 0.21653478, 0.15370217, 0.09086956]
+
+    sol_SMA = [0.4157843,  0.49745977, 0.57912114, 0.66078982, 0.74246375]
+    sol_ECC = [0.31110028, 0.32764736, 0.34419195, 0.3607429,  0.37728915]
+    sol_INC = [0.34221114, 0.27937079, 0.21653667, 0.15371217, 0.09087205]
+
+    init = init_SMA + init_ECC + init_INC
+    sol = sol_SMA + sol_ECC + sol_INC
+
+    linear_transfer(dof_vec=init)
