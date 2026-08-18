@@ -257,7 +257,7 @@ class graph_output:
 
             if not self.axis_visibility:
                 ax.set_axis_off()
-            # fig.tight_layout()
+            # fig_1.tight_layout()
 
         # In case of CR3BP force model, plot the Lagrange points as well:
         if self.force_model.is_CR3BP:
@@ -529,7 +529,7 @@ class graph_output:
 
                 axes[tuple(ind_slice)].set_facecolor(color_data["background"])
 
-                #fig.tight_layout()
+                #fig_1.tight_layout()
                 lgnd = axes[tuple(ind_slice)].legend(loc='upper left')
                 lgnd.set_draggable(True)
                 for handle in lgnd.legend_handles:
@@ -586,7 +586,7 @@ class graph_output:
                 axes[tuple(ind_slice)].set_xlabel(xl)
                 axes[tuple(ind_slice)].set_ylabel(yl)
                 axes[tuple(ind_slice)].set_zlabel(zl)
-                #fig.tight_layout()
+                #fig_1.tight_layout()
 
                 axes[tuple(ind_slice)].xaxis.set_pane_color(color_data["background"])
                 axes[tuple(ind_slice)].yaxis.set_pane_color(color_data["background"])

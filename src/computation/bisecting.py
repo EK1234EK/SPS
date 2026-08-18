@@ -20,8 +20,8 @@ def bisecting(fun, lb, ub, x_tol):
     int_fun_arr = int_fun_arr / np.linalg.norm(max(int_fun_arr))
     denom_arr = denom_arr / np.linalg.norm(max(denom_arr))
     
-    fig = plt.figure()
-    ax = fig.add_subplot(111)
+    fig_1 = plt.figure()
+    ax = fig_1.add_subplot(111)
     ax.scatter(eval_arr, fun_arr, label="Function")
     ax.scatter(eval_arr, int_fun_arr, label="Integral")
     ax.scatter(eval_arr, denom_arr, label="Denominator")

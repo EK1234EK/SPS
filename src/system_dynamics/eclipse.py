@@ -29,7 +29,13 @@ class eclipse_model:
             s = sc_pos - r_b
 
         a = math.asin(R_s / np.linalg.norm(sun_pos - sc_pos))
-        b = math.asin(body_radius / np.linalg.norm(s))
+        try:
+            b = math.asin(body_radius / np.linalg.norm(s))
+        except ValueError:
+            if body_radius / np.linalg.norm(s) >= 0:
+                b = 0.99 * math.pi
+            else:
+                b = -0.99 * math.pi
 
         c = math.acos(np.dot(-np.transpose(s), (sun_pos - sc_pos)) / (np.linalg.norm(s) * np.linalg.norm(sun_pos - sc_pos)))  # TODO this is acos according to source Montenbruck_2000_SatelliteOrbits
         # c = math.asin(np.dot(-np.transpose(s), (sun_pos - sc_pos)) / (np.linalg.norm(s) * np.linalg.norm(sun_pos - sc_pos)))

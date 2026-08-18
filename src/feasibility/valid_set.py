@@ -394,13 +394,13 @@ class feasibility_setup:
         mod_rot_points = [[rot_points[i][k] for k in range(len(reduced_normal)) if k not in rm_line_rotated.keys()] for i in range(len(rot_points))]
 
         """if len(mod_rot_points[0]) == 3:
-            fig = plt.figure()
-            ax = fig.add_subplot(111, projection='3d')
+            fig_1 = plt.figure()
+            ax = fig_1.add_subplot(111, projection='3d')
             ax.scatter(mod_points[0][:], mod_points[1][:], mod_points[2][:])
             plt.show()
         elif len(mod_rot_points[0]) == 2:
-            fig = plt.figure()
-            ax = fig.add_subplot(111)
+            fig_1 = plt.figure()
+            ax = fig_1.add_subplot(111)
             ax.scatter(mod_points[0][:], mod_points[1][:])
             plt.show()"""
 

@@ -104,7 +104,7 @@ def control_inversion_real_sail(sail, sigma, vel_change, state, force_model):
 
     gamma = gamma_v
 
-    if np.dot(n, vel_change) < 0:
+    if np.dot(n, vel_change) < 0.0001:
         alpha = 0.5 * math.pi
         return [alpha, gamma], [alpha_v, gamma_v], n
 
@@ -170,7 +170,7 @@ class LocalOptimal:
         self.integration_direction = 1  # Set to -1 if backwards integration
 
     def setup_continuouos_targeting(self, collocation_points):
-        self.continuous_targeting = reference_trajectory.steering_track(collocation_points=collocation_points)
+        self.continuous_targeting = reference_trajectory.steering_track(knot_points=collocation_points)
 
 
     def target_orbit_pinv_jacobian(self, state):
@@ -436,15 +436,18 @@ class LocalOptimal:
         return self.current_control
 
     def guidance_3_optic(self, state, time, force_model):
-        arc_sun = (time / (
+        """arc_sun = (time / (
                 24 * 3600 * 365)) * 2 * math.pi + self.initial_solar_phasing  # To account for the rotation of the orbital plane w.r.t. inbound radiation
-        pos_sun = np.array([math.cos(arc_sun), math.sin(arc_sun), 0]) * 149000000000
+        pos_sun = np.array([math.cos(arc_sun), math.sin(arc_sun), 0]) * 149000000000"""
+        body_states = force_model.propagate_body_states([time], mass=1.3271284354451499e+20 / (6.67430 * 10 ** (-11)), position_only=True)
+        pos_sun = [body_states["Sun"][i][0] for i in range(3)]
         force_model.solar_pressure.radiation_location = pos_sun
 
-        # self.target_oe = {"SMA": 210000000, "INC": 5*math.pi/180}
-
-        self.target_oe = {"SMA": 210000000}
-        target_vel_change = self.target_orbit_gradient(state=state)
+        guidance_setpoint = self.continuous_targeting.guidance_setpoint(time=time)
+        for i, param in enumerate(["SMA", "ECC", "INC", "RAAN", "APERI", "TAEPO"]):
+            if guidance_setpoint[i]:
+                self.target_oe[param] = guidance_setpoint[i]
+        target_vel_change = self.target_orbit_gradient(state=state) * self.integration_direction
 
         sail_control, vel_angle, n = control_inversion_real_sail(sail=force_model.solar_pressure.sail_model,
                                                                  sigma=force_model.solar_pressure.sail_parameters[
@@ -596,8 +599,8 @@ if __name__ == "__main__":
     res_array = [nonlin_alpha_test(a=0.5, alpha_v=alpha_v) for alpha_v in alpha_range]
     alpha_ideal = [math.atan((-3 + (9 + 8 * math.tan(alpha_v) ** 2) ** 0.5) / (4 * math.tan(alpha_v))) for alpha_v in alpha_range]
 
-    fig = plt.figure()
-    ax = fig.add_subplot(111)
+    fig_1 = plt.figure()
+    ax = fig_1.add_subplot(111)
     ax.scatter(alpha_range, res_array)
     ax.scatter(alpha_range, alpha_ideal)
     plt.show()

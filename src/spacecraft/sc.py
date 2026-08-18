@@ -270,9 +270,9 @@ class Spacecraft:
                 self.control_input_track[key] = interpolate_and_pad(np.array(self.force_model.true_time), np.array(self.control_input_track[key]), np.array(self.integration_points), pad_val=None)
 
             for key in self.vel_angle_track.keys():
-                self.vel_angle_track[key] = interp(self.integration_points, self.force_model.true_time,
+                """self.vel_angle_track[key] = interp(self.integration_points, self.force_model.true_time,
                                                        self.vel_angle_track[key], left=np.nan, right=np.nan).tolist()
-                self.vel_angle_track[key] = [None if x == np.nan else x for x in  self.vel_angle_track[key]]
+                self.vel_angle_track[key] = [None if x == np.nan else x for x in  self.vel_angle_track[key]]"""
                 self.vel_angle_track[key] = interpolate_and_pad(np.array(self.force_model.true_time), np.array(self.vel_angle_track[key]), np.array(self.integration_points), pad_val=None)
 
             if self.force_model.guidance.continuous_targeting:

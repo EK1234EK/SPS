@@ -563,8 +563,8 @@ def tBP_dynamics_testing():
     sc_1.get_body_distances(body_list=["Earth"])
     sc_1.plot_color = [0.5, 1, 1]
 
-    """fig = plt.figure()
-    ax = fig.add_subplot(111, projection="3d")
+    """fig_1 = plt.figure()
+    ax = fig_1.add_subplot(111, projection="3d")
     ax.plot(sc_1.trajectory_track[0], sc_1.trajectory_track[1], sc_1.trajectory_track[2], color=[1, 0, 0], label="Sc")
     ax.plot(earth_traj[0], earth_traj[1], earth_traj[2], color=[0, 0, 1], label="Earth")
     ax.legend()
@@ -1022,8 +1022,8 @@ def simple_run():
     drag_model.static_drag = 0
     # force_model.drag_model = drag_model
 
-    # Eclipse_interface = src.system_dynamics.eclipse.eclipse_model(eclipse_bodies={"central_attractor": 6378000}, force_model=force_model)
-    # force_model.guidance.eclipse_model = Eclipse_interface
+    Eclipse_interface = src.system_dynamics.eclipse.eclipse_model(eclipse_bodies={"central_attractor": 6378000}, force_model=force_model)
+    force_model.guidance.eclipse_model = Eclipse_interface
 
     # Params:
     inc = [0.001, 0.001]
@@ -1123,7 +1123,7 @@ def conti_guidance_test():
                                                                  # "RAAN": [1, 1.5, 1.5, 2, 2],
                                                                  "t": [30 * 24 * 3600, 60 * 24 * 3600, 90 * 24 * 3600, 120 * 24 * 3600, 150 * 24 * 3600]})
 
-    """guidance_law.setup_continuouos_targeting(collocation_points={"SMA": [45000000, 55000000, 50000000],
+    """guidance_law.setup_continuouos_targeting(knot_points={"SMA": [45000000, 55000000, 50000000],
                                                                  "INC": [0.06, 0.15, 0.1],
                                                                  "ECC": [0.1, 0.05, 0.1],
                                                                  # "RAAN": [1, 1.5, 1.5, 2, 2],
@@ -1198,17 +1198,17 @@ def linear_transfer(dof_vec):
     # Notes for Lagrange setup:
     from src.Optimization import Interface
 
-    SMA_track = list(np.array(dof_vec[0:5]) * normalization["SMA"])
-    ECC_track = list(np.array(dof_vec[5:10]) * normalization["ECC"])
-    INC_track = list(np.array(dof_vec[10:15]) * normalization["INC"])
+    SMA_track = list(np.array(dof_vec[0:10]) * normalization["SMA"])
+    ECC_track = list(np.array(dof_vec[10:20]) * normalization["ECC"])
+    INC_track = list(np.array(dof_vec[20:30]) * normalization["INC"])
 
     mu_star = 256305510941185.12
 
     target_bounds = Interface.Interface(discrete_interface=pd.read_csv("./scenarios/Legacy/Interface_sigma_04.csv"), interface_states=["SMA", "ECC", "INC"]).get_convex_rectangle()
 
     t_start = 0
-    t_end = -100*24*3600
-    integration_points = list(np.linspace(t_start, t_end, 1000))
+    t_end = -300*24*3600
+    integration_points = list(np.linspace(t_start, t_end, 5000))
     earth_mass = 5.9722e24
     solar_mass = 1.989 * 10 ** 30
 
@@ -1226,19 +1226,28 @@ def linear_transfer(dof_vec):
 
     force_model = R4BP_inertial.R4BP_force_model(path="./data/R4BP_no_sync_circular.xlsx")
     force_model.define_central_attractor(mass=earth_mass, position=[0, 0, 0])
-    # force_model.central_attractor_gravity_law = src.astrodynamic_functions.kepler_dynamics.J_X_acceleration_tilted_to_ecliptic
+    force_model.central_attractor_gravity_law = src.astrodynamic_functions.kepler_dynamics.J_X_acceleration_tilted_to_ecliptic
 
     guidance_law = steering_laws.LocalOptimal()
     guidance_law.setup_continuouos_targeting(collocation_points={"SMA": SMA_track,
                                                                  "ECC": ECC_track,
                                                                  "INC": INC_track,
-                                                                 "t": np.linspace(t_end, t_start, 5)})
+                                                                 "t": np.linspace(t_end, t_start, len(SMA_track))})
 
     guidance_law.conversion_mass = earth_mass
     guidance_law.gains = {"acc": 0.0001}
-    guidance_law.guidance_function = guidance_law.guidance_conti
+    guidance_law.guidance_function = guidance_law.guidance_3_optic
     guidance_law.integration_direction = -1
     force_model.guidance = guidance_law
+
+    Eclipse_interface = src.system_dynamics.eclipse.eclipse_model(eclipse_bodies={"central_attractor": 6378000}, force_model=force_model)
+    force_model.guidance.eclipse_model = Eclipse_interface
+
+    srp_model = SRP.Solar_pressure(sail_model="ACS3", central_attractor_mass=solar_mass, sigma=0.04)
+    srp_model.radiation_location = [149000000000, 0, 0]
+    srp_model.sail_control = [0, 0]
+
+    force_model.solar_pressure = srp_model
     # force_model.guidance.terminator = events.kill_integrator_interface_convex
 
     # Params:
@@ -1274,6 +1283,9 @@ def linear_transfer(dof_vec):
 
     sw_1.create_and_integrate_swarm(rtol=1e-5, parproc=False, cores=11)
 
+    sw_1.get_swarm_body_distances(body_list=["Earth", "Moon"])
+    sw_1.direct_transformation = ["C3", "State_magnitude"]
+
     """event_index = None
 
     for i, sc in enumerate(sw_1.list_of_spacecraft):
@@ -1300,6 +1312,8 @@ def linear_transfer(dof_vec):
         pickle.dump(force_model, open('.p', 'wb'))"""
 
     for i, sc in enumerate(sw_1.list_of_spacecraft):
+        sc.orbital_parameters_track = [[] for _ in range(6)]
+        sc.trajectory_to_orbital_parameters(conversion_mass=earth_mass, reference="Earth")
         # Find the point of the trajectory with the lowest total cost, also after propagating past the interface domain
         samples = [[sc.orbital_parameters_track[index][f] for index in range(3)] for f in range(len(integration_points))]
         t_interface = itf.interface_interpolation(eval_points=samples, fill_val=5*10**8)
@@ -1311,9 +1325,9 @@ def linear_transfer(dof_vec):
         ax_1 = fig.add_subplot(131)
         ax_2 = fig.add_subplot(132)
         ax_3 = fig.add_subplot(133)
-        ax_1.plot(integration_points, t_interface, label="Interface")
-        ax_2.plot(integration_points, -np.array(t_integral), label="Interface")
-        ax_3.plot(integration_points, t_total, label="Total cost")
+        ax_1.plot(integration_points, t_interface, label="Interface", color=[1, 0, 0])
+        ax_2.plot(integration_points, -np.array(t_integral), label="Integral", color=[0, 1, 0])
+        ax_3.plot(integration_points, t_total, label="Total cost", color=[0, 0, 1])
         fig.legend()
         plt.show()
     pass
@@ -1335,6 +1349,7 @@ def linear_transfer(dof_vec):
     plots.plot_target_velocity_angles()
     plots.magnitude_plot()
     plots.plot_drag_acceleration()
+    plots.body_distances_plot(body_list=["Moon", "Earth"])
     plots.C3_plot()
     plots.moving_map_plot(k_modulo=20, match_tail_color=True, override_limits={"x": [-500000000, 500000000], "y": [-500000000, 500000000], "z": [-500000000, 500000000]})
     # plots.moving_map_plot(match_tail_color=False)
@@ -1357,15 +1372,16 @@ if __name__ == "__main__":
     # conti_guidance_test()
 
     init = np.array(list(np.linspace(124734044, 2.22736184e+08, 5) / normalization["SMA"]) + list(np.linspace(0.31108, 3.77282462e-01, 5) / normalization["ECC"]) + list(np.linspace(0.3422, 9.08695610e-02, 5) / normalization["INC"]))
+
     init_SMA = [0.41578015, 0.5974486,  0.57911705, 0.3607855,  0.74245395]
     init_ECC = [0.31108,    0.32763062, 0.34418123, 0.36073185, 0.37728246]
     init_INC = [0.3422,     0.27936739, 0.21653478, 0.15370217, 0.09086956]
 
-    sol_SMA = [0.4157843,  0.49745977, 0.57912114, 0.66078982, 0.74246375]
-    sol_ECC = [0.31110028, 0.32764736, 0.34419195, 0.3607429,  0.37728915]
-    sol_INC = [0.34221114, 0.27937079, 0.21653667, 0.15371217, 0.09087205]
+    sol_SMA = [0.56437952, 0.3012591,  0.2235663,  0.06097003, 0.82359467, 0.79457494, 0.5984838,  0.36631509, 0.11259193, 0.24508793]
+    sol_ECC = [0.81627052, 0.01176696, 0.1870007,  0.27108713, 0.72717566, 0.57394051, 0.10533278, 0.76148731, 0.83524282, 0.91509729]
+    sol_INC = [0.72451731, 0.88702691, 1.32572216, 0.37433614, 0.30905987, 0.4345975, 1.07549487, 0.79310421, 0.92424641, 0.71207396]
 
-    init = init_SMA + init_ECC + init_INC
+    # init = init_SMA + init_ECC + init_INC
     sol = sol_SMA + sol_ECC + sol_INC
 
-    linear_transfer(dof_vec=init)
+    linear_transfer(dof_vec=sol)

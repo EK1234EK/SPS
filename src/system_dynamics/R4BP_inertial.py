@@ -104,11 +104,13 @@ class R4BP_force_model:
                 self.trajectory_track = states
             return states
         else:
-            for k in range(len(body_list)):
-                if body_list[k] not in self.body_propagation_masses.keys():
-                    raise ValueError("Invalid body " + body_list[k])
+            # for k in range(len(body_list)):
+            for body in body_list:
+                k = list(self.names).index(body)
+                if body not in self.body_propagation_masses.keys():
+                    raise ValueError("Invalid body " + body)
 
-                mass = self.body_propagation_masses[body_list[k]]
+                mass = self.body_propagation_masses[body]
 
                 body_dataset = [[], [], [], [], [], []]
 
@@ -118,7 +120,7 @@ class R4BP_force_model:
                     for i in range(6):
                         body_dataset[i].append(state[i])
 
-                states[body_list[k]] = body_dataset
+                states[body] = body_dataset
 
                 # Safe the trajectories to the class object as well !!!NOT IN THE CASE OF VELOCITY DETERMINATION AS WELL
                 # self.trajectory_track = states
