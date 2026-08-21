@@ -1198,10 +1198,6 @@ def linear_transfer(dof_vec):
     # Notes for Lagrange setup:
     from src.Optimization import Interface
 
-    SMA_track = list(np.array(dof_vec[0:10]) * normalization["SMA"])
-    ECC_track = list(np.array(dof_vec[10:20]) * normalization["ECC"])
-    INC_track = list(np.array(dof_vec[20:30]) * normalization["INC"])
-
     mu_star = 256305510941185.12
 
     target_bounds = Interface.Interface(discrete_interface=pd.read_csv("./scenarios/Legacy/Interface_sigma_04.csv"), interface_states=["SMA", "ECC", "INC"]).get_convex_rectangle()
@@ -1213,6 +1209,7 @@ def linear_transfer(dof_vec):
     solar_mass = 1.989 * 10 ** 30
 
     L1_state_vector = [306770476.4024763, 316770.58199267735, 0.0, -0.8958042029688121, 895.8039043673915, 81.62614187080287]
+    # L1_state_vector = [323120893.26041174, 0, 0.0, 0, 874.1649583410563 + 12.512944849494628, 5]
     print("L1 parameters: ", kepler_dynamics.sv_to_oe(state_vector=L1_state_vector, mass=earth_mass))
 
     inp = input("Load pickle? (y)")
@@ -1229,10 +1226,6 @@ def linear_transfer(dof_vec):
     force_model.central_attractor_gravity_law = src.astrodynamic_functions.kepler_dynamics.J_X_acceleration_tilted_to_ecliptic
 
     guidance_law = steering_laws.LocalOptimal()
-    guidance_law.setup_continuouos_targeting(collocation_points={"SMA": SMA_track,
-                                                                 "ECC": ECC_track,
-                                                                 "INC": INC_track,
-                                                                 "t": np.linspace(t_end, t_start, len(SMA_track))})
 
     guidance_law.conversion_mass = earth_mass
     guidance_law.gains = {"acc": 0.0001}
@@ -1240,7 +1233,7 @@ def linear_transfer(dof_vec):
     guidance_law.integration_direction = -1
     force_model.guidance = guidance_law
 
-    Eclipse_interface = src.system_dynamics.eclipse.eclipse_model(eclipse_bodies={"central_attractor": 6378000}, force_model=force_model)
+    Eclipse_interface = src.system_dynamics.eclipse.eclipse_model(eclipse_bodies={"central_attractor": 6378000, "Moon": 1737000}, force_model=force_model)
     force_model.guidance.eclipse_model = Eclipse_interface
 
     srp_model = SRP.Solar_pressure(sail_model="ACS3", central_attractor_mass=solar_mass, sigma=0.04)
@@ -1251,19 +1244,19 @@ def linear_transfer(dof_vec):
     # force_model.guidance.terminator = events.kill_integrator_interface_convex
 
     # Params:
-    L1_bary = 318497940.4568403
+    # L1_bary = 346334129.5755324  # 318497940.4568403
     inc = [0.09086956096922796]
     RAAN_list = [0.001]
     # a = np.linspace(-21500000, -21300000, 100)
     a = np.linspace(-5000000, 0, 1)
-    a = a + np.ones(len(a)) * L1_bary
+    # a = a + np.ones(len(a)) * L1_bary
     cutoff_SMA = 20000000
 
     manifolds = [[-6197696.3949212525, -6197696.3949212525, 1],
                  [2638614.7315163864, 2638614.7315163864, 1],
                  [-753362.9238320779, -753362.9238320779, 1],
                  [-3074.0790258669726, -3074.0790258669726, 1],
-                 [-6384.415594809771, -6384.415594809771, 1],
+                 [-6384.415594809771, -6384.415594809771, len(dof_vec)],
                  [2928.463010243008, 2928.463010243008, 1],
                  [0, 0, 1]]
 
@@ -1276,7 +1269,15 @@ def linear_transfer(dof_vec):
     # sw_1.get_swarm_body_distances(["Moon"])
 
     for i, sc in enumerate(sw_1.list_of_spacecraft):
+        dof_vec_i = dof_vec[i]
         sc.init_state_vector = L1_state_vector
+        SMA_track = list(np.array(dof_vec_i[0:10]) * normalization["SMA"])
+        ECC_track = list(np.array(dof_vec_i[10:20]) * normalization["ECC"])
+        INC_track = list(np.array(dof_vec_i[20:30]) * normalization["INC"])
+        sc.force_model.guidance.setup_continuouos_targeting(collocation_points={"SMA": SMA_track,
+                                                                 "ECC": ECC_track,
+                                                                 "INC": INC_track,
+                                                                 "t": np.linspace(t_end, t_start, len(SMA_track))})
 
 
     sw_1.do_integration = True
@@ -1286,40 +1287,18 @@ def linear_transfer(dof_vec):
     sw_1.get_swarm_body_distances(body_list=["Earth", "Moon"])
     sw_1.direct_transformation = ["C3", "State_magnitude"]
 
-    """event_index = None
-
-    for i, sc in enumerate(sw_1.list_of_spacecraft):
-        try:
-            print(sc.event_time[0][0])
-            for itp in range(len(integration_points) - 1):
-                if (integration_points[itp] <= sc.event_time[0][0] <= integration_points[itp + 1]) \
-                        or (integration_points[itp] >= sc.event_time[0][0] >= integration_points[itp + 1]):
-                    event_index = itp
-                    break
-            sc.event_cutoff_parameters = [sc.orbital_parameters_track[k][event_index] for k in range(6)]
-
-            print("Event cutoff state: ", sc.event_cutoff_parameters)
-            print("Time of flight: ", -integration_points[event_index])
-
-        except:
-            print("No event trigger")
-
-
-    inp = input("Save= (y / n)")
-    if inp == "y":
-        # Safe the stuff with pickle
-        pickle.dump(sw_1.list_of_spacecraft, open('sv.p', 'wb'))
-        pickle.dump(force_model, open('.p', 'wb'))"""
-
     for i, sc in enumerate(sw_1.list_of_spacecraft):
         sc.orbital_parameters_track = [[] for _ in range(6)]
         sc.trajectory_to_orbital_parameters(conversion_mass=earth_mass, reference="Earth")
+
         # Find the point of the trajectory with the lowest total cost, also after propagating past the interface domain
         samples = [[sc.orbital_parameters_track[index][f] for index in range(3)] for f in range(len(integration_points))]
         t_interface = itf.interface_interpolation(eval_points=samples, fill_val=5*10**8)
         t_integral = [integration_points[f] for f in range(len(integration_points))]
         t_total = np.array(t_interface) - np.array(t_integral)
         print("Minimum cost: ", round(min(t_total)), " at integration point ", argmin(t_total), ", system time ", round(integration_points[argmin(t_total)]))
+
+        print("Intercept parameters: ", [float(sc.orbital_parameters_track[i][argmin(t_total)]) for i in range(6)])
 
         fig = plt.figure()
         ax_1 = fig.add_subplot(131)
@@ -1377,11 +1356,25 @@ if __name__ == "__main__":
     init_ECC = [0.31108,    0.32763062, 0.34418123, 0.36073185, 0.37728246]
     init_INC = [0.3422,     0.27936739, 0.21653478, 0.15370217, 0.09086956]
 
-    sol_SMA = [0.56437952, 0.3012591,  0.2235663,  0.06097003, 0.82359467, 0.79457494, 0.5984838,  0.36631509, 0.11259193, 0.24508793]
-    sol_ECC = [0.81627052, 0.01176696, 0.1870007,  0.27108713, 0.72717566, 0.57394051, 0.10533278, 0.76148731, 0.83524282, 0.91509729]
-    sol_INC = [0.72451731, 0.88702691, 1.32572216, 0.37433614, 0.30905987, 0.4345975, 1.07549487, 0.79310421, 0.92424641, 0.71207396]
+    sol_SMA = [0.55409625, 0.22066839, 0.39154469, 0.64783558, 0.90031581, 0.4778368, 0.41305307, 0.59359924, 0.38860517, 0.53533068]
+    sol_ECC = [0.17594689, 0.70636153, 0.51683716, 0.6252184,  0.37267673, 0.20942312, 0.25858839, 0.7442289,  0.86157873, 0.1916086]
+    sol_INC = [0.83531479, 0.7643418,  1.56261758, 0.58201565, 0.94052452, 0.54753616, 0.24060536, 0.62418776, 0.50715968, 0.32916074]
 
-    # init = init_SMA + init_ECC + init_INC
-    sol = sol_SMA + sol_ECC + sol_INC
+    from src.Optimization.solution_analysis import get_solution_arrays
 
-    linear_transfer(dof_vec=sol)
+    data = pd.read_csv("./src/Optimization/iterations.csv")
+    sorted_SMA = get_solution_arrays(pattern="SMA", base_df=data)
+    sorted_ECC = get_solution_arrays(pattern="ECC", base_df=data)
+    sorted_INC = get_solution_arrays(pattern="INC", base_df=data)
+
+    dof_list = []
+
+    idx_list = [6327] # [6327, 6304, 6318, 6322, 6319, 6325, 6328, 6317, 6305, 6326]
+    for idx in idx_list:
+        sol_SMA = list(sorted_SMA[:,idx])
+        sol_ECC = list(sorted_ECC[:, idx])
+        sol_INC = list(sorted_INC[:, idx])
+        sol = sol_SMA + sol_ECC + sol_INC
+        dof_list.append(sol)
+
+    linear_transfer(dof_vec=dof_list)

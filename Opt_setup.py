@@ -21,7 +21,7 @@ if __name__ == "__main__":
 
     # sol = optimize.minimize(fun=cost.cost_function, x0=init, bounds=bounds, method='BFGS')
     # sol = optimize.shgo(func=cost.cost_function, bounds=bounds, workers=-1)
-    sol = optimize.differential_evolution(func=cost.cost_function, bounds=bounds, workers=-1)
+    sol = optimize.differential_evolution(func=cost.cost_function, bounds=bounds, workers=-1, strategy='randtobest1bin')
 
     print("##################")
     print()

@@ -439,15 +439,19 @@ class LocalOptimal:
         """arc_sun = (time / (
                 24 * 3600 * 365)) * 2 * math.pi + self.initial_solar_phasing  # To account for the rotation of the orbital plane w.r.t. inbound radiation
         pos_sun = np.array([math.cos(arc_sun), math.sin(arc_sun), 0]) * 149000000000"""
-        body_states = force_model.propagate_body_states([time], mass=1.3271284354451499e+20 / (6.67430 * 10 ** (-11)), position_only=True)
+        body_states = force_model.propagate_body_states([time], mass=1.3271284354451499e+20 / (6.67430 * 10 ** (-11)), position_only=False)
         pos_sun = [body_states["Sun"][i][0] for i in range(3)]
+        earth_state = [body_states["Earth"][i][0] for i in range(6)]
+
+        state_linear = [state[i] - earth_state[i] for i in range(6)]
+
         force_model.solar_pressure.radiation_location = pos_sun
 
         guidance_setpoint = self.continuous_targeting.guidance_setpoint(time=time)
         for i, param in enumerate(["SMA", "ECC", "INC", "RAAN", "APERI", "TAEPO"]):
             if guidance_setpoint[i]:
                 self.target_oe[param] = guidance_setpoint[i]
-        target_vel_change = self.target_orbit_gradient(state=state) * self.integration_direction
+        target_vel_change = self.target_orbit_gradient(state=state_linear) * self.integration_direction
 
         sail_control, vel_angle, n = control_inversion_real_sail(sail=force_model.solar_pressure.sail_model,
                                                                  sigma=force_model.solar_pressure.sail_parameters[

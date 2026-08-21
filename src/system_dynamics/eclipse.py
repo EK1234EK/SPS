@@ -25,7 +25,7 @@ class eclipse_model:
             s = sc_pos
         else:
             body_states = self.force_model.propagate_body_states(times=[time], mass=self.force_model.central_mass, body_list=[body_name])[body_name]
-            r_b = np.array(body_states[0:3])
+            r_b = np.transpose(np.array(body_states[0:3]))[0]
             s = sc_pos - r_b
 
         a = math.asin(R_s / np.linalg.norm(sun_pos - sc_pos))
