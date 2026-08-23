@@ -17,6 +17,7 @@ from src.globals import Constants
 from miscellaneous import writer_tools
 import math
 import pickle
+G, MY, KS_TOLERANCE, GRAV_CONST, EARTH_RADIUS, OBLIQUITY = src.globals.Constants.get_globals()
 
 from src.system_dynamics.atmo import EARTH_RADIUS
 
@@ -26,7 +27,7 @@ def write_iteration(dof: list, cost_static: float, cost_integral: float, cost_to
     df_old = pd.read_csv("src/Optimization/iterations.csv")
     keys = df_old.keys()
 
-    iter_vec = dof + [cost_static, cost_integral, cost_total, time]
+    iter_vec = dof[0:-1] + [cost_static, cost_integral, cost_total, time] + [dof[-1]]
     dict_new = dict()
     for i, key in enumerate(keys):
         dict_new[key] = [iter_vec[i]]
@@ -39,13 +40,14 @@ def write_iteration(dof: list, cost_static: float, cost_integral: float, cost_to
 def cost_function(dof_vec):
     # Notes for Lagrange setup:
     from src.Optimization import Interface
-    mu_star = 256305510941185.12
+    mu_star = 236530592967627.8
 
     # target_bounds = Interface.Interface(discrete_interface=pd.read_csv("./scenarios/Legacy/Interface_sigma_04.csv"), interface_states=["SMA", "ECC", "INC"]).get_convex_rectangle()
 
     SMA_track = list(np.array(dof_vec[0:10]) * normalization_factors["SMA"])
     ECC_track = list(np.array(dof_vec[10:20]) * normalization_factors["ECC"])
     INC_track = list(np.array(dof_vec[20:30]) * normalization_factors["INC"])
+    t_offset = dof_vec[-1] * 28*3600
     # t_prop = dof_vec[15] * normalization_factors["t_prop"]
 
     t_start = 0
@@ -111,7 +113,12 @@ def cost_function(dof_vec):
     # sw_1.get_swarm_body_distances(["Moon"])
 
     for i, sc in enumerate(sw_1.list_of_spacecraft):
+        L1_state_vector = [318497940.45684016, 8.821101899835671, 0.8037832293497849, -2.3969568788805396e-05, 858.0975888840403, 78.19028267923386]
+        L1_params = kepler_dynamics.sv_to_oe(state_vector=L1_state_vector, mass=mu_star / GRAV_CONST)
+        L1_state_vector = kepler_dynamics.oe_to_sv(a=L1_params[0], e=L1_params[1], i=L1_params[2], RAAN=L1_params[3], APERI=L1_params[4], ny_0=L1_params[5], t=t_offset,
+                                                   mass=mu_star / GRAV_CONST)
         sc.init_state_vector = L1_state_vector
+        sc.time_interval = [t_offset, t_end + t_offset]
         sc.event_cutoff_val = itf
         # sc.display_name = str(round(float(RAAN_list[0]) * 180 / math.pi))
 

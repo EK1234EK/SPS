@@ -17,7 +17,7 @@ if __name__ == "__main__":
     bounds_ECC = np.array([(0.01, 0.99) for _ in range(10)]) / normalization["ECC"]
     bounds_INC = np.array([(0.001, 0.5 * math.pi) for _ in range(10)]) / normalization["INC"]
 
-    bounds = tuple(list(bounds_SMA) + list(bounds_ECC) + list(bounds_INC))
+    bounds = tuple(list(bounds_SMA) + list(bounds_ECC) + list(bounds_INC) + [(-1, 1)])
 
     # sol = optimize.minimize(fun=cost.cost_function, x0=init, bounds=bounds, method='BFGS')
     # sol = optimize.shgo(func=cost.cost_function, bounds=bounds, workers=-1)

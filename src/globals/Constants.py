@@ -20,4 +20,4 @@ def get_SRP_globals():
     return sigma_star, L_s, R_s, c
 
 def get_normalization_factors():
-    return {"SMA": 300000000, "ECC": 1, "INC": 1, "t_prop": 100*24*3600}
+    return {"SMA": 300000000, "ECC": 1, "INC": 1, "t_prop": 100*24*3600, "time_offset": 30*3600}

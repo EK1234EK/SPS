@@ -1197,20 +1197,23 @@ def conti_guidance_test():
 def linear_transfer(dof_vec):
     # Notes for Lagrange setup:
     from src.Optimization import Interface
+    G, MY, KS_TOLERANCE, GRAV_CONST, EARTH_RADIUS, OBLIQUITY = src.globals.Constants.get_globals()
 
-    mu_star = 256305510941185.12
+    # mu_star = 256305510941185.12
+    mu_star = 236530592967627.8
 
     target_bounds = Interface.Interface(discrete_interface=pd.read_csv("./scenarios/Legacy/Interface_sigma_04.csv"), interface_states=["SMA", "ECC", "INC"]).get_convex_rectangle()
 
     t_start = 0
     t_end = -300*24*3600
-    integration_points = list(np.linspace(t_start, t_end, 5000))
+    integration_points = list(np.linspace(t_start, t_end, 1000))
     earth_mass = 5.9722e24
     solar_mass = 1.989 * 10 ** 30
 
-    L1_state_vector = [306770476.4024763, 316770.58199267735, 0.0, -0.8958042029688121, 895.8039043673915, 81.62614187080287]
+
     # L1_state_vector = [323120893.26041174, 0, 0.0, 0, 874.1649583410563 + 12.512944849494628, 5]
-    print("L1 parameters: ", kepler_dynamics.sv_to_oe(state_vector=L1_state_vector, mass=earth_mass))
+    # print("L1 parameters: ", kepler_dynamics.sv_to_oe(state_vector=L1_state_vector, mass=earth_mass))
+    # print("L1 calc state: ", kepler_dynamics.oe_to_sv(a=L1_params[0], e=L1_params[1], i=L1_params[2], RAAN=L1_params[3], APERI=L1_params[4], ny_0=L1_params[5], t=t_start, mass=earth_mass))
 
     inp = input("Load pickle? (y)")
     if inp == "y":
@@ -1265,15 +1268,25 @@ def linear_transfer(dof_vec):
     sw_1.do_integration = False
     sw_1.integration_points = integration_points
     sw_1.square_swarm('generic')
-    sw_1.create_and_integrate_swarm(rtol=1e-6, parproc=False, cores=11)
+    sw_1.create_and_integrate_swarm(rtol=1e-6, parproc=True, cores=11)
     # sw_1.get_swarm_body_distances(["Moon"])
+
+    oft = [-2335135, -2464865, -4851892]
 
     for i, sc in enumerate(sw_1.list_of_spacecraft):
         dof_vec_i = dof_vec[i]
+        L1_state_vector = [318497940.45684016, 8.821101899835671, 0.8037832293497849, -2.3969568788805396e-05, 858.0975888840403, 78.19028267923386]
+        # L1_state_vector = [318497940.4568403, 0, 0.0, 0, 861.6520134915617, 1]
+        L1_params = kepler_dynamics.sv_to_oe(state_vector=L1_state_vector, mass=mu_star / GRAV_CONST)
+        L1_state_vector = kepler_dynamics.oe_to_sv(a=L1_params[0], e=L1_params[1], i=L1_params[2], RAAN=L1_params[3], APERI=L1_params[4], ny_0=L1_params[5], t=dof_vec_i[-1],
+                                                   mass=mu_star / GRAV_CONST)
+
         sc.init_state_vector = L1_state_vector
         SMA_track = list(np.array(dof_vec_i[0:10]) * normalization["SMA"])
         ECC_track = list(np.array(dof_vec_i[10:20]) * normalization["ECC"])
         INC_track = list(np.array(dof_vec_i[20:30]) * normalization["INC"])
+        # sc.time_interval = [dof_vec_i[30], t_end + dof_vec_i[30]]
+        sc.time_interval = [dof_vec_i[30], oft[i]]
         sc.force_model.guidance.setup_continuouos_targeting(collocation_points={"SMA": SMA_track,
                                                                  "ECC": ECC_track,
                                                                  "INC": INC_track,
@@ -1282,7 +1295,7 @@ def linear_transfer(dof_vec):
 
     sw_1.do_integration = True
 
-    sw_1.create_and_integrate_swarm(rtol=1e-5, parproc=False, cores=11)
+    sw_1.create_and_integrate_swarm(rtol=1e-5, parproc=True, cores=11)
 
     sw_1.get_swarm_body_distances(body_list=["Earth", "Moon"])
     sw_1.direct_transformation = ["C3", "State_magnitude"]
@@ -1330,7 +1343,7 @@ def linear_transfer(dof_vec):
     plots.plot_drag_acceleration()
     plots.body_distances_plot(body_list=["Moon", "Earth"])
     plots.C3_plot()
-    plots.moving_map_plot(k_modulo=20, match_tail_color=True, override_limits={"x": [-500000000, 500000000], "y": [-500000000, 500000000], "z": [-500000000, 500000000]})
+    plots.moving_map_plot(k_modulo=1, match_tail_color=True, override_limits={"x": [-500000000, 500000000], "y": [-500000000, 500000000], "z": [-500000000, 500000000]})
     # plots.moving_map_plot(match_tail_color=False)
     plt.show()
     plt.waitforbuttonpress(10000000000)
@@ -1368,13 +1381,12 @@ if __name__ == "__main__":
     sorted_INC = get_solution_arrays(pattern="INC", base_df=data)
 
     dof_list = []
-
-    idx_list = [6327] # [6327, 6304, 6318, 6322, 6319, 6325, 6328, 6317, 6305, 6326]
-    for idx in idx_list:
+    idx_list = [7141, 3829, 5942] # [6327, 6304, 6318, 6322, 6319, 6325, 6328, 6317, 6305, 6326]
+    for i, idx in enumerate(idx_list):
         sol_SMA = list(sorted_SMA[:,idx])
         sol_ECC = list(sorted_ECC[:, idx])
         sol_INC = list(sorted_INC[:, idx])
-        sol = sol_SMA + sol_ECC + sol_INC
+        sol = sol_SMA + sol_ECC + sol_INC + [-100000 * i]
         dof_list.append(sol)
 
     linear_transfer(dof_vec=dof_list)

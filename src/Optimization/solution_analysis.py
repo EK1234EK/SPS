@@ -63,6 +63,7 @@ if __name__ == "__main__":
     sorted_SMA = get_solution_arrays(pattern="SMA", base_df=data)
     sorted_ECC = get_solution_arrays(pattern="ECC", base_df=data)
     sorted_INC = get_solution_arrays(pattern="INC", base_df=data)
+    time_offset = get_solution_arrays(pattern="time_start", base_df=data)[0] * normalization["time_offset"]
 
     static_cost = data["cost_static"].tolist()
     integral_cost = -np.array(data["cost_integral"].tolist())
@@ -71,9 +72,10 @@ if __name__ == "__main__":
     ratio = np.zeros(len(static_cost))
 
     # min_idx = argmin(total_cost)
-    nsol = 10
+    nsol = 3
     min_cost = sorted(total_cost)[:nsol]
     min_idx = [total_cost.index(c) for c in min_cost]
+    print("Minimum cost index: ", min_idx)
 
     for i in range(len(static_cost)):
         if static_cost[i] >= 10**10:
@@ -92,6 +94,7 @@ if __name__ == "__main__":
     ax_1 = fig_1.add_subplot(221)
     ax_2 = fig_1.add_subplot(222)
     ax_3 = fig_1.add_subplot(223)
+    ax_4 = fig_1.add_subplot(224)
     """plot_solutions(key="SMA", axis=ax_1, sorted=sorted_SMA, sample_time=sample_time, min_cost_idx=min_idx, min_cost=min(t for t in total_cost if t is not None))
     plot_solutions(key="ECC", axis=ax_2, sorted=sorted_ECC, sample_time=sample_time, min_cost_idx=min_idx, min_cost=min(t for t in total_cost if t is not None))
     plot_solutions(key="INC", axis=ax_3, sorted=sorted_INC, sample_time=sample_time, min_cost_idx=min_idx, min_cost=min(t for t in total_cost if t is not None))"""
@@ -99,6 +102,13 @@ if __name__ == "__main__":
     plot_solutions(key="SMA", axis=ax_1, sorted=sorted_SMA, sample_time=sample_time, min_cost_idx=min_idx, min_cost=min_cost)
     plot_solutions(key="ECC", axis=ax_2, sorted=sorted_ECC, sample_time=sample_time, min_cost_idx=min_idx, min_cost=min_cost)
     plot_solutions(key="INC", axis=ax_3, sorted=sorted_INC, sample_time=sample_time, min_cost_idx=min_idx, min_cost=min_cost)
+    ax_4.scatter(time_offset, total_cost, label="Time offset", color=[0, 0.5, 0.5], marker=".")
+    ax_4.set_xlabel("Time offset [s]")
+    ax_4.set_ylabel("Total cost")
+
+    for i, idx in enumerate(min_idx):
+        print("Time offset ", i+1, ": ", time_offset[idx])
+        ax_4.scatter(time_offset[idx], total_cost[idx], color=[1, 0, 1])
 
     # Plot the cost
     iterations = np.arange(len(static_cost))
