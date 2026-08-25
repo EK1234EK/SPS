@@ -1202,11 +1202,11 @@ def linear_transfer(dof_vec):
     # mu_star = 256305510941185.12
     mu_star = 236530592967627.8
 
-    target_bounds = Interface.Interface(discrete_interface=pd.read_csv("./scenarios/Legacy/Interface_sigma_04.csv"), interface_states=["SMA", "ECC", "INC"]).get_convex_rectangle()
+    # target_bounds = Interface.Interface(discrete_interface=pd.read_csv("./scenarios/Legacy/Interface_sigma_04.csv"), interface_space=["SMA", "ECC", "INC"]).get_convex_rectangle()
 
     t_start = 0
     t_end = -300*24*3600
-    integration_points = list(np.linspace(t_start, t_end, 1000))
+    integration_points = list(np.linspace(t_start, t_end, 5000))
     earth_mass = 5.9722e24
     solar_mass = 1.989 * 10 ** 30
 
@@ -1222,7 +1222,7 @@ def linear_transfer(dof_vec):
     else:
         print("Integrating all initial conditions")
 
-    itf = Interface.Interface(discrete_interface=pd.read_csv("./scenarios/Legacy/Interface_sigma_04.csv"), interface_states=["SMA", "ECC", "INC", "t_s"])
+    itf = Interface.Interface(discrete_interface=pd.read_csv("./scenarios/Legacy/Interface_sigma_04.csv"), interface_space=["SMA", "ECC", "INC", "t_s"], target_dimension="t_s")
 
     force_model = R4BP_inertial.R4BP_force_model(path="./data/R4BP_no_sync_circular.xlsx")
     force_model.define_central_attractor(mass=earth_mass, position=[0, 0, 0])
@@ -1271,8 +1271,6 @@ def linear_transfer(dof_vec):
     sw_1.create_and_integrate_swarm(rtol=1e-6, parproc=True, cores=11)
     # sw_1.get_swarm_body_distances(["Moon"])
 
-    oft = [-2335135, -2464865, -4851892]
-
     for i, sc in enumerate(sw_1.list_of_spacecraft):
         dof_vec_i = dof_vec[i]
         L1_state_vector = [318497940.45684016, 8.821101899835671, 0.8037832293497849, -2.3969568788805396e-05, 858.0975888840403, 78.19028267923386]
@@ -1285,8 +1283,7 @@ def linear_transfer(dof_vec):
         SMA_track = list(np.array(dof_vec_i[0:10]) * normalization["SMA"])
         ECC_track = list(np.array(dof_vec_i[10:20]) * normalization["ECC"])
         INC_track = list(np.array(dof_vec_i[20:30]) * normalization["INC"])
-        # sc.time_interval = [dof_vec_i[30], t_end + dof_vec_i[30]]
-        sc.time_interval = [dof_vec_i[30], oft[i]]
+        sc.time_interval = [dof_vec_i[30], t_end + dof_vec_i[30]]
         sc.force_model.guidance.setup_continuouos_targeting(collocation_points={"SMA": SMA_track,
                                                                  "ECC": ECC_track,
                                                                  "INC": INC_track,
@@ -1379,14 +1376,16 @@ if __name__ == "__main__":
     sorted_SMA = get_solution_arrays(pattern="SMA", base_df=data)
     sorted_ECC = get_solution_arrays(pattern="ECC", base_df=data)
     sorted_INC = get_solution_arrays(pattern="INC", base_df=data)
+    delta_time = get_solution_arrays(pattern="time_start", base_df=data)[0]
 
     dof_list = []
-    idx_list = [7141, 3829, 5942] # [6327, 6304, 6318, 6322, 6319, 6325, 6328, 6317, 6305, 6326]
+    idx_list = [500] # [6327, 6304, 6318, 6322, 6319, 6325, 6328, 6317, 6305, 6326]
     for i, idx in enumerate(idx_list):
         sol_SMA = list(sorted_SMA[:,idx])
         sol_ECC = list(sorted_ECC[:, idx])
         sol_INC = list(sorted_INC[:, idx])
-        sol = sol_SMA + sol_ECC + sol_INC + [-100000 * i]
+        sol_time = [delta_time[idx] * normalization["time_offset"]]
+        sol = sol_SMA + sol_ECC + sol_INC + sol_time
         dof_list.append(sol)
 
     linear_transfer(dof_vec=dof_list)

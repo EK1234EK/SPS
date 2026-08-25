@@ -17,17 +17,18 @@ from src.globals import Constants
 from miscellaneous import writer_tools
 import math
 import pickle
+from src.Optimization import Interface
 G, MY, KS_TOLERANCE, GRAV_CONST, EARTH_RADIUS, OBLIQUITY = src.globals.Constants.get_globals()
 
 from src.system_dynamics.atmo import EARTH_RADIUS
 
 normalization_factors = Constants.get_normalization_factors()
 
-def write_iteration(dof: list, cost_static: float, cost_integral: float, cost_total: float, time: float):
+def write_iteration(dof: list, cost_static: float, cost_integral: float, cost_total: float, intercept_params: list, initial_params: list, time: float):
     df_old = pd.read_csv("src/Optimization/iterations.csv")
     keys = df_old.keys()
 
-    iter_vec = dof[0:-1] + [cost_static, cost_integral, cost_total, time] + [dof[-1]]
+    iter_vec = dof[0:-1] + [cost_static, cost_integral, cost_total, time] + [dof[-1]] + intercept_params + initial_params
     dict_new = dict()
     for i, key in enumerate(keys):
         dict_new[key] = [iter_vec[i]]
@@ -35,14 +36,26 @@ def write_iteration(dof: list, cost_static: float, cost_integral: float, cost_to
     df_new.to_csv("src/Optimization/iterations.csv", mode='a', index=False, header=False)
     pass
 
+def get_initial_states(intercept_parameters, itf_data):
+
+    initial_states = ["r_init", "INC_init", "solar_phasing", "propagation_cutoff_SMA"]
+    ret = dict()
+
+    for state in initial_states:
+        itp = Interface.Interface(discrete_interface=itf_data, interface_space=["SMA", "ECC", "INC", state], target_dimension=state)
+        itp.target_dimension = state
+        ret[state] = itp.interface_interpolation(eval_points=[intercept_parameters], fill_val=123456789)
+        if ret[state] == 123456789:
+            ret[state] = None
+    return ret
+
 
 
 def cost_function(dof_vec):
     # Notes for Lagrange setup:
-    from src.Optimization import Interface
     mu_star = 236530592967627.8
 
-    # target_bounds = Interface.Interface(discrete_interface=pd.read_csv("./scenarios/Legacy/Interface_sigma_04.csv"), interface_states=["SMA", "ECC", "INC"]).get_convex_rectangle()
+    # target_bounds = Interface.Interface(discrete_interface=pd.read_csv("./scenarios/Legacy/Interface_sigma_04.csv"), interface_space=["SMA", "ECC", "INC"]).get_convex_rectangle()
 
     SMA_track = list(np.array(dof_vec[0:10]) * normalization_factors["SMA"])
     ECC_track = list(np.array(dof_vec[10:20]) * normalization_factors["ECC"])
@@ -56,9 +69,9 @@ def cost_function(dof_vec):
     earth_mass = 5.9722e24
     solar_mass = 1.989 * 10 ** 30
 
-    L1_state_vector = [306770476.4024763, 316770.58199267735, 0.0, -0.8958042029688121, 895.8039043673915, 81.62614187080287]
-
-    itf = Interface.Interface(discrete_interface=pd.read_csv("./scenarios/Legacy/Interface_sigma_04.csv"), interface_states=["SMA", "ECC", "INC", "t_s"])
+    # L1_state_vector = [306770476.4024763, 316770.58199267735, 0.0, -0.8958042029688121, 895.8039043673915, 81.62614187080287]
+    itf_data = pd.read_csv("./scenarios/Legacy/Interface_sigma_04_full.csv")
+    itf = Interface.Interface(discrete_interface=itf_data, interface_space=["SMA", "ECC", "INC", "t_s"], target_dimension="t_s")
 
     force_model = R4BP_inertial.R4BP_force_model(path="./data/R4BP_no_sync_circular.xlsx")
     force_model.define_central_attractor(mass=earth_mass, position=[0, 0, 0])
@@ -133,12 +146,21 @@ def cost_function(dof_vec):
         t_integral = [integration_points[f] for f in range(len(integration_points))]
         t_total = np.array(t_interface) - np.array(t_integral)
         min_idx = argmin(t_total)
+
+        # Get the initial point of the trajectory in LEO:
+        ret = get_initial_states(intercept_parameters=[sc.orbital_parameters_track[index][min_idx] for index in range(3)], itf_data=itf_data)
         print("Minimum cost: ", round(min(t_total) * 10**(-7), 2), " at integration point ", min_idx)
         print("SMA: ", dof_vec[0:10])
         print("ECC: ", dof_vec[10:20])
         print("INC: ", dof_vec[20:30])
+        print("Intercept parameters: ", [sc.orbital_parameters_track[index][min_idx] for index in range(6)])
+        print("Initial parameters:")
+        ret_list = []
+        for key in ret.keys():
+            print(key, ": ", ret[key])
+            ret_list.append(ret[key])
 
-        write_iteration(dof=list(dof_vec), cost_static=t_interface[min_idx], cost_integral=t_integral[min_idx], cost_total=t_total[min_idx], time=integration_points[argmin(t_total)])
+        write_iteration(dof=list(dof_vec), cost_static=t_interface[min_idx], cost_integral=t_integral[min_idx], cost_total=t_total[min_idx], intercept_params=[sc.orbital_parameters_track[index][min_idx] for index in range(3)], initial_params=ret_list, time=integration_points[argmin(t_total)])
 
         return min(t_total) * 10**(-7)
     pass

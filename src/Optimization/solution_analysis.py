@@ -72,7 +72,7 @@ if __name__ == "__main__":
     ratio = np.zeros(len(static_cost))
 
     # min_idx = argmin(total_cost)
-    nsol = 3
+    nsol = 1
     min_cost = sorted(total_cost)[:nsol]
     min_idx = [total_cost.index(c) for c in min_cost]
     print("Minimum cost index: ", min_idx)
@@ -118,23 +118,76 @@ if __name__ == "__main__":
     ax_3 = fig_2.add_subplot(323)
     ax_4 = fig_2.add_subplot(324)
     ax_5 = fig_2.add_subplot(325)
-    ax_1.plot(iterations, static_cost, color=[0, 0.5, 0.5])
-    ax_2.plot(iterations, integral_cost, color=[0.5, 0, 0.5])
-    ax_3.plot(iterations, total_cost, color=[0, 0, 1])
+    ax_1.scatter(iterations, static_cost, color=[0, 0.5, 0.5], marker=".")
+    ax_2.scatter(iterations, integral_cost, color=[0.5, 0, 0.5], marker=".")
+    ax_3.scatter(iterations, total_cost, color=[0, 0, 1], marker=".")
 
     ax_1.set_title("Static cost")
     ax_2.set_title("Integral cost")
     ax_3.set_title("Total cost")
 
-    ax_4.plot(iterations, static_cost, color=[0, 0.5, 0.5], label="Static cost [s]")
-    ax_4.plot(iterations, integral_cost, color=[0.5, 0, 0.5], label="Integral cost [s]")
-    ax_4.plot(iterations, total_cost, color=[0, 0, 1], label="Total cost [s]")
+    ax_4.scatter(iterations, static_cost, color=[0, 0.5, 0.5], label="Static cost [s]", marker=".")
+    ax_4.scatter(iterations, integral_cost, color=[0.5, 0, 0.5], label="Integral cost [s]", marker=".")
+    ax_4.scatter(iterations, total_cost, color=[0, 0, 1], label="Total cost [s]", marker=".")
     ax_4.set_xlabel("Iteration")
     ax_4.set_title("Overview")
     ax_4.legend()
 
-    ax_5.plot(iterations, ratio, color=[0, 0.5, 0.5], label="Ratio integral / total cost")
+    ax_5.scatter(iterations, ratio, color=[0, 0.5, 0.5], label="Ratio integral / total cost", marker=".")
     ax_5.set_title("Ratio of integral to total cost")
     ax_5.set_xlabel("Iteration")
+
+    # Plot intercept parameters
+    intercept_SMA = get_solution_arrays(pattern="a_intercept", base_df=data)
+    intercept_ECC= get_solution_arrays(pattern="e_intercept", base_df=data)
+    intercept_INC = get_solution_arrays(pattern="i_intercept", base_df=data)
+    fig_3 = plt.figure()
+    ax_1 = fig_3.add_subplot(221)
+    ax_2 = fig_3.add_subplot(222)
+    ax_3 = fig_3.add_subplot(223)
+
+    ax_1.set_xlabel("Total cost")
+    ax_1.set_ylabel("Intercept SMA")
+
+    ax_2.set_xlabel("Total cost")
+    ax_2.set_ylabel("Intercept ECC")
+
+    ax_3.set_xlabel("Total cost")
+    ax_3.set_ylabel("Intercept INC")
+
+    ax_1.scatter(total_cost, intercept_SMA, color=[0, 0.5, 0.5], marker=".", label="Intercept SMA")
+    ax_2.scatter(total_cost, intercept_ECC, color=[0, 0.5, 0.5], marker=".", label="Intercept ECC")
+    ax_3.scatter(total_cost, intercept_INC, color=[0, 0.5, 0.5], marker=".", label="Intercept INC")
+    fig_3.legend()
+
+    # Plot initial parameters
+
+    r_init = get_solution_arrays(pattern="r_init", base_df=data)
+    i_init = get_solution_arrays(pattern="i_init", base_df=data)
+    solar_phasing = get_solution_arrays(pattern="solar_phasing", base_df=data)
+    propagation_cutoff_a = get_solution_arrays(pattern="propagation_cutoff_a", base_df=data)
+    fig_4 = plt.figure()
+    ax_1 = fig_4.add_subplot(221)
+    ax_2 = fig_4.add_subplot(222)
+    ax_3 = fig_4.add_subplot(223)
+    ax_4 = fig_4.add_subplot(224)
+
+    ax_1.set_xlabel("Total cost")
+    ax_1.set_ylabel("r_init")
+
+    ax_2.set_xlabel("Total cost")
+    ax_2.set_ylabel("i_init")
+
+    ax_3.set_xlabel("Total cost")
+    ax_3.set_ylabel("solar_phasing")
+
+    ax_4.set_xlabel("Total cost")
+    ax_4.set_ylabel("propagation_cutoff_a")
+
+    ax_1.scatter(total_cost, r_init, color=[0, 0.5, 0.5], marker=".", label="Initial radius")
+    ax_2.scatter(total_cost, i_init, color=[0, 0.5, 0.5], marker=".", label="Initial inclination")
+    ax_3.scatter(total_cost, solar_phasing, color=[0, 0.5, 0.5], marker=".", label="Solar phasing")
+    ax_4.scatter(total_cost, propagation_cutoff_a, color=[0, 0.5, 0.5], marker=".", label="Propagation cutoff")
+    fig_4.legend()
 
     plt.show()

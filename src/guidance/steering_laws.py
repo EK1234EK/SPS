@@ -485,6 +485,47 @@ class LocalOptimal:
         self.vel_angle_track["Target velocity clock"].append(vel_angle[1])
         return self.current_control
 
+    def guidance_3_optic_spiral(self, state, time, force_model):
+        arc_sun = (time / (
+                24 * 3600 * 365)) * 2 * math.pi + self.initial_solar_phasing  # To account for the rotation of the orbital plane w.r.t. inbound radiation
+        pos_sun = np.array([math.cos(arc_sun), math.sin(arc_sun), 0]) * 149000000000
+
+        force_model.solar_pressure.radiation_location = pos_sun
+
+        target_vel_change = self.target_orbit_gradient(state=state) * self.integration_direction
+
+        sail_control, vel_angle, n = control_inversion_real_sail(sail=force_model.solar_pressure.sail_model,
+                                                                 sigma=force_model.solar_pressure.sail_parameters[
+                                                                     "sigma"],
+                                                                 vel_change=target_vel_change,
+                                                                 state=state,
+                                                                 force_model=force_model)
+        self.current_n = n
+
+        force_model.solar_pressure.sail_control = sail_control
+        self.current_control = force_model.solar_pressure.solar_acceleration(state=state[0:3])
+
+        # Taking into account eclipses:
+        if self.eclipse_model:
+            nu = self.eclipse_model.get_eclipse_factor(sc_pos=state[0:3], sun_pos=pos_sun, time=time)
+            self.current_control = self.current_control * nu
+        else:
+            nu = 1
+
+        if np.nan in self.current_control:
+            pass
+        if not self.control_command_track:
+            self.control_command_track = {"Tilt": [], "Clock": [], "Eclipse factor": []}
+        if not self.vel_angle_track:
+            self.vel_angle_track = {"Target velocity tilt": [], "Target velocity clock": []}
+        self.control_command_track["Tilt"].append(sail_control[0])
+        self.control_command_track["Clock"].append(sail_control[1])
+        self.control_command_track["Eclipse factor"].append(nu)
+
+        self.vel_angle_track["Target velocity tilt"].append(vel_angle[0])
+        self.vel_angle_track["Target velocity clock"].append(vel_angle[1])
+        return self.current_control
+
     def guidance_atmo(self, state, time, force_model):
         arc_sun = (time / (24 * 3600 * 365)) * 2 * math.pi
         pos_sun = np.array([math.cos(arc_sun), math.sin(arc_sun), 0]) * 149000000000

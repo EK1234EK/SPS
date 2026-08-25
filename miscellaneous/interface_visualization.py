@@ -96,7 +96,7 @@ def create_sample_points(params, sampling):
 surface_plot_domain = ["solar_phasing", "INC_init"]  # TODO this needds to be two dimensions of the terminal space
 sampling = 10
 
-data_raw = pd.read_csv("../scenarios/Legacy/Interface_sigma_04.csv")
+data_raw = pd.read_csv("../scenarios/Legacy/Interface_sigma_04_full.csv")
 data_raw = data_raw.drop('empty', axis=1)
 
 # base_domain = get_data_dimensions(data_raw)
@@ -108,7 +108,7 @@ for k in transform_data:
     normalized_data[k] = list(np.array(normalized_data[k]) * 180 / math.pi)
 
 # Get interpolated data:
-connector = Interface.Interface(discrete_interface=normalized_data, interface_states=output_keys)
+connector = Interface.Interface(discrete_interface=normalized_data, interface_space=output_keys, target_dimension="t_s")
 bounds = connector.get_convex_rectangle()
 
 # Plot the shit

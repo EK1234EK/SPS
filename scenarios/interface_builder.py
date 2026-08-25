@@ -79,7 +79,7 @@ def interface():
 
     guidance_law = steering_laws.LocalOptimal()
     guidance_law.conversion_mass = earth_mass
-    guidance_law.guidance_function = guidance_law.guidance_3_optic
+    guidance_law.guidance_function = guidance_law.guidance_3_optic_spiral
     terminator = src.guidance.events.kill_integrator_SMA
     guidance_law.terminator = terminator
     force_model.guidance = guidance_law
@@ -156,6 +156,27 @@ def interface():
         "propagation_cutoff_SMA": [50000000, 200000000, 6, 1],
     }
 
+    all_grid_4 = {
+        "r_init": [EARTH_RADIUS + 20000000, 36000000, 5, 1],
+        "INC_init": [5 * math.pi / 180, 18.5 * math.pi / 180, 6, 1],
+        "solar_phasing": [0, 0.5 * math.pi, 3, 1],
+        "propagation_cutoff_SMA": [50000000, 200000000, 6, 1],
+    }
+
+    all_grid_5 = {
+        "r_init": [EARTH_RADIUS + 20000000, 36000000, 5, 1],
+        "INC_init": [5 * math.pi / 180, 18.5 * math.pi / 180, 6, 1],
+        "solar_phasing": [0.55 * math.pi, 1 * math.pi, 3, 1],
+        "propagation_cutoff_SMA": [50000000, 200000000, 6, 1],
+    }
+
+    all_grid_6 = {
+        "r_init": [EARTH_RADIUS + 20000000, 36000000, 5, 1],
+        "INC_init": [5 * math.pi / 180, 18.5 * math.pi / 180, 6, 1],
+        "solar_phasing": [1.05 * math.pi, 1.5 * math.pi, 3, 1],
+        "propagation_cutoff_SMA": [50000000, 200000000, 6, 1],
+    }
+
     data_sets = {
         "r_init__INC_init": r_init__INC_init,
         "r_init__solar_phasing": r_init__solar_phasing,
@@ -166,9 +187,9 @@ def interface():
     }
 
     data_sets = {
-        "All_grid_1": all_grid_1,
-        "All_grid_2": all_grid_2,
-        "All_grid_3": all_grid_3
+        "All_grid_4": all_grid_4,
+        "All_grid_5": all_grid_5,
+        "All_grid_6": all_grid_6
     }
 
     # =================================================== #

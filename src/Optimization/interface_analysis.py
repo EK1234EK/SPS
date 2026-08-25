@@ -6,7 +6,8 @@ from setuptools.installer import fetch_build_egg
 import Interface
 
 def get_interface_bc(intercept_parameters):
-    itf = Interface.Interface(discrete_interface=pd.read_csv("../../scenarios/Legacy/Interface_sigma_04.csv"), interface_states=["SMA", "ECC", "INC", "r_init", "INC_init", "solar_phasing", "propagation_cutoff_SMA", "t_s"])
+    itf = Interface.Interface(discrete_interface=pd.read_csv("../../scenarios/Legacy/Interface_sigma_04.csv"),
+                              interface_space=["SMA", "ECC", "INC", "r_init", "INC_init", "solar_phasing", "propagation_cutoff_SMA", "t_s"], target_dimension="t_s")
     keys = ["SMA", "ECC", "INC"]
     fit_idx_multi = []
 
