@@ -1379,7 +1379,7 @@ if __name__ == "__main__":
     delta_time = get_solution_arrays(pattern="time_start", base_df=data)[0]
 
     dof_list = []
-    idx_list = [500] # [6327, 6304, 6318, 6322, 6319, 6325, 6328, 6317, 6305, 6326]
+    idx_list = [4756] # [6327, 6304, 6318, 6322, 6319, 6325, 6328, 6317, 6305, 6326]
     for i, idx in enumerate(idx_list):
         sol_SMA = list(sorted_SMA[:,idx])
         sol_ECC = list(sorted_ECC[:, idx])
