@@ -1204,16 +1204,12 @@ def linear_transfer(dof_vec):
 
     # target_bounds = Interface.Interface(discrete_interface=pd.read_csv("./scenarios/Legacy/Interface_sigma_04.csv"), interface_space=["SMA", "ECC", "INC"]).get_convex_rectangle()
 
-    t_start = 0
-    t_end = -300*24*3600
-    integration_points = list(np.linspace(t_start, t_end, 5000))
+    t_start = normalization["time_offset"]
+    t_end = -300 * 24 * 3600
+    integration_points = list(np.linspace(t_start, t_end, round(5000 * (t_start - t_end) / (-t_end))))
     earth_mass = 5.9722e24
     solar_mass = 1.989 * 10 ** 30
 
-
-    # L1_state_vector = [323120893.26041174, 0, 0.0, 0, 874.1649583410563 + 12.512944849494628, 5]
-    # print("L1 parameters: ", kepler_dynamics.sv_to_oe(state_vector=L1_state_vector, mass=earth_mass))
-    # print("L1 calc state: ", kepler_dynamics.oe_to_sv(a=L1_params[0], e=L1_params[1], i=L1_params[2], RAAN=L1_params[3], APERI=L1_params[4], ny_0=L1_params[5], t=t_start, mass=earth_mass))
 
     inp = input("Load pickle? (y)")
     if inp == "y":
@@ -1222,7 +1218,8 @@ def linear_transfer(dof_vec):
     else:
         print("Integrating all initial conditions")
 
-    itf = Interface.Interface(discrete_interface=pd.read_csv("./scenarios/Legacy/Interface_sigma_04.csv"), interface_space=["SMA", "ECC", "INC", "t_s"], target_dimension="t_s")
+    itf_data = pd.read_csv("./scenarios/Legacy/Interface_sigma_04_full.csv")
+    itf = Interface.Interface(discrete_interface=itf_data, interface_space=["SMA", "ECC", "INC", "t_s"], target_dimension="t_s")
 
     force_model = R4BP_inertial.R4BP_force_model(path="./data/R4BP_no_sync_circular.xlsx")
     force_model.define_central_attractor(mass=earth_mass, position=[0, 0, 0])
@@ -1231,12 +1228,12 @@ def linear_transfer(dof_vec):
     guidance_law = steering_laws.LocalOptimal()
 
     guidance_law.conversion_mass = earth_mass
-    guidance_law.gains = {"acc": 0.0001}
     guidance_law.guidance_function = guidance_law.guidance_3_optic
     guidance_law.integration_direction = -1
     force_model.guidance = guidance_law
 
-    Eclipse_interface = src.system_dynamics.eclipse.eclipse_model(eclipse_bodies={"central_attractor": 6378000, "Moon": 1737000}, force_model=force_model)
+    # Eclipse_interface = src.system_dynamics.eclipse.eclipse_model(eclipse_bodies={"central_attractor": 6378000, "Moon": 1737000}, force_model=force_model)
+    Eclipse_interface = src.system_dynamics.eclipse.eclipse_model(eclipse_bodies={"central_attractor": 6378000}, force_model=force_model)
     force_model.guidance.eclipse_model = Eclipse_interface
 
     srp_model = SRP.Solar_pressure(sail_model="ACS3", central_attractor_mass=solar_mass, sigma=0.04)
@@ -1244,16 +1241,6 @@ def linear_transfer(dof_vec):
     srp_model.sail_control = [0, 0]
 
     force_model.solar_pressure = srp_model
-    # force_model.guidance.terminator = events.kill_integrator_interface_convex
-
-    # Params:
-    # L1_bary = 346334129.5755324  # 318497940.4568403
-    inc = [0.09086956096922796]
-    RAAN_list = [0.001]
-    # a = np.linspace(-21500000, -21300000, 100)
-    a = np.linspace(-5000000, 0, 1)
-    # a = a + np.ones(len(a)) * L1_bary
-    cutoff_SMA = 20000000
 
     manifolds = [[-6197696.3949212525, -6197696.3949212525, 1],
                  [2638614.7315163864, 2638614.7315163864, 1],
@@ -1268,34 +1255,36 @@ def linear_transfer(dof_vec):
     sw_1.do_integration = False
     sw_1.integration_points = integration_points
     sw_1.square_swarm('generic')
-    sw_1.create_and_integrate_swarm(rtol=1e-6, parproc=True, cores=11)
+    sw_1.create_and_integrate_swarm(rtol=1e-6, parproc=False, cores=11)
     # sw_1.get_swarm_body_distances(["Moon"])
 
     for i, sc in enumerate(sw_1.list_of_spacecraft):
         dof_vec_i = dof_vec[i]
+        t_offset = dof_vec_i[-1] * normalization["time_offset"]
         L1_state_vector = [318497940.45684016, 8.821101899835671, 0.8037832293497849, -2.3969568788805396e-05, 858.0975888840403, 78.19028267923386]
         # L1_state_vector = [318497940.4568403, 0, 0.0, 0, 861.6520134915617, 1]
         L1_params = kepler_dynamics.sv_to_oe(state_vector=L1_state_vector, mass=mu_star / GRAV_CONST)
-        L1_state_vector = kepler_dynamics.oe_to_sv(a=L1_params[0], e=L1_params[1], i=L1_params[2], RAAN=L1_params[3], APERI=L1_params[4], ny_0=L1_params[5], t=dof_vec_i[-1],
+        L1_state_vector = kepler_dynamics.oe_to_sv(a=L1_params[0], e=L1_params[1], i=L1_params[2], RAAN=L1_params[3], APERI=L1_params[4], ny_0=L1_params[5], t=t_offset,
                                                    mass=mu_star / GRAV_CONST)
 
         sc.init_state_vector = L1_state_vector
         SMA_track = list(np.array(dof_vec_i[0:10]) * normalization["SMA"])
         ECC_track = list(np.array(dof_vec_i[10:20]) * normalization["ECC"])
         INC_track = list(np.array(dof_vec_i[20:30]) * normalization["INC"])
-        sc.time_interval = [dof_vec_i[30], t_end + dof_vec_i[30]]
+        sc.time_interval = [t_offset, t_end + t_offset]
         sc.force_model.guidance.setup_continuouos_targeting(collocation_points={"SMA": SMA_track,
                                                                  "ECC": ECC_track,
                                                                  "INC": INC_track,
-                                                                 "t": np.linspace(t_end, t_start, len(SMA_track))})
+                                                                 "t": np.linspace(t_end, 0, len(SMA_track))})
+        sc.event_cutoff_val = itf
 
 
     sw_1.do_integration = True
 
-    sw_1.create_and_integrate_swarm(rtol=1e-5, parproc=True, cores=11)
+    sw_1.create_and_integrate_swarm(rtol=1e-5, parproc=False, cores=11)
 
-    sw_1.get_swarm_body_distances(body_list=["Earth", "Moon"])
-    sw_1.direct_transformation = ["C3", "State_magnitude"]
+    # sw_1.get_swarm_body_distances(body_list=["Earth", "Moon"])
+    # sw_1.direct_transformation = ["C3", "State_magnitude"]
 
     for i, sc in enumerate(sw_1.list_of_spacecraft):
         sc.orbital_parameters_track = [[] for _ in range(6)]
@@ -1379,12 +1368,12 @@ if __name__ == "__main__":
     delta_time = get_solution_arrays(pattern="time_start", base_df=data)[0]
 
     dof_list = []
-    idx_list = [4756] # [6327, 6304, 6318, 6322, 6319, 6325, 6328, 6317, 6305, 6326]
+    idx_list = [1414] # [6327, 6304, 6318, 6322, 6319, 6325, 6328, 6317, 6305, 6326]
     for i, idx in enumerate(idx_list):
         sol_SMA = list(sorted_SMA[:,idx])
         sol_ECC = list(sorted_ECC[:, idx])
         sol_INC = list(sorted_INC[:, idx])
-        sol_time = [delta_time[idx] * normalization["time_offset"]]
+        sol_time = [delta_time[idx]]
         sol = sol_SMA + sol_ECC + sol_INC + sol_time
         dof_list.append(sol)
 

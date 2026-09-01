@@ -67,7 +67,9 @@ if __name__ == "__main__":
 
     static_cost = data["cost_static"].tolist()
     integral_cost = -np.array(data["cost_integral"].tolist())
-    total_cost = data["cost_total"].tolist()
+    # integral_cost_correction = integral_cost - np.array(time_offset)
+    total_cost = list(np.array(data["cost_total"]) - np.array(time_offset))
+    total_cost_base = list(np.array(data["cost_total"]))
 
     ratio = np.zeros(len(static_cost))
 
@@ -86,7 +88,7 @@ if __name__ == "__main__":
         else:
             ratio[i] = integral_cost[i] / (total_cost[i])
 
-    sample_time = np.linspace(-300 * 24 * 3600, 0, 500)
+    sample_time = np.linspace(-30 * 24 * 3600, 0, 500)
 
     # Plot the solution space
 

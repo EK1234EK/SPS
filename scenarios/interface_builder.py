@@ -72,7 +72,7 @@ def interface():
     force_model = sd_1.inertial_force_model(path="./../data/Moon.xlsx")
     force_model.define_central_attractor(mass=earth_mass, position=[0, 0, 0])
     force_model.central_attractor_gravity_law = src.astrodynamic_functions.kepler_dynamics.J_X_acceleration_tilted_to_ecliptic
-    srp_model = SRP.Solar_pressure(sail_model="ACS3", central_attractor_mass=solar_mass, sigma=0.04)
+    srp_model = SRP.Solar_pressure(sail_model="ACS3", central_attractor_mass=solar_mass, sigma=0.07)
     srp_model.radiation_location = [149000000000, 0, 0]
     srp_model.sail_control = [0, 0]
     force_model.solar_pressure = srp_model
@@ -187,6 +187,9 @@ def interface():
     }
 
     data_sets = {
+        "All_grid_1": all_grid_1,
+        "All_grid_2": all_grid_2,
+        "All_grid_3": all_grid_3,
         "All_grid_4": all_grid_4,
         "All_grid_5": all_grid_5,
         "All_grid_6": all_grid_6

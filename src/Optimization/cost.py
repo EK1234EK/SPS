@@ -51,7 +51,7 @@ def get_initial_states(intercept_parameters, itf_data):
 
 
 
-def cost_function(dof_vec):
+def cost_function(dof_vec, plot_solution=False):
     # Notes for Lagrange setup:
     mu_star = 236530592967627.8
 
@@ -60,17 +60,19 @@ def cost_function(dof_vec):
     SMA_track = list(np.array(dof_vec[0:10]) * normalization_factors["SMA"])
     ECC_track = list(np.array(dof_vec[10:20]) * normalization_factors["ECC"])
     INC_track = list(np.array(dof_vec[20:30]) * normalization_factors["INC"])
-    t_offset = dof_vec[-1] * 28*3600
+    t_offset = dof_vec[-1] * normalization_factors["time_offset"]
     # t_prop = dof_vec[15] * normalization_factors["t_prop"]
 
-    t_start = 0
-    t_end = -300 * 24 * 3600
-    integration_points = list(np.linspace(t_start, t_end, 5000))
+    t_start = normalization_factors["time_offset"]
+    t_end = -30 * 24 * 3600
+    integration_points = list(np.linspace(t_start, t_end, round(5000 * (t_start - t_end) / (-t_end))))
     earth_mass = 5.9722e24
     solar_mass = 1.989 * 10 ** 30
 
     # L1_state_vector = [306770476.4024763, 316770.58199267735, 0.0, -0.8958042029688121, 895.8039043673915, 81.62614187080287]
+
     itf_data = pd.read_csv("./scenarios/Legacy/Interface_sigma_04_full.csv")
+
     itf = Interface.Interface(discrete_interface=itf_data, interface_space=["SMA", "ECC", "INC", "t_s"], target_dimension="t_s")
 
     force_model = R4BP_inertial.R4BP_force_model(path="./data/R4BP_no_sync_circular.xlsx")
@@ -82,14 +84,12 @@ def cost_function(dof_vec):
     guidance_law.setup_continuouos_targeting(collocation_points={"SMA": SMA_track,
                                                                  "ECC": ECC_track,
                                                                  "INC": INC_track,
-                                                                 "t": np.linspace(t_end, t_start, 10)})
+                                                                 "t": np.linspace(t_end, 0, len(SMA_track))})
 
     guidance_law.conversion_mass = earth_mass
-    # guidance_law.gains = {"acc": 0.0001}
     guidance_law.guidance_function = guidance_law.guidance_3_optic
     guidance_law.integration_direction = -1
     force_model.guidance = guidance_law
-    # force_model.guidance.terminator = events.kill_integrator_interface_convex
 
     Eclipse_interface = src.system_dynamics.eclipse.eclipse_model(eclipse_bodies={"central_attractor": 6378000}, force_model=force_model)
     force_model.guidance.eclipse_model = Eclipse_interface
@@ -99,15 +99,6 @@ def cost_function(dof_vec):
     srp_model.sail_control = [0, 0]
 
     force_model.solar_pressure = srp_model
-
-    # Params:
-    L1_bary = 318497940.4568403
-    inc = [0.09086956096922796]
-    RAAN_list = [0.001]
-    # a = np.linspace(-21500000, -21300000, 100)
-    a = np.linspace(-5000000, 0, 1)
-    a = a + np.ones(len(a)) * L1_bary
-    cutoff_SMA = 20000000
 
     manifolds = [[-6197696.3949212525, -6197696.3949212525, 1],
                  [2638614.7315163864, 2638614.7315163864, 1],
@@ -139,6 +130,29 @@ def cost_function(dof_vec):
 
     sw_1.create_and_integrate_swarm(rtol=1e-5, parproc=False, cores=11)
 
+    if plot_solution:
+        plots = plotting_functions.graph_output(list_of_spacecraft=[],
+                                                list_of_resampled_spacecraft=[],
+                                                list_of_special_spacecraft=sw_1.list_of_spacecraft,
+                                                force_model=force_model,
+                                                axis_visibility=False,
+                                                animated=True)
+
+        plots.trajectory_xyz()
+        plots.parameters_plot(plot_reference_trajectory=True)
+        plots.plot_steering_acceleration()
+        plots.plot_control()
+        plots.plot_drag_acceleration()
+        plots.plot_target_velocity_angles()
+        plots.magnitude_plot()
+        plots.plot_drag_acceleration()
+        # plots.body_distances_plot(body_list=["Moon", "Earth"])
+        plots.C3_plot()
+        plots.moving_map_plot(k_modulo=10, match_tail_color=True, override_limits={"x": [-500000000, 500000000], "y": [-500000000, 500000000], "z": [-500000000, 500000000]})
+        # plots.moving_map_plot(match_tail_color=False)
+        plt.show()
+        plt.waitforbuttonpress(10000000000)
+
     for i, sc in enumerate(sw_1.list_of_spacecraft):
         # Find the point of the trajectory with the lowest total cost, also after propagating past the interface domain
         samples = [[sc.orbital_parameters_track[index][f] for index in range(3)] for f in range(len(integration_points))]
@@ -160,11 +174,15 @@ def cost_function(dof_vec):
             print(key, ": ", ret[key])
             ret_list.append(ret[key])
 
-        write_iteration(dof=list(dof_vec), cost_static=t_interface[min_idx], cost_integral=t_integral[min_idx], cost_total=t_total[min_idx], intercept_params=[sc.orbital_parameters_track[index][min_idx] for index in range(3)], initial_params=ret_list, time=integration_points[argmin(t_total)])
+        # write_iteration(dof=list(dof_vec), cost_static=t_interface[min_idx], cost_integral=t_integral[min_idx], cost_total=t_total[min_idx], intercept_params=[sc.orbital_parameters_track[index][min_idx] for index in range(3)], initial_params=ret_list, time=integration_points[argmin(t_total)])
 
         return min(t_total) * 10**(-7)
     pass
 
 if __name__ == "__main__":
-    tof = cost_function()
+    SMA = [0.44009458, 0.68999098, 0.11857956, 0.14648585, 0.94829894, 0.66602284, 0.49277852, 0.53307753, 0.18328096, 0.62241777]
+    ECC = [0.22654902, 0.56240003, 0.37091885, 0.68636426, 0.82615283, 0.3465491, 0.45132474, 0.70372842, 0.5082826, 0.25131128]
+    INC = [0.99422308, 0.36819597, 0.7195283,  0.92318458, 0.953914, 0.62319311, 0.77797232, 0.64233334, 0.36426403, 1.22285744]
+    dof = SMA + ECC + INC + [-58255.56359642568]
+    tof = cost_function(dof)
     print(tof)
