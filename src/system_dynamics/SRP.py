@@ -172,7 +172,7 @@ if __name__ == "__main__":
 
     def cartesian_surface_plots():
 
-        SRP = Solar_pressure(sail_model="ACS3", central_attractor_mass=1.989 * 10 ** 30, sigma=0.044)
+        SRP = Solar_pressure(sail_model="ACS3", central_attractor_mass=1.989 * 10 ** 30, sigma=0.02)
         state = [149*10**9, 0, 0]
 
         def get_acc(tilt, clock):
@@ -288,7 +288,7 @@ if __name__ == "__main__":
 
         import matplotlib
 
-        SRP = Solar_pressure(sail_model="ACS3", central_attractor_mass=1.989 * 10 ** 30)
+        SRP = Solar_pressure(sail_model="ACS3", central_attractor_mass=1.989 * 10 ** 30, sigma=0.02)
         state = [R_s * 10, R_s * 10, R_s * 10]
 
         def get_acc(tilt, clock):
@@ -336,7 +336,7 @@ if __name__ == "__main__":
 
 
     def curve_eval():
-        SRP = Solar_pressure(sail_model="ACS3", central_attractor_mass=1.989 * 10 ** 30)
+        SRP = Solar_pressure(sail_model="ACS3", central_attractor_mass=1.989 * 10 ** 30, sigma=0.02)
         state = [R_s * 10, 0, 0]
 
         def get_acc(tilt, clock):
@@ -377,5 +377,44 @@ if __name__ == "__main__":
         ax_2.grid()
         plt.show()
 
+    def alpha_sweep():
 
-    cartesian_surface_plots()
+        state = [149000000000, 0, 0]
+
+        SRP_optic = Solar_pressure(sail_model="ACS3", central_attractor_mass=1.989 * 10 ** 30, sigma=0.02)
+        SRP_ideal = Solar_pressure(sail_model="ideal", central_attractor_mass=1.989 * 10 ** 30, sigma=0.02)
+
+        def get_acc(tilt, clock, SRP_model):
+            SRP_model.sail_control = [tilt, clock]
+            acc = SRP_model.solar_acceleration(state=state)
+            return acc
+
+        alpha = np.linspace(0, 0.5*math.pi, 100)
+
+        vals_ideal = {"acc_mag": [], "off_center_angle": []}
+        vals_optic = {"acc_mag": [], "off_center_angle": []}
+
+        for a in alpha:
+            acc_ideal = get_acc(tilt=a, clock=0, SRP_model=SRP_ideal)
+            vals_ideal["acc_mag"].append(np.linalg.norm(acc_ideal))
+
+            acc_optic = get_acc(tilt=a, clock=0, SRP_model=SRP_optic)
+            vals_optic["acc_mag"].append(np.linalg.norm(acc_optic))
+
+        max_acc = max(vals_ideal["acc_mag"])
+
+        fig_1 = plt.figure(figsize=(4 * 2, 3.5 * 4 / 3))
+        ax_1 = fig_1.add_subplot(111)
+        ax_1.plot(alpha * 180 / math.pi, np.array(vals_ideal["acc_mag"])/max_acc, color=[1, 0, 1], label="Ideal reflective")
+        ax_1.plot(alpha * 180 / math.pi, np.array(vals_optic["acc_mag"])/max_acc, color=[13/265, 80/265, 89/265], label="ACS3")
+        ax_1.grid(visible=True, which='major', color=[0, 0, 0], linestyle='-')
+        # ax_1.grid(visible=True, which='minor', color=[0.7, 0.7, 0.7], linestyle='--')
+        ax_1.legend()
+        ax_1.set_title("Force magnitude - tilt angle")
+        ax_1.set_xlabel(r"Tilt angle $\alpha$ [°]")
+        ax_1.set_ylabel("Relative force magnitude [-]")
+        plt.minorticks_on()
+        plt.show()
+
+
+    alpha_sweep()
