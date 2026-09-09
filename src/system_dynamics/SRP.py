@@ -377,7 +377,7 @@ if __name__ == "__main__":
         ax_2.grid()
         plt.show()
 
-    def alpha_sweep():
+    def alpha_sweep_mag():
 
         state = [149000000000, 0, 0]
 
@@ -417,4 +417,46 @@ if __name__ == "__main__":
         plt.show()
 
 
-    alpha_sweep()
+    def alpha_sweep_angle():
+        state = [149000000000, 0, 0]
+
+        SRP_optic = Solar_pressure(sail_model="ACS3", central_attractor_mass=1.989 * 10 ** 30, sigma=0.02)
+        SRP_ideal = Solar_pressure(sail_model="ideal", central_attractor_mass=1.989 * 10 ** 30, sigma=0.02)
+
+        def get_acc(tilt, clock, SRP_model):
+            SRP_model.sail_control = [tilt, clock]
+            acc = SRP_model.solar_acceleration(state=state)
+            return acc
+
+        alpha = np.linspace(0, 0.5 * math.pi, 100)
+
+        vals_ideal = {"ang": []}
+        vals_optic = {"ang": []}
+        state = [1, 0, 0]
+        for a in alpha:
+            acc_ideal = get_acc(tilt=a, clock=0, SRP_model=SRP_ideal)
+            print(acc_ideal)
+
+            ang = math.acos(min((np.dot(np.array(state), acc_ideal)) / (np.linalg.norm(acc_ideal)) * np.linalg.norm(np.array(state)), 1))
+
+            vals_ideal["ang"].append(ang)
+
+            acc_optic = get_acc(tilt=a, clock=0, SRP_model=SRP_optic)
+            ang = math.acos(min((np.dot(np.array(state), acc_optic)) / (np.linalg.norm(acc_optic)) * np.linalg.norm(np.array(state)), 1))
+            vals_optic["ang"].append(ang)
+
+        fig_1 = plt.figure(figsize=(4 * 2, 3.5 * 4 / 3))
+        ax_1 = fig_1.add_subplot(111)
+        ax_1.plot(alpha * 180 / math.pi, np.array(vals_ideal["ang"]) * 180 / math.pi, color=[1, 0, 1], label="Ideal reflective")
+        ax_1.plot(alpha * 180 / math.pi, np.array(vals_optic["ang"]) * 180 / math.pi, color=[13 / 265, 80 / 265, 89 / 265], label="ACS3")
+        ax_1.grid(visible=True, which='major', color=[0, 0, 0], linestyle='-')
+        # ax_1.grid(visible=True, which='minor', color=[0.7, 0.7, 0.7], linestyle='--')
+        ax_1.legend()
+        ax_1.set_title("Tilt angle - Force direction")
+        ax_1.set_xlabel(r"Tilt angle $\alpha$ [°]")
+        ax_1.set_ylabel("Force generation angle  " + r"$a-\phi$" + " [°]")
+        plt.minorticks_on()
+        plt.show()
+
+    # alpha_sweep_mag()
+    alpha_sweep_angle()

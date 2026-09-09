@@ -1,6 +1,11 @@
+import copy
+
+import matplotlib.pyplot as plt
 import pandas as pd
 import numpy as np
 import scipy
+from numba.core.ir_utils import transfer_scope
+
 
 class Interface:
     def __init__(self, discrete_interface: pd.DataFrame, interface_space: list, target_dimension: str="t_s"):
@@ -47,7 +52,7 @@ class Interface:
 
     def get_convex_rectangle(self):
         # We just assume that the interface subspace is a hyper-rectangle. This is obviously very wrong,
-        # but I just leave it as a problem for future m
+        # but I just leave it as a problem for future me
         bounds = dict()
         for key in self.discrete_interface.keys():
             bounds[key] = [min(self.discrete_interface[key]), max(self.discrete_interface[key])]
@@ -61,11 +66,70 @@ class Interface:
         self.discrete_interface = new_df
 
 if __name__ == "__main__":
+    import matplotlib as mpl
+    mpl.rcParams['axes3d.mouserotationstyle'] = 'azel'
+
     interface_df = pd.read_csv("../../scenarios/Legacy/Interface_sigma_04.csv")
 
-    transfer_interface = Interface(discrete_interface=interface_df, interface_space=["SMA", "ECC", "INC", "r_init"], target_dimension="r_init")
+    """transfer_interface = Interface(discrete_interface=interface_df, interface_space=["SMA", "ECC", "INC", "r_init"], target_dimension="r_init")
     transfer_interface.filter_interface(bounds={"r_init": (0, 7000000)})
     eval_points = [[187313538.85384998, 0.45943407516754026, 0.17404362669030468]]
 
     interface_vals = transfer_interface.interface_interpolation(eval_points=eval_points, fill_val=69)
-    pass
+    pass"""
+
+    n_samp = 50
+    offset_extend = 0.1
+
+    dof = ["SMA", "ECC", "INC"]
+
+    transfer_interface = Interface(discrete_interface=interface_df, interface_space=dof + ["t_s"], target_dimension="t_s")
+    transfer_interface.filter_interface(bounds={"r_init": (0, 7000000)})
+
+    free_dims = ["SMA", "ECC"]
+    fixed_dims = ["INC"]
+
+    bounds_all = transfer_interface.get_convex_rectangle()
+    bounds = dict()
+    for key in free_dims + fixed_dims:
+        bounds[key] = bounds_all[key]
+
+    offset_1 = (bounds[free_dims[0]][1] - bounds[free_dims[0]][0]) * offset_extend
+    offset_2 = (bounds[free_dims[1]][1] - bounds[free_dims[1]][0]) * offset_extend
+
+    x_samp = np.linspace(bounds[free_dims[0]][0] - offset_1, bounds[free_dims[0]][1] + offset_1, n_samp)
+    y_samp = np.linspace(bounds[free_dims[1]][0] - offset_2, bounds[free_dims[1]][1] + offset_2, n_samp)
+
+    X, Y = np.meshgrid(x_samp, y_samp)
+    sol_matrix = copy.deepcopy(X)
+
+    for ix, x in enumerate(x_samp):
+        for iy, y in enumerate(y_samp):
+
+            eval_point = [_ for _ in range(len(dof))]
+
+            for di, d in enumerate(dof):
+                if d in fixed_dims:
+                    eval_point[di] = bounds[d][0] * 0.5 + bounds[d][1] * 0.5
+
+                if d == free_dims[0]:
+                    eval_point[di] = x
+                elif d == free_dims[1]:
+                    eval_point[di] = y
+            eval_point = [eval_point]
+
+
+            interface_val = transfer_interface.interface_interpolation(eval_points=eval_point, fill_val=100000000)[0]
+            print(interface_val)
+            sol_matrix[ix][iy] = interface_val
+
+    fig_1 = plt.figure()
+    ax_1 = fig_1.add_subplot(121)
+    ax_2 = fig_1.add_subplot(122, projection="3d")
+    # ax_1.imshow(sol_matrix)
+    ax_1.imshow(sol_matrix, cmap="inferno")
+    ax_2.plot_surface(X, Y, sol_matrix, cmap="inferno")
+    ax_2.set_xlabel(free_dims[0])
+    ax_2.set_ylabel(free_dims[1])
+    plt.show()
+

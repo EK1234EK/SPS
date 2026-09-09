@@ -11,6 +11,7 @@ class Sail_parameters:
                 "B_b": 0.67,
                 "e_f": 0.03,
                 "e_b": 0.6
+
             },
                     "NEA_scout":
             {
