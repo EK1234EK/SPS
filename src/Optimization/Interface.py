@@ -6,9 +6,8 @@ import numpy as np
 import scipy
 from numba.core.ir_utils import transfer_scope
 
-
 class Interface:
-    def __init__(self, discrete_interface: pd.DataFrame, interface_space: list, target_dimension: str="t_s"):
+    def __init__(self, discrete_interface: pd.DataFrame, interface_space: list, target_dimension: str = "t_s"):
         self.discrete_interface = discrete_interface
         self.interface_space = interface_space
         self.target_dimension = target_dimension
@@ -35,9 +34,6 @@ class Interface:
 
         self.discrete_interface = new_interface
 
-
-
-
     def interface_interpolation(self, eval_points: list, method="linear", fill_val=0):
         points = []
         values = self.discrete_interface[self.target_dimension].tolist()
@@ -47,7 +43,8 @@ class Interface:
 
         points = list(np.transpose(np.array(points)))
 
-        interp_vals = scipy.interpolate.griddata(points=points, values=values, xi=eval_points, method=method, fill_value=fill_val, rescale=True)
+        interp_vals = scipy.interpolate.griddata(points=points, values=values, xi=eval_points, method=method,
+                                                 fill_value=fill_val, rescale=True)
         return interp_vals
 
     def get_convex_rectangle(self):
@@ -65,71 +62,106 @@ class Interface:
                 new_df[key] = self.discrete_interface[key]
         self.discrete_interface = new_df
 
+class plotter:
+    def __init__(self, sampling):
+        self.sampling = sampling
+        interface_df = pd.read_csv("../../scenarios/Legacy/Interface_sigma_04.csv")
+
+        """transfer_interface = Interface(discrete_interface=interface_df, interface_space=["SMA", "ECC", "INC", "r_init"], target_dimension="r_init")
+        transfer_interface.filter_interface(bounds={"r_init": (0, 7000000)})
+        eval_points = [[187313538.85384998, 0.45943407516754026, 0.17404362669030468]]
+
+        interface_vals = transfer_interface.interface_interpolation(eval_points=eval_points, fill_val=69)
+        pass"""
+
+        n_samp = self.sampling
+        offset_extend = 0.1
+
+        dof = ["SMA", "ECC", "INC"]
+
+        self.transfer_interface = Interface(discrete_interface=interface_df, interface_space=dof + ["t_s"],
+                                            target_dimension="t_s")
+        self.transfer_interface.filter_interface(bounds={"r_init": (0, 7000000)})
+
+        self.free_dims = ["SMA", "ECC"]
+        self.fixed_dims = ["INC"]
+
+        bounds_all = self.transfer_interface.get_convex_rectangle()
+        bounds = dict()
+        for key in self.free_dims + self.fixed_dims:
+            bounds[key] = bounds_all[key]
+
+        offset_1 = (bounds[self.free_dims[0]][1] - bounds[self.free_dims[0]][0]) * offset_extend
+        offset_2 = (bounds[self.free_dims[1]][1] - bounds[self.free_dims[1]][0]) * offset_extend
+
+        x_samp = np.linspace(bounds[self.free_dims[0]][0] - offset_1, bounds[self.free_dims[0]][1] + offset_1,
+                             n_samp)
+        y_samp = np.linspace(bounds[self.free_dims[1]][0] - offset_2, bounds[self.free_dims[1]][1] + offset_2,
+                             n_samp)
+
+        self.X, self.Y = np.meshgrid(x_samp, y_samp)
+        self.sol_matrix = copy.deepcopy(self.X)
+        self.list_of_eval_points = []
+        self.list_x = []
+        self.list_y = []
+
+        for ix, x in enumerate(x_samp):
+            for iy, y in enumerate(y_samp):
+
+                eval_point = [_ for _ in range(len(dof))]
+
+                for di, d in enumerate(dof):
+                    if d in self.fixed_dims:
+                        eval_point[di] = bounds[d][0] * 0.5 + bounds[d][1] * 0.5
+
+                    if d == self.free_dims[0]:
+                        eval_point[di] = x
+                    elif d == self.free_dims[1]:
+                        eval_point[di] = y
+                eval_point = [eval_point]
+                self.list_of_eval_points.append(eval_point)
+                self.list_x.append(ix)
+                self.list_y.append(iy)
+
+                # interface_val = transfer_interface.interface_interpolation(eval_points=eval_point, fill_val=100000000)[0]
+                # print(interface_val)
+                # sol_matrix[ix][iy] = interface_val
+
+    def eval_set(self, i):
+        interface_val = self.transfer_interface.interface_interpolation(eval_points=self.list_of_eval_points[i],
+                                                                        fill_val=100000000)[0]
+        print(interface_val)
+        idx = self.list_x[i]
+        idy = self.list_y[i]
+        # sol_matrix[idx][idy] = interface_val
+        return (interface_val, idx, idy)
+
+    def run_parallel(self):
+        lst_val = Pool.map(self.eval_set, range(len(self.list_of_eval_points)))
+        return lst_val
+
 if __name__ == "__main__":
+    import multiprocessing
+
+    Pool = multiprocessing.Pool(6)
     import matplotlib as mpl
+
     mpl.rcParams['axes3d.mouserotationstyle'] = 'azel'
 
-    interface_df = pd.read_csv("../../scenarios/Legacy/Interface_sigma_04.csv")
+    sampling = 30
+    sol_matrix = np.zeros([sampling, sampling])
 
-    """transfer_interface = Interface(discrete_interface=interface_df, interface_space=["SMA", "ECC", "INC", "r_init"], target_dimension="r_init")
-    transfer_interface.filter_interface(bounds={"r_init": (0, 7000000)})
-    eval_points = [[187313538.85384998, 0.45943407516754026, 0.17404362669030468]]
-
-    interface_vals = transfer_interface.interface_interpolation(eval_points=eval_points, fill_val=69)
-    pass"""
-
-    n_samp = 50
-    offset_extend = 0.1
-
-    dof = ["SMA", "ECC", "INC"]
-
-    transfer_interface = Interface(discrete_interface=interface_df, interface_space=dof + ["t_s"], target_dimension="t_s")
-    transfer_interface.filter_interface(bounds={"r_init": (0, 7000000)})
-
-    free_dims = ["SMA", "ECC"]
-    fixed_dims = ["INC"]
-
-    bounds_all = transfer_interface.get_convex_rectangle()
-    bounds = dict()
-    for key in free_dims + fixed_dims:
-        bounds[key] = bounds_all[key]
-
-    offset_1 = (bounds[free_dims[0]][1] - bounds[free_dims[0]][0]) * offset_extend
-    offset_2 = (bounds[free_dims[1]][1] - bounds[free_dims[1]][0]) * offset_extend
-
-    x_samp = np.linspace(bounds[free_dims[0]][0] - offset_1, bounds[free_dims[0]][1] + offset_1, n_samp)
-    y_samp = np.linspace(bounds[free_dims[1]][0] - offset_2, bounds[free_dims[1]][1] + offset_2, n_samp)
-
-    X, Y = np.meshgrid(x_samp, y_samp)
-    sol_matrix = copy.deepcopy(X)
-
-    for ix, x in enumerate(x_samp):
-        for iy, y in enumerate(y_samp):
-
-            eval_point = [_ for _ in range(len(dof))]
-
-            for di, d in enumerate(dof):
-                if d in fixed_dims:
-                    eval_point[di] = bounds[d][0] * 0.5 + bounds[d][1] * 0.5
-
-                if d == free_dims[0]:
-                    eval_point[di] = x
-                elif d == free_dims[1]:
-                    eval_point[di] = y
-            eval_point = [eval_point]
-
-
-            interface_val = transfer_interface.interface_interpolation(eval_points=eval_point, fill_val=100000000)[0]
-            print(interface_val)
-            sol_matrix[ix][iy] = interface_val
+    plotter_class = plotter(sampling=sampling)
+    lst_vals = plotter_class.run_parallel()
+    for val in lst_vals:
+        sol_matrix[val[1]][val[2]] = val[0]
 
     fig_1 = plt.figure()
     ax_1 = fig_1.add_subplot(121)
     ax_2 = fig_1.add_subplot(122, projection="3d")
     # ax_1.imshow(sol_matrix)
-    ax_1.imshow(sol_matrix, cmap="inferno")
-    ax_2.plot_surface(X, Y, sol_matrix, cmap="inferno")
-    ax_2.set_xlabel(free_dims[0])
-    ax_2.set_ylabel(free_dims[1])
+    ax_1.imshow(sol_matrix, cmap="jet")
+    ax_2.plot_surface(plotter_class.X, plotter_class.Y, sol_matrix, cmap="jet")
+    ax_2.set_xlabel(plotter_class.free_dims[0])
+    ax_2.set_ylabel(plotter_class.free_dims[1])
     plt.show()
-
