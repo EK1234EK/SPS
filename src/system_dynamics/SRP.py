@@ -458,5 +458,72 @@ if __name__ == "__main__":
         plt.minorticks_on()
         plt.show()
 
+    def envelope_2d():
+        state = [149000000000, 0, 0]
+
+        SRP_optic = Solar_pressure(sail_model="ACS3", central_attractor_mass=1.989 * 10 ** 30, sigma=0.02)
+        SRP_ideal = Solar_pressure(sail_model="ideal", central_attractor_mass=1.989 * 10 ** 30, sigma=0.02)
+
+        def get_acc(tilt, clock, SRP_model):
+            SRP_model.sail_control = [tilt, clock]
+            acc = SRP_model.solar_acceleration(state=state)
+            return acc  # x, z
+
+        alpha = np.linspace(0.499*math.pi, 0.5 * math.pi, 100)
+
+        vals_ideal = {"ang": [], "z": [], "x": []}
+        vals_optic = {"ang": [], "z": [], "x": []}
+        state = [1, 0, 0]
+
+        for a in alpha:
+            acc_ideal = get_acc(tilt=a, clock=0, SRP_model=SRP_ideal)
+            print(acc_ideal)
+
+            ang = math.acos(min((np.dot(np.array(state), acc_ideal)) / (np.linalg.norm(acc_ideal)) * np.linalg.norm(np.array(state)), 1))
+            ang *= 180 / math.pi
+
+            vals_ideal["ang"].append(ang)
+            vals_ideal["z"].append(abs(acc_ideal[2])*10**-19)
+            vals_ideal["x"].append(abs(acc_ideal[0])*10**-19)
+
+            acc_optic = get_acc(tilt=a, clock=0, SRP_model=SRP_optic)
+            ang = math.acos(min((np.dot(np.array(state), acc_optic)) / (np.linalg.norm(acc_optic)) * np.linalg.norm(np.array(state)), 1))
+            ang*= 180 / math.pi
+
+            vals_optic["ang"].append(ang)
+            vals_optic["z"].append(abs(acc_optic[2])*10**-19)
+            vals_optic["x"].append(abs(acc_optic[0])*10**-19)
+
+        vals_ideal["z"] = np.array(vals_ideal["z"]) / max(vals_ideal["x"])
+        vals_optic["z"] = np.array(vals_optic["z"]) / max(vals_ideal["x"])
+
+        vals_ideal["x"] = np.array(vals_ideal["x"]) / max(vals_ideal["x"])
+        vals_optic["x"] = np.array(vals_optic["x"]) / max(vals_ideal["x"])
+
+        fig_1 = plt.figure()
+        fig_2 = plt.figure()
+        ax_1 = fig_1.add_subplot(111, projection="polar")
+        ax_2 = fig_2.add_subplot(111, projection="polar")
+
+        ax_1.plot(alpha, vals_ideal["ang"], color=[1, 0, 1], label="Ideal reflective")
+        ax_1.plot(alpha, vals_optic["ang"], color=[13 / 265, 80 / 265, 89 / 265], label="ACS3")
+
+        ax_2.plot(alpha, vals_ideal["z"], color=[1, 0, 1], label="Ideal, lateral")
+        ax_2.plot(alpha, vals_optic["z"], color=[13 / 265, 80 / 265, 89 / 265], label="ACS3, lateral")
+
+        ax_2.plot(alpha, vals_ideal["x"], color=[1, 0, 1], label="Ideal, axial", linestyle="dashed")
+        ax_2.plot(alpha, vals_optic["x"], color=[13 / 265, 80 / 265, 89 / 265], label="ACS3, axial", linestyle="dashed")
+
+        ax_1.set_title("Force angle")
+        ax_2.set_title("Force direction")
+
+        lgd_1 = ax_1.legend()
+        lgd_2 = ax_2.legend()
+
+        lgd_1.set_draggable(True)
+        lgd_2.set_draggable(True)
+
+        plt.show()
+
     # alpha_sweep_mag()
-    alpha_sweep_angle()
+    envelope_2d()

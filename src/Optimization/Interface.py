@@ -83,8 +83,8 @@ class plotter:
                                             target_dimension="t_s")
         self.transfer_interface.filter_interface(bounds={"r_init": (0, 7000000)})
 
-        self.free_dims = ["SMA", "ECC"]
-        self.fixed_dims = ["INC"]
+        self.free_dims = ["SMA", "INC"]
+        self.fixed_dims = ["ECC"]
 
         bounds_all = self.transfer_interface.get_convex_rectangle()
         bounds = dict()
@@ -129,8 +129,8 @@ class plotter:
 
     def eval_set(self, i):
         interface_val = self.transfer_interface.interface_interpolation(eval_points=self.list_of_eval_points[i],
-                                                                        fill_val=100000000)[0]
-        print(interface_val)
+                                                                        fill_val=0)[0]
+        # print(interface_val)
         idx = self.list_x[i]
         idy = self.list_y[i]
         # sol_matrix[idx][idy] = interface_val
@@ -143,18 +143,21 @@ class plotter:
 if __name__ == "__main__":
     import multiprocessing
 
-    Pool = multiprocessing.Pool(6)
+    Pool = multiprocessing.Pool(12)
     import matplotlib as mpl
 
     mpl.rcParams['axes3d.mouserotationstyle'] = 'azel'
 
-    sampling = 30
+    sampling = 300
     sol_matrix = np.zeros([sampling, sampling])
 
     plotter_class = plotter(sampling=sampling)
     lst_vals = plotter_class.run_parallel()
     for val in lst_vals:
-        sol_matrix[val[1]][val[2]] = val[0]
+        if val[0] != 0:
+            sol_matrix[val[1]][val[2]] = val[0]
+        else:
+            sol_matrix[val[1]][val[2]] = None
 
     fig_1 = plt.figure()
     ax_1 = fig_1.add_subplot(121)
